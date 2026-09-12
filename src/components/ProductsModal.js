@@ -38,8 +38,6 @@ export default class BirthdayModal extends Component {
   }
 
   renderProductItem(item) {
-
-
     return item.stock > 0 && !this.alreadyInCart(item) ? (
       <TouchableOpacity
         onPress={() => this.props.onSelectProduct(item)}
@@ -60,12 +58,15 @@ export default class BirthdayModal extends Component {
               style={{
                 fontSize: 20,
                 fontWeight: 'bold',
-                marginBottom: 6,
+                marginBottom: 2,
                 flex: 1,
                 marginRight: 10,
               }}
             >
-              {item.nombre}
+              {item.nombre} {item.tamano}
+            </Text>
+            <Text style={{ fontSize: 13, color: '#7A7C80', fontStyle: 'italic' }}>
+              {item.marca}
             </Text>
           </View>
           <Text
@@ -78,18 +79,23 @@ export default class BirthdayModal extends Component {
               marginBottom: item.nombre.length >= 18 ? 20 : 0,
             }}
           >
-            Stock: ${item.stock}
+            Stock: {item.stock}
           </Text>
         </View>
-        <Text style={{ fontSize: 16, color: '#7A7C80' }}>${item.precio}</Text>
+        <Text style={{ fontSize: 16, color: '#7A7C80', marginTop: 6 }}>
+          ${item.precio}
+        </Text>
       </TouchableOpacity>
     ) : null;
   }
 
   filterProducts(text) {
     const search = text.toLowerCase();
-    const filtered = this.props.listProducts.filter(p =>
-      p.nombre.toLowerCase().includes(search),
+    const filtered = this.props.listProducts.filter(
+      p =>
+        p.nombre.toLowerCase().includes(search) ||
+        p.marca.toLowerCase().includes(search) ||
+        p.tamano.toLowerCase().includes(search),
     );
 
     this.setState({
@@ -99,7 +105,10 @@ export default class BirthdayModal extends Component {
   }
 
   alreadyInCart(product) {
-    return this.props.cartProducts.some(p => p.nombre === product.nombre);
+    // Cada presentación (tamaño) tiene un id compuesto único
+    // (productId::presentacionId), así que comparar por id ya distingue
+    // correctamente, por ejemplo, entre Coca-Cola 3L y Coca-Cola 600ml.
+    return this.props.cartProducts.some(p => p.id === product.id);
   }
 
   render() {

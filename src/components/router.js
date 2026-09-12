@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Main from './Main';
 import Inventory from './Inventory'; // asegúrate de tener esto
+import { StoreProvider } from '../context/StoreContext';
 
 const Tab = createBottomTabNavigator();
 const MainViews = createNativeStackNavigator();
@@ -44,7 +45,7 @@ function AppTabs() {
         component={MainStack}
         options={{
           headerShown: false,
-          tabBarLabel: "Perfil",
+          tabBarLabel: "Ventas",
           tabBarLabelStyle: { fontSize: 16, color: 'black', fontWeight: 'bold', marginBottom: 10 },
         }}
       />
@@ -64,10 +65,12 @@ function AppTabs() {
 
 export default function Navigator() {
   return (
-    <NavigationContainer>
-      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-      <AppTabs />
-      </SafeAreaView>
-    </NavigationContainer>
+    <StoreProvider>
+      <NavigationContainer>
+        <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+        <AppTabs />
+        </SafeAreaView>
+      </NavigationContainer>
+    </StoreProvider>
   );
 }

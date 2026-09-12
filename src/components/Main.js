@@ -2,107 +2,34 @@ import React, { Component } from 'react';
 import {
   View,
   TouchableOpacity,
-  StyleSheet,
   Image,
-  StatusBar,
   Dimensions,
   Text,
   TextInput,
-  Modal,
   FlatList,
   ScrollView,
+  Alert,
 } from 'react-native';
+import { StoreContext } from '../context/StoreContext';
 import ProductsModal from './ProductsModal.js';
 import NumericStepper from './NumericStepper.js';
+
 const _window = Dimensions.get('window');
-const Products = [
-  {
-    nombre: 'Arroz 1kg',
-    precio: 28.5,
-    stock: 4,
-  },
-  {
-    nombre: 'Frijol 1kg',
-    precio: 32.0,
-    stock: 35,
-  },
-  {
-    nombre: 'Azúcar 1kg',
-    precio: 27.0,
-    stock: 50,
-  },
-  {
-    nombre: 'Aceite vegetal 1L',
-    precio: 38.9,
-    stock: 25,
-  },
-  {
-    nombre: 'Huevo (cartón 12 pzas)',
-    precio: 36.0,
-    stock: 15,
-  },
-  {
-    nombre: 'Tortillas 1kg',
-    precio: 22.0,
-    stock: 60,
-  },
-  {
-    nombre: 'Leche entera 1L',
-    precio: 24.5,
-    stock: 30,
-  },
-  {
-    nombre: 'Pan blanco',
-    precio: 34.0,
-    stock: 20,
-  },
-  {
-    nombre: 'Café soluble 100g',
-    precio: 45.0,
-    stock: 12,
-  },
-  {
-    nombre: 'Agua embotellada 1.5L',
-    precio: 15.0,
-    stock: 70,
-  },
-  {
-    nombre: 'Refresco 2L',
-    precio: 28.0,
-    stock: 25,
-  },
-  {
-    nombre: 'Pasta para sopa',
-    precio: 9.0,
-    stock: 100,
-  },
-  {
-    nombre: 'Atún en lata',
-    precio: 18.5,
-    stock: 45,
-  },
-  {
-    nombre: 'Galletas saladas',
-    precio: 12.0,
-    stock: 50,
-  },
-  {
-    nombre: 'Sardina en lata',
-    precio: 16.5,
-    stock: 20,
-  },
-];
+const GREEN_BAR_HEIGHT = 50;
 
 class Main extends Component {
+  static contextType = StoreContext;
+
   constructor(props) {
     super(props);
     this.state = {
       paymentType: 'Contado',
+      clienteNombre: '',
       showProductModal: false,
-      listProducts: Products,
       cartProducts: [],
     };
   }
+
   renderProductItem(item, index) {
     return (
       <View
@@ -117,30 +44,31 @@ class Main extends Component {
         }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <View style={{}}>
+          <View style={{ flex: 1, marginRight: 10 }}>
             <Text
               style={{
                 fontSize: 20,
                 fontWeight: 'bold',
-                flex: 1,
-                marginRight: 10,
               }}
             >
-              {item.nombre}
+              {item.nombre} {item.tamano}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#7A7C80', fontStyle: 'italic' }}>
+              {item.marca}
             </Text>
           </View>
           <TouchableOpacity onPress={() => this.deleteProductFromCart(index)}>
-          <Text
-            style={{
-              fontSize: 12,
-              backgroundColor: 'red',
-              padding: 5,
-              borderRadius: 5,
-              textAlign: 'center',
-            }}
-          >
-            D
-          </Text>
+            <Text
+              style={{
+                fontSize: 12,
+                backgroundColor: 'red',
+                padding: 5,
+                borderRadius: 5,
+                textAlign: 'center',
+              }}
+            >
+              D
+            </Text>
           </TouchableOpacity>
         </View>
         <Text style={{ fontSize: 16, color: '#7A7C80' }}>
@@ -167,7 +95,7 @@ class Main extends Component {
               fontWeight: 'bold',
             }}
           >
-            ${item.totalPrice}
+            ${item.totalPrice.toFixed(2)}
           </Text>
         </View>
       </View>
@@ -175,48 +103,92 @@ class Main extends Component {
   }
 
   addProductToCart(product) {
-    product.numProducts = 1;
-    product.totalPrice = product.precio;
+    // Se clona el producto para no mutar el arreglo del Context; el carrito
+    // solo guarda una "copia de venta" (cantidad/subtotal) de ese producto.
+    const cartItem = {
+      ...product,
+      numProducts: 1,
+      totalPrice: product.precio,
+    };
     this.setState(prevState => ({
-      cartProducts: [...prevState.cartProducts, product],
+      cartProducts: [...prevState.cartProducts, cartItem],
     }));
   }
 
   updateAmountProduct(index, value) {
-    const products = [...this.state.cartProducts]; // copiar array
-    products[index].numProducts = value; // actualizar sólo ese
-    products[index].totalPrice = products[index].precio * value; // actualizar precio total
-    this.setState({ cartProducts: products }); // actualizar estado
+    const products = [...this.state.cartProducts];
+    products[index] = {
+      ...products[index],
+      numProducts: value,
+      totalPrice: products[index].precio * value,
+    };
+    this.setState({ cartProducts: products });
   }
+
   getTotalCart() {
     let total = 0;
     this.state.cartProducts.forEach(product => {
       total += product.totalPrice;
     });
-    return total;
+    return total.toFixed(2);
   }
 
- deleteProductFromCart(index) {
-    const products = [...this.state.cartProducts]; // copiar array
-    products.splice(index, 1); // eliminar sólo ese
-    this.setState({ cartProducts: products }); // actualizar estado
+  deleteProductFromCart(index) {
+    const products = [...this.state.cartProducts];
+    products.splice(index, 1);
+    this.setState({ cartProducts: products });
   }
 
-  updateSctockProduct() {
-    const products = [...this.state.listProducts]; // copiar array
-    const cartProducts = [...this.state.cartProducts]; // copiar array
-    products.map((p, i) => {
-      cartProducts.map((cp, j) => {
-        if (p.nombre === cp.nombre) {
-          p.stock = p.stock - cp.numProducts;
-        }
-      });
-    });
-    this.setState({ listProducts: products }); // actualizar estado
-  }
+  confirmCompleteSale = () => {
+    const { cartProducts, paymentType, clienteNombre } = this.state;
+
+    if (cartProducts.length === 0) {
+      return;
+    }
+
+    if (paymentType === 'Credito' && !clienteNombre.trim()) {
+      Alert.alert(
+        'Falta información',
+        'Ingresa el nombre del cliente para ventas a crédito.',
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Confirmar venta',
+      `Total: $${this.getTotalCart()}\n¿Deseas completar esta venta?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: () => {
+            this.context.decreaseStock(
+              cartProducts.map(p => ({
+                productId: p.productId,
+                presentacionId: p.presentacionId,
+                cantidad: p.numProducts,
+              })),
+            );
+            this.context.addSale({
+              productos: cartProducts,
+              total: parseFloat(this.getTotalCart()),
+              tipoPago: paymentType,
+              cliente: paymentType === 'Credito' ? clienteNombre.trim() : null,
+            });
+            this.setState({
+              cartProducts: [],
+              clienteNombre: '',
+              paymentType: 'Contado',
+            });
+            Alert.alert('Venta completada', 'La venta se registró correctamente.');
+          },
+        },
+      ],
+    );
+  };
 
   render() {
-    const { onMenuPress, onProfilePress } = this.props;
+    const { sellableItems } = this.context;
 
     return (
       <View
@@ -228,13 +200,13 @@ class Main extends Component {
         <View
           style={{
             width: _window.width / 1,
-            height: '5%',
+            height: GREEN_BAR_HEIGHT,
             backgroundColor: 'green',
           }}
         />
         <ProductsModal
           visible={this.state.showProductModal}
-          listProducts={this.state.listProducts}
+          listProducts={sellableItems}
           onCancel={() => this.setState({ showProductModal: false })}
           onSelectProduct={product => {
             this.addProductToCart(product);
@@ -255,21 +227,10 @@ class Main extends Component {
             backgroundColor: '#fff',
           }}
         >
-          {/* Icono de menú */}
-          <TouchableOpacity onPress={onMenuPress}>
-            <Image
-              source={require('../images/chevron-back-outline.png')}
-              style={{ width: 28, height: 28 }}
-            />
-          </TouchableOpacity>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', flex: 1 }}>
+            Nueva Venta
+          </Text>
 
-          {/* Espaciador */}
-
-          <View style={{ flex: 1 }} />
-          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Nueva Venta</Text>
-          <View style={{ flex: 1 }} />
-
-          {/* Icono de perfil */}
           <TouchableOpacity
             onPress={() => this.props.navigation.navigate('perfilView')}
             style={{
@@ -296,7 +257,6 @@ class Main extends Component {
             marginHorizontal: 20,
             paddingHorizontal: 15,
             backgroundColor: '#fff',
-            flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
             elevation: 4,
@@ -307,12 +267,10 @@ class Main extends Component {
           }}
         >
           <View style={{ paddingVertical: 20, width: '100%' }}>
-            {/* Título alineado a la izquierda */}
             <View style={{ alignSelf: 'flex-start' }}>
               <Text style={{ fontSize: 16 }}>Tipo de pago</Text>
             </View>
 
-            {/* Contenedor centrado */}
             <View
               style={{
                 flexDirection: 'row',
@@ -320,7 +278,6 @@ class Main extends Component {
                 marginTop: 15,
               }}
             >
-              {/* View redondeada 1 */}
               <TouchableOpacity
                 onPress={() => this.setState({ paymentType: 'Contado' })}
                 style={{
@@ -337,7 +294,6 @@ class Main extends Component {
                 <Text>Contado</Text>
               </TouchableOpacity>
 
-              {/* View redondeada 2 */}
               <TouchableOpacity
                 onPress={() => this.setState({ paymentType: 'Credito' })}
                 style={{
@@ -380,9 +336,12 @@ class Main extends Component {
                   marginTop: 5,
                   marginBottom: 5,
                   paddingHorizontal: 10,
+                  color: '#000000',
                 }}
                 placeholderTextColor={'black'}
                 placeholder="Ingrese el nombre del cliente"
+                value={this.state.clienteNombre}
+                onChangeText={text => this.setState({ clienteNombre: text })}
               />
             </View>
           ) : null}
@@ -439,7 +398,6 @@ class Main extends Component {
               marginHorizontal: 20,
               paddingHorizontal: 15,
               backgroundColor: '#fff',
-              flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               elevation: 4,
@@ -451,7 +409,6 @@ class Main extends Component {
           >
             {this.state.cartProducts.length === 0 ? (
               <View style={{ paddingVertical: 20, width: '100%' }}>
-                {/* Título alineado a la izquierda */}
                 <View style={{ alignSelf: 'center' }}>
                   <Image
                     source={require('../images/cart.png')}
@@ -476,15 +433,6 @@ class Main extends Component {
                     Toca "Agregar" para Comenzar
                   </Text>
                 </View>
-
-                {/* Contenedor centrado */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    justifyContent: 'center',
-                    marginTop: 15,
-                  }}
-                ></View>
               </View>
             ) : (
               <FlatList
@@ -500,22 +448,17 @@ class Main extends Component {
             )}
           </View>
           {this.state.cartProducts.length > 0 ? (
-            <TouchableOpacity
-              onPress={() => this.setState({ showProductModal: true })}
+            <View
               style={{
                 marginTop: 15,
                 width: '90%',
                 marginHorizontal: 20,
                 paddingHorizontal: 15,
                 backgroundColor: '#0D57FF',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
                 elevation: 4,
                 shadowOpacity: 0.1,
                 shadowOffset: { width: 0, height: 2 },
                 borderRadius: 10,
-                flexDirection: 'column',
                 paddingVertical: 15,
               }}
             >
@@ -525,19 +468,17 @@ class Main extends Component {
                   justifyContent: 'space-between',
                 }}
               >
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 'bold',
-                      flex: 1,
-                      marginRight: 10,
-                      color: '#fff',
-                    }}
-                  >
-                    Total
-                  </Text>
-                </View>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    flex: 1,
+                    marginRight: 10,
+                    color: '#fff',
+                  }}
+                >
+                  Total
+                </Text>
                 <Text
                   style={{
                     fontSize: 20,
@@ -551,19 +492,15 @@ class Main extends Component {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => {
-                  this.updateSctockProduct();
-                  this.setState({ cartProducts: [] });
-                }}
+                onPress={this.confirmCompleteSale}
                 style={{
                   width: '100%',
                   height: 45,
-                  backgroundColor: '#0088ff',
+                  backgroundColor: '#fff',
                   borderRadius: 15,
                   justifyContent: 'center',
                   alignItems: 'center',
                   marginTop: 15,
-                  backgroundColor: '#fff',
                 }}
               >
                 <Text
@@ -577,7 +514,7 @@ class Main extends Component {
                   Completar Venta
                 </Text>
               </TouchableOpacity>
-            </TouchableOpacity>
+            </View>
           ) : null}
         </ScrollView>
       </View>
