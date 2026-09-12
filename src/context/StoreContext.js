@@ -218,7 +218,12 @@ export class StoreProvider extends Component {
         });
       });
     });
-    return items;
+    return items.sort(
+      (a, b) =>
+        a.nombre.localeCompare(b.nombre, 'es') ||
+        a.tamano.localeCompare(b.tamano, 'es') ||
+        a.marca.localeCompare(b.marca, 'es'),
+    );
   };
 
   render() {

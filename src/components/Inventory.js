@@ -80,16 +80,18 @@ class Inventory extends Component {
     const { selectedCategory, searchText } = this.state;
     const search = searchText.trim().toLowerCase();
 
-    return products.filter(product => {
-      const matchesCategory =
-        selectedCategory === 0 ||
-        String(product.categoriaId) === String(selectedCategory);
-      const matchesSearch =
-        !search ||
-        product.nombre.toLowerCase().includes(search) ||
-        product.marca.toLowerCase().includes(search);
-      return matchesCategory && matchesSearch;
-    });
+    return products
+      .filter(product => {
+        const matchesCategory =
+          selectedCategory === 0 ||
+          String(product.categoriaId) === String(selectedCategory);
+        const matchesSearch =
+          !search ||
+          product.nombre.toLowerCase().includes(search) ||
+          product.marca.toLowerCase().includes(search);
+        return matchesCategory && matchesSearch;
+      })
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }
 
   confirmDeletePresentacion(product, presentacion) {
@@ -227,6 +229,7 @@ class Inventory extends Component {
   render() {
     const { categories } = this.context;
     const filteredProducts = this.getFilteredProducts();
+    const lowStockCount = this.getLowStockCount();
 
     return (
       <SafeAreaView style={{ flex: 1 }}>
@@ -373,7 +376,7 @@ class Inventory extends Component {
                     marginTop: 5,
                   }}
                 >
-                  {this.getLowStockCount()} Presentaciones
+                  {lowStockCount + " " + (lowStockCount == 1 ? 'Presentación' : "Presentaciones")}
                 </Text>
               </View>
             </View>
@@ -407,7 +410,7 @@ class Inventory extends Component {
           }}
         >
           <FlatList
-            style={{ paddingBottom: 15 }}
+            style={{ paddingBottom: 20, flexGrow: 0 }}
             horizontal
             showsHorizontalScrollIndicator={false}
             data={categories}
@@ -424,7 +427,7 @@ class Inventory extends Component {
               borderRadius: 15,
               justifyContent: 'center',
               alignItems: 'center',
-              marginTop: 10,
+              marginTop: 0,
             }}
           >
             <Text
