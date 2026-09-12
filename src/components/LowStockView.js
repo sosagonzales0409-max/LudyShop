@@ -182,7 +182,7 @@ export default class LowStockView extends Component {
             }}
           >
             <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>
-              {items.length} {items.length === 1 ? 'presentación' : 'presentaciones'}
+              {items.length} {items.length === 1 ? 'Producto' : 'Productos'}
             </Text>
           </View>
         </View>
@@ -190,7 +190,7 @@ export default class LowStockView extends Component {
         {/* Descripción */}
         <View style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted }}>
-            Presentaciones con menos de {this.threshold} unidades, de la más crítica a la menos crítica.
+            Productos con menos de {this.threshold} unidades, de la más crítica a la menos crítica.
           </Text>
         </View>
 

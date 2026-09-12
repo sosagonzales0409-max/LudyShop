@@ -1,47 +1,46 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { colors, spacing, radius, fontSize } from '../config/theme';
 
-export default function NumericStepper({
-  value,
-  onChange,
-  min = 0,
-  max = 9999,
-}) {
-  function decrease() {
-    if (value > min) onChange(value - 1);
-  }
-
-  function increase() {
-    if (value < max) onChange(value + 1);
-  }
-
+/**
+ * NumericStepper — selector de cantidad con botones − y +.
+ * Migrado al design system: usa tokens de theme en vez de valores hardcoded.
+ */
+export default function NumericStepper({ value, onChange, min = 0, max = 9999 }) {
   return (
     <View
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f2f2f2',
-        borderRadius: 10,
-        height: 45,
+        backgroundColor: colors.background,
+        borderRadius: radius.md,
+        height: 44,
+        overflow: 'hidden',
       }}
     >
-      {/* Botón - */}
+      {/* Botón − */}
       <TouchableOpacity
-        onPress={decrease}
+        onPress={() => { if (value > min) onChange(value - 1); }}
         style={{
-          paddingHorizontal: 15,
-          paddingVertical: 5,
+          width: 44,
+          height: 44,
+          justifyContent: 'center',
+          alignItems: 'center',
         }}
+        hitSlop={4}
       >
-        <Text style={{ fontSize: 25, fontWeight: 'bold' }}>−</Text>
+        <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: value <= min ? colors.textMuted : colors.textPrimary }}>
+          −
+        </Text>
       </TouchableOpacity>
 
-      {/* Número */}
+      {/* Valor */}
       <Text
         style={{
-          fontSize: 20,
+          fontSize: fontSize.itemTitle,
           fontWeight: 'bold',
-          width: 40,
+          color: colors.textPrimary,
+          minWidth: 36,
           textAlign: 'center',
         }}
       >
@@ -50,13 +49,18 @@ export default function NumericStepper({
 
       {/* Botón + */}
       <TouchableOpacity
-        onPress={increase}
+        onPress={() => { if (value < max) onChange(value + 1); }}
         style={{
-          paddingHorizontal: 15,
-          paddingVertical: 5,
+          width: 44,
+          height: 44,
+          justifyContent: 'center',
+          alignItems: 'center',
         }}
+        hitSlop={4}
       >
-        <Text style={{ fontSize: 25, fontWeight: 'bold' }}>+</Text>
+        <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: value >= max ? colors.textMuted : colors.textPrimary }}>
+          +
+        </Text>
       </TouchableOpacity>
     </View>
   );

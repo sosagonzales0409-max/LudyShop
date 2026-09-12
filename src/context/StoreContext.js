@@ -97,13 +97,75 @@ const initialCategories = [
   { id: '5', nombre: 'Bebidas' },
 ];
 
+// Fecha ISO relativa a hoy (para que los chips de antigüedad de CreditosView
+// se vean realistas: Hoy, N días, +N días).
+const diasAtras = dias => {
+  const d = new Date();
+  d.setDate(d.getDate() - dias);
+  d.setHours(10 + dias, 15, 0, 0);
+  return d.toISOString();
+};
+
+/**
+ * Ventas a crédito semilla (solo para probar la vista sin cargarlas a mano).
+ * Cuando exista backend o ventas reales, quitar y volver a sales: [].
+ * Los productId/presentacionId corresponden a initialProducts (necesario para
+ * que "Devolver al inventario" funcione desde ClientDebtDetailView).
+ */
+const initialSales = [
+  {
+    id: 'seed-c1', fecha: diasAtras(0), tipoPago: 'Credito', cliente: 'Tienda La Esquina',
+    total: 354.0, totalAbonado: 100.0,
+    productos: [
+      { productId: '9', presentacionId: '9-1', nombre: 'Agua embotellada', marca: 'Ciel', tamano: '1.5 L', precio: 15.0, numProducts: 10, totalPrice: 150.0 },
+      { productId: '8', presentacionId: '8-1', nombre: 'Pan blanco', marca: 'Bimbo', tamano: 'Chico', precio: 34.0, numProducts: 6, totalPrice: 204.0 },
+    ],
+  },
+  {
+    id: 'seed-c2', fecha: diasAtras(30), tipoPago: 'Credito', cliente: 'Roberto Díaz',
+    total: 128.0, totalAbonado: 0.0,
+    productos: [
+      { productId: '2', presentacionId: '2-1', nombre: 'Frijol', marca: 'La Costeña', tamano: '1 kg', precio: 32.0, numProducts: 4, totalPrice: 128.0 },
+    ],
+  },
+  {
+    id: 'seed-c3', fecha: diasAtras(2), tipoPago: 'Credito', cliente: 'Juan Pérez',
+    total: 81.5, totalAbonado: 30.0,
+    productos: [
+      { productId: '1', presentacionId: '1-1', nombre: 'Arroz', marca: 'Verde Valle', tamano: '1 kg', precio: 28.5, numProducts: 2, totalPrice: 57.0 },
+      { productId: '6', presentacionId: '6-1', nombre: 'Leche entera', marca: 'Lala', tamano: '1 L', precio: 24.5, numProducts: 1, totalPrice: 24.5 },
+    ],
+  },
+  {
+    id: 'seed-c4', fecha: diasAtras(1), tipoPago: 'Credito', cliente: 'Juan Pérez',
+    total: 36.0, totalAbonado: 0.0,
+    productos: [
+      { productId: '7', presentacionId: '7-1', nombre: 'Huevo', marca: 'San Juan', tamano: 'Cartón 12 pzas', precio: 36.0, numProducts: 1, totalPrice: 36.0 },
+    ],
+  },
+  {
+    id: 'seed-c5', fecha: diasAtras(10), tipoPago: 'Credito', cliente: 'María García',
+    total: 225.0, totalAbonado: 225.0,
+    productos: [
+      { productId: '10', presentacionId: '10-1', nombre: 'Coca-Cola', marca: 'Coca-Cola', tamano: '3 L', precio: 45.0, numProducts: 5, totalPrice: 225.0 },
+    ],
+  },
+  {
+    id: 'seed-c6', fecha: diasAtras(3), tipoPago: 'Credito', cliente: 'María García',
+    total: 116.7, totalAbonado: 50.0,
+    productos: [
+      { productId: '4', presentacionId: '4-1', nombre: 'Aceite vegetal', marca: '1-2-3', tamano: '1 L', precio: 38.9, numProducts: 3, totalPrice: 116.7 },
+    ],
+  },
+];
+
 export const StoreContext = createContext(null);
 
 export class StoreProvider extends Component {
   state = {
     products: initialProducts,
     categories: initialCategories,
-    sales: [],
+    sales: initialSales,
   };
 
   // ─── Productos ────────────────────────────────────────────────────────────

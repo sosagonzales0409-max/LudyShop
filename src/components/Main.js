@@ -4,15 +4,14 @@ import {
   TouchableOpacity,
   Dimensions,
   Text,
-  TextInput,
   FlatList,
-  ScrollView,
   Alert,
   Image,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import ProductsModal from './ProductsModal.js';
 import NumericStepper from './NumericStepper.js';
+import ClientNameInput from './ClientNameInput';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 
 const _window = Dimensions.get('window');
@@ -32,54 +31,6 @@ class Main extends Component {
     };
   }
 
-  renderProductItem(item, index) {
-    return (
-      <View
-        style={{
-          paddingVertical: spacing.md,
-          borderBottomColor: colors.border,
-          borderBottomWidth: index === this.state.cartProducts.length - 1 ? 0 : 1,
-        }}
-      >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <View style={{ flex: 1, marginRight: spacing.md }}>
-            <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>
-              {item.nombre} {item.tamano}
-            </Text>
-            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic' }}>
-              {item.marca}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => this.deleteProductFromCart(index)}
-            style={{
-              width: 28, height: 28, borderRadius: radius.sm,
-              backgroundColor: colors.danger,
-              justifyContent: 'center', alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: fontSize.small, color: colors.white, fontWeight: 'bold' }}>D</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs }}>
-          ${item.precio} c/u
-        </Text>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, alignItems: 'center' }}>
-          <NumericStepper
-            value={item.numProducts}
-            onChange={v => this.updateAmountProduct(index, v)}
-            min={1}
-            max={item.stock}
-          />
-          <View style={{ flex: 1 }} />
-          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>
-            ${item.totalPrice.toFixed(2)}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   addProductToCart(product) {
     const cartItem = { ...product, numProducts: 1, totalPrice: product.precio };
     this.setState(prev => ({ cartProducts: [...prev.cartProducts, cartItem] }));
@@ -91,16 +42,14 @@ class Main extends Component {
     this.setState({ cartProducts: products });
   }
 
-  getTotalCart() {
-    let total = 0;
-    this.state.cartProducts.forEach(p => { total += p.totalPrice; });
-    return total.toFixed(2);
-  }
-
   deleteProductFromCart(index) {
     const products = [...this.state.cartProducts];
     products.splice(index, 1);
     this.setState({ cartProducts: products });
+  }
+
+  getTotalCart() {
+    return this.state.cartProducts.reduce((sum, p) => sum + p.totalPrice, 0).toFixed(2);
   }
 
   confirmCompleteSale = () => {
@@ -135,11 +84,109 @@ class Main extends Component {
     );
   };
 
+  // Pie de la FlatList: total + botón confirmar (solo si hay productos)
+  renderListFooter() {
+    if (this.state.cartProducts.length === 0) return null;
+
+    return (
+      <View
+        style={{
+          marginHorizontal: spacing.lg, marginTop: spacing.sm,
+          marginBottom: spacing.xxl, padding: spacing.lg,
+          backgroundColor: colors.primary, borderRadius: radius.md,
+          elevation: 3, shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 },
+        }}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.white }}>
+            Total
+          </Text>
+          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.white }}>
+            ${this.getTotalCart()}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={this.confirmCompleteSale}
+          style={{
+            height: buttonHeight.action, backgroundColor: colors.white,
+            borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center',
+          }}
+        >
+          <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.primary }}>
+            Completar Venta
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  renderCartItem({ item, index }) {
+    return (
+      <View
+        style={{
+          marginHorizontal: spacing.lg,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.lg,
+          backgroundColor: colors.card,
+          // Bordes redondeados solo en el primer y último elemento
+          borderTopLeftRadius: index === 0 ? radius.md : 0,
+          borderTopRightRadius: index === 0 ? radius.md : 0,
+          borderBottomLeftRadius: index === this.state.cartProducts.length - 1 ? radius.md : 0,
+          borderBottomRightRadius: index === this.state.cartProducts.length - 1 ? radius.md : 0,
+          borderBottomWidth: index === this.state.cartProducts.length - 1 ? 0 : 1,
+          borderBottomColor: colors.border,
+          elevation: index === 0 ? 3 : 0,
+          shadowOpacity: index === 0 ? 0.08 : 0,
+          shadowOffset: { width: 0, height: 2 },
+        }}
+      >
+        {/* Nombre + botón eliminar */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View style={{ flex: 1, marginRight: spacing.md }}>
+            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
+              {item.nombre} {item.tamano}
+            </Text>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic' }}>
+              {item.marca}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => this.deleteProductFromCart(index)}
+            style={{
+              width: 32, height: 32, borderRadius: radius.sm,
+              backgroundColor: colors.danger,
+              justifyContent: 'center', alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: fontSize.caption, color: colors.white, fontWeight: 'bold' }}>✕</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Precio unitario + stepper + subtotal */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
+          <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, flex: 1 }}>
+            ${item.precio.toFixed(2)} c/u
+          </Text>
+          <NumericStepper
+            value={item.numProducts}
+            onChange={v => this.updateAmountProduct(index, v)}
+            min={1}
+            max={item.stock}
+          />
+          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, minWidth: 72, textAlign: 'right' }}>
+            ${item.totalPrice.toFixed(2)}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   render() {
     const { sellableItems, clientesConDeudaCount } = this.context;
 
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
+        {/* Barra verde */}
         <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
 
         <ProductsModal
@@ -156,14 +203,10 @@ class Main extends Component {
         {/* ── Header ── */}
         <View
           style={{
-            height: HEADER_HEIGHT,
-            paddingHorizontal: spacing.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.card,
-            elevation: 4,
-            shadowOpacity: 0.1,
-            shadowOffset: { width: 0, height: 2 },
+            height: HEADER_HEIGHT, paddingHorizontal: spacing.lg,
+            flexDirection: 'row', alignItems: 'center',
+            backgroundColor: colors.card, elevation: 4,
+            shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 },
           }}
         >
           <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
@@ -171,20 +214,17 @@ class Main extends Component {
           </Text>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            {/* Botón Créditos — con badge si hay deudas */}
+            {/* Créditos con badge */}
             <TouchableOpacity
               onPress={() => this.props.navigation.navigate('Creditos')}
               hitSlop={8}
-              style={{
-                width: 44, height: 44, borderRadius: radius.sm,
-                justifyContent: 'center', alignItems: 'center',
-              }}
+              style={{ width: 44, height: 44, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}
             >
-              <Text style={{ fontSize: fontSize.label, color: colors.textSecondary }}>💳</Text>
+              <Text style={{ fontSize: fontSize.label }}>💳</Text>
               {clientesConDeudaCount > 0 && (
                 <View
                   style={{
-                    position: 'absolute', top: 0, right: 0,
+                    position: 'absolute', top: 2, right: 2,
                     backgroundColor: colors.danger,
                     borderRadius: 9, minWidth: 18, height: 18,
                     justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
@@ -198,33 +238,30 @@ class Main extends Component {
               )}
             </TouchableOpacity>
 
-            {/* Botón Configuración */}
+            {/* Configuración */}
             <TouchableOpacity
               onPress={() => this.props.navigation.navigate('ConfigView')}
               hitSlop={8}
-              style={{
-                width: 44, height: 44, borderRadius: radius.sm,
-                justifyContent: 'center', alignItems: 'center',
-              }}
+              style={{ width: 44, height: 44, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}
             >
-              <Text style={{ fontSize: fontSize.label, color: colors.textSecondary }}>⚙️</Text>
+              <Text style={{ fontSize: fontSize.label }}>⚙️</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: spacing.lg }}>
-          {/* Tipo de pago */}
+        {/* ── Tipo de pago — fuera del FlatList para que el TextInput no se desmonte ── */}
+        <View style={{ paddingHorizontal: spacing.lg }}>
           <View
             style={{
               marginTop: spacing.lg, padding: spacing.lg,
               backgroundColor: colors.card, borderRadius: radius.md,
-              elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 },
+              elevation: 3, shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 },
             }}
           >
-            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
+            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.md }}>
               Tipo de pago
             </Text>
-            <View style={{ flexDirection: 'row', marginTop: spacing.md }}>
+            <View style={{ flexDirection: 'row' }}>
               {['Contado', 'Credito'].map(tipo => (
                 <TouchableOpacity
                   key={tipo}
@@ -238,7 +275,10 @@ class Main extends Component {
                     justifyContent: 'center', alignItems: 'center',
                   }}
                 >
-                  <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: this.state.paymentType === tipo ? colors.white : colors.textPrimary }}>
+                  <Text style={{
+                    fontSize: fontSize.label, fontWeight: 'bold',
+                    color: this.state.paymentType === tipo ? colors.white : colors.textPrimary,
+                  }}>
                     {tipo === 'Credito' ? 'Crédito' : tipo}
                   </Text>
                 </TouchableOpacity>
@@ -247,18 +287,10 @@ class Main extends Component {
 
             {this.state.paymentType === 'Credito' && (
               <View style={{ marginTop: spacing.lg }}>
-                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
+                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.sm }}>
                   Nombre del cliente
                 </Text>
-                <TextInput
-                  style={{
-                    borderColor: colors.chipInactive, borderWidth: 1,
-                    borderRadius: radius.sm, marginTop: spacing.sm,
-                    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-                    fontSize: fontSize.body, color: colors.textPrimary,
-                  }}
-                  placeholderTextColor={colors.textMuted}
-                  placeholder="Ingresa el nombre del cliente"
+                <ClientNameInput
                   value={this.state.clienteNombre}
                   onChangeText={text => this.setState({ clienteNombre: text })}
                 />
@@ -266,8 +298,8 @@ class Main extends Component {
             )}
           </View>
 
-          {/* Productos */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl }}>
+          {/* Fila: "Productos" + botón Agregar */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.sm }}>
             <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
               Productos
             </Text>
@@ -279,61 +311,43 @@ class Main extends Component {
                 justifyContent: 'center', alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>Agregar</Text>
+              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
+                Agregar
+              </Text>
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Carrito */}
-          <View
-            style={{
-              marginTop: spacing.md, padding: spacing.lg,
-              backgroundColor: colors.card, borderRadius: radius.md,
-              elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 },
-            }}
-          >
-            {this.state.cartProducts.length === 0 ? (
-              <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
-                <Image source={require('../images/cart.png')} style={{ width: 90, height: 90, tintColor: colors.chipInactive }} />
-                <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.md }}>
-                  No hay productos en el carrito
-                </Text>
-                <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.xs }}>
-                  Toca "Agregar" para comenzar
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={this.state.cartProducts}
-                keyExtractor={(item, index) => index.toString()}
-                renderItem={({ item, index }) => this.renderProductItem(item, index)}
-              />
-            )}
-          </View>
-
-          {this.state.cartProducts.length > 0 && (
+        {/* ── Lista del carrito + estado vacío + total ── */}
+        <FlatList
+          data={this.state.cartProducts}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item, index }) => this.renderCartItem({ item, index })}
+          ListEmptyComponent={
             <View
               style={{
-                marginTop: spacing.md, marginBottom: spacing.xl, padding: spacing.lg,
-                backgroundColor: '#0D57FF', borderRadius: radius.md,
-                elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 },
+                marginHorizontal: spacing.lg,
+                backgroundColor: colors.card, borderRadius: radius.md,
+                alignItems: 'center', paddingVertical: spacing.xxl,
+                elevation: 3, shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 },
               }}
             >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.white }}>Total</Text>
-                <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.white }}>${this.getTotalCart()}</Text>
-              </View>
-              <TouchableOpacity
-                onPress={this.confirmCompleteSale}
-                style={{
-                  height: buttonHeight.action, backgroundColor: colors.white,
-                  borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginTop: spacing.lg,
-                }}
-              >
-                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.primary }}>Completar Venta</Text>
-              </TouchableOpacity>
+              <Image
+                source={require('../images/cart.png')}
+                style={{ width: 80, height: 80, tintColor: colors.chipInactive }}
+              />
+              <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.md }}>
+                Carrito vacío
+              </Text>
+              <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.xs }}>
+                Toca "Agregar" para comenzar
+              </Text>
             </View>
-          )}
-        </ScrollView>
+          }
+          ListFooterComponent={() => this.renderListFooter()}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        />
       </View>
     );
   }

@@ -9,7 +9,6 @@ import {
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import PagoModal from './PagoModal';
-import DetalleDeudaModal from './DetalleDeudaModal';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 
 const _window = Dimensions.get('window');
@@ -19,6 +18,8 @@ const GREEN_BAR_HEIGHT = 50;
  * CreditosView — lista de clientes con saldo pendiente.
  * Agrupa las ventas del contexto donde tipoPago === 'Credito',
  * suma el total y resta los abonos registrados.
+ *
+ * Al tocar un cliente navega a ClientDebtDetailView (pantalla completa).
  *
  * Navegación: stack dentro del tab Ventas.
  *   <MainViews.Screen name="Creditos" component={CreditosView} />
@@ -30,10 +31,22 @@ export default class CreditosView extends Component {
     showPagoModal: false,
     clienteSeleccionado: null,
     deudaSeleccionada: 0,
-    detalleCliente: null,
+    orden: 'antiguedad',
   };
 
-  // Agrupa ventas a crédito por cliente y calcula saldo pendiente.
+  // Ordena los clientes según el criterio activo:
+  //   'antiguedad' → deuda más antigua primero (inicio de la deuda), desempate por saldo.
+  //   'saldo'      → mayor deuda primero.
+  ordenarClientes = (a, b) => {
+    if (this.state.orden === 'saldo') {
+      return b.saldo - a.saldo;
+    }
+    if (a.fechaDeuda !== b.fechaDeuda) {
+      return a.fechaDeuda < b.fechaDeuda ? -1 : 1;
+    }
+    return b.saldo - a.saldo;
+  };
+
   getClientesConDeuda() {
     const { sales } = this.context;
     const mapa = {};
@@ -54,19 +67,27 @@ export default class CreditosView extends Component {
         mapa[key].totalDeuda += sale.total;
         mapa[key].totalAbonado += sale.totalAbonado ?? 0;
         mapa[key].ventas.push(sale);
-        // Guardar la fecha más reciente
-        if (sale.fecha > mapa[key].fechaUltima) {
-          mapa[key].fechaUltima = sale.fecha;
-        }
+        if (sale.fecha > mapa[key].fechaUltima) mapa[key].fechaUltima = sale.fecha;
       });
 
     return Object.values(mapa)
-      .map(c => ({ ...c, saldo: c.totalDeuda - c.totalAbonado }))
-      .filter(c => c.saldo > 0.009) // ignorar saldos prácticamente en cero
-      .sort((a, b) => b.saldo - a.saldo); // mayor deuda primero
+      .map(c => {
+        const saldo = c.totalDeuda - c.totalAbonado;
+        // Inicio de la deuda: fecha de la venta pendiente más antigua.
+        // (campo calculado en memoria, no se almacena ni se pide al usuario)
+        const pendientes = c.ventas.filter(
+          v => v.total - (v.totalAbonado ?? 0) > 0.009,
+        );
+        const fechaDeuda =
+          pendientes.length > 0
+            ? pendientes.map(v => v.fecha).sort()[0]
+            : c.fechaUltima;
+        return { ...c, saldo, fechaDeuda };
+      })
+      .filter(c => c.saldo > 0.009)
+      .sort(this.ordenarClientes);
   }
 
-  // Calcula antigüedad en días desde la venta más reciente.
   diasDesde(fechaISO) {
     const diff = Date.now() - new Date(fechaISO).getTime();
     return Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -75,33 +96,8 @@ export default class CreditosView extends Component {
   chipAntiguedad(dias) {
     if (dias === 0) return { label: 'Hoy', bg: colors.success };
     if (dias === 1) return { label: '1 día', bg: colors.success };
-    if (dias <= 3) return { label: `${dias} días`, bg: colors.warning };
     if (dias <= 7) return { label: `${dias} días`, bg: colors.warning };
     return { label: `+${dias} días`, bg: colors.danger };
-  }
-
-  abrirPago(cliente, saldo) {
-    this.setState({
-      showPagoModal: true,
-      clienteSeleccionado: cliente,
-      deudaSeleccionada: saldo,
-    });
-  }
-
-  cerrarPago() {
-    this.setState({
-      showPagoModal: false,
-      clienteSeleccionado: null,
-      deudaSeleccionada: 0,
-    });
-  }
-
-  abrirDetalle(cliente) {
-    this.setState({ detalleCliente: cliente });
-  }
-
-  cerrarDetalle() {
-    this.setState({ detalleCliente: null });
   }
 
   renderCliente(item) {
@@ -121,56 +117,54 @@ export default class CreditosView extends Component {
           shadowOffset: { width: 0, height: 2 },
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={() => this.abrirDetalle(item)}
-            style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-          >
-            {/* Info cliente */}
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
-                {item.cliente}
-              </Text>
-              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs }}>
-                {item.ventas.length} {item.ventas.length === 1 ? 'venta' : 'ventas'} a crédito
-              </Text>
-            </View>
-
-            {/* Badge de antigüedad */}
-            <View
-              style={{
-                backgroundColor: chip.bg,
-                borderRadius: radius.sm,
-                paddingVertical: spacing.xs,
-                paddingHorizontal: spacing.sm,
-                marginRight: spacing.sm,
-              }}
-            >
-              <Text style={{ color: colors.white, fontSize: fontSize.small, fontWeight: 'bold' }}>
-                {chip.label}
-              </Text>
-            </View>
-
-            {/* Saldo */}
-            <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.danger }}>
-              ${item.saldo.toFixed(2)}
+        {/* Fila tocable → detalle */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => this.props.navigation.navigate('ClientDebtDetail', { clienteData: item })}
+          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
+              {item.cliente}
             </Text>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs }}>
+              {item.ventas.length} {item.ventas.length === 1 ? 'venta' : 'ventas'} a crédito
+            </Text>
+          </View>
 
-            <Text style={{ fontSize: fontSize.itemTitle, color: colors.textMuted, marginLeft: spacing.xs }}>›</Text>
-          </TouchableOpacity>
-        </View>
+          <View
+            style={{
+              backgroundColor: chip.bg,
+              borderRadius: radius.sm,
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.sm,
+              marginRight: spacing.sm,
+            }}
+          >
+            <Text style={{ color: colors.white, fontSize: fontSize.small, fontWeight: 'bold' }}>
+              {chip.label}
+            </Text>
+          </View>
+
+          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.danger }}>
+            ${item.saldo.toFixed(2)}
+          </Text>
+          <Text style={{ fontSize: fontSize.itemTitle, color: colors.textMuted, marginLeft: spacing.xs }}>›</Text>
+        </TouchableOpacity>
 
         {/* Botón registrar pago */}
         <TouchableOpacity
-          onPress={() => this.abrirPago(item.cliente, item.saldo)}
+          onPress={() => this.setState({
+            showPagoModal: true,
+            clienteSeleccionado: item.cliente,
+            deudaSeleccionada: item.saldo,
+          })}
           style={{
             height: buttonHeight.action,
             backgroundColor: colors.primary,
             borderRadius: radius.lg,
             justifyContent: 'center',
             alignItems: 'center',
-            marginTop: spacing.md,
           }}
         >
           <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
@@ -187,37 +181,15 @@ export default class CreditosView extends Component {
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* Modal de pago */}
+
         <PagoModal
           visible={this.state.showPagoModal}
           cliente={this.state.clienteSeleccionado}
           deudaTotal={this.state.deudaSeleccionada}
-          onCancel={() => this.cerrarPago()}
+          onCancel={() => this.setState({ showPagoModal: false, clienteSeleccionado: null, deudaSeleccionada: 0 })}
           onSave={(cliente, monto) => {
             this.context.registrarAbono(cliente, monto);
-            this.cerrarPago();
-          }}
-        />
-
-        {/* Detalle de deuda por cliente */}
-        <DetalleDeudaModal
-          visible={this.state.detalleCliente !== null}
-          cliente={this.state.detalleCliente}
-          onClose={() => this.cerrarDetalle()}
-          onAjustarAbono={(saleId, monto) =>
-            this.context.ajustarAbonoVenta(saleId, monto)
-          }
-          onEliminarVenta={(venta, devolverStock) => {
-            if (devolverStock) {
-              this.context.eliminarVenta(venta.id, true);
-            } else {
-              this.context.ajustarAbonoVenta(venta.id, venta.total);
-            }
-            this.cerrarDetalle();
-          }}
-          onRenombrar={(actual, nuevo) => {
-            this.context.renombrarCliente(actual, nuevo);
-            this.cerrarDetalle();
+            this.setState({ showPagoModal: false, clienteSeleccionado: null, deudaSeleccionada: 0 });
           }}
         />
 
@@ -239,7 +211,7 @@ export default class CreditosView extends Component {
         >
           <TouchableOpacity
             onPress={() => this.props.navigation.goBack()}
-            style={{ marginRight: spacing.md }}
+            style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}
           >
             <Text style={{ fontSize: fontSize.heading, color: colors.primary }}>←</Text>
           </TouchableOpacity>
@@ -262,14 +234,42 @@ export default class CreditosView extends Component {
           )}
         </View>
 
-        {/* Descripción */}
         <View style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
-          <Text style={{ fontSize: fontSize.caption, color: colors.textMuted }}>
-            Clientes con saldo pendiente, ordenados de mayor a menor deuda.
+          <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.md }}>
+            {this.state.orden === 'antiguedad'
+              ? 'Clientes con saldo pendiente, de la deuda más antigua a la más reciente.'
+              : 'Clientes con saldo pendiente, ordenados de mayor a menor deuda.'}
           </Text>
+
+          {/* Selector de orden */}
+          <View style={{ flexDirection: 'row' }}>
+            {[
+              { key: 'antiguedad', label: 'Más antiguo' },
+              { key: 'saldo', label: 'Mayor deuda' },
+            ].map(op => (
+              <TouchableOpacity
+                key={op.key}
+                onPress={() => this.setState({ orden: op.key })}
+                style={{
+                  flex: 1,
+                  height: buttonHeight.chip,
+                  backgroundColor: this.state.orden === op.key ? colors.primary : colors.chipInactive,
+                  borderRadius: radius.lg,
+                  marginHorizontal: spacing.xs,
+                  justifyContent: 'center', alignItems: 'center',
+                }}
+              >
+                <Text style={{
+                  fontSize: fontSize.label, fontWeight: 'bold',
+                  color: this.state.orden === op.key ? colors.white : colors.textPrimary,
+                }}>
+                  {op.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
 
-        {/* Lista */}
         <FlatList
           data={clientes}
           keyExtractor={item => item.cliente}
