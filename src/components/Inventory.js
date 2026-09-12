@@ -12,6 +12,9 @@ import {
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import ProductFormModal from './ProductFormModal';
+import EditProductModal from './EditProductModal';
+import AgregarUnidadesModal from './AgregarUnidadesModal';
+import ProductDetailModal from './ProductDetailModal';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
@@ -25,6 +28,14 @@ class Inventory extends Component {
       selectedCategory: 0,
       searchText: '',
       showAddProductModal: false,
+      showEditModal: false,
+      editProduct: null,
+      editPresentacion: null,
+      showAgregarUnidadesModal: false,
+      agregarProduct: null,
+      agregarPresentacion: null,
+      showDetailModal: false,
+      detailProduct: null,
     };
     this.productListRef = React.createRef();
   }
@@ -110,6 +121,30 @@ class Inventory extends Component {
     );
   }
 
+  openEditModal(product, presentacion) {
+    this.setState({
+      showEditModal: true,
+      editProduct: product,
+      editPresentacion: presentacion,
+    });
+  }
+
+  openAgregarUnidadesModal(product, presentacion) {
+    this.setState({
+      showAgregarUnidadesModal: true,
+      agregarProduct: product,
+      agregarPresentacion: presentacion,
+    });
+  }
+
+  openDetailModal(product) {
+    this.setState({ showDetailModal: true, detailProduct: product });
+  }
+
+  closeDetailModal() {
+    this.setState({ showDetailModal: false, detailProduct: null });
+  }
+
   renderCategories(item) {
     return (
       <TouchableOpacity
@@ -142,7 +177,9 @@ class Inventory extends Component {
 
   renderProductItem(product) {
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => this.openDetailModal(product)}
         style={{
           marginTop: 10,
           width: '100%',
@@ -166,9 +203,14 @@ class Inventory extends Component {
           <Text style={{ fontSize: 20, fontWeight: 'bold' }}>
             {product.nombre}
           </Text>
-          <Text style={{ fontSize: 14, color: '#7A7C80', fontStyle: 'italic' }}>
-            {product.marca}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 14, color: '#7A7C80', fontStyle: 'italic' }}>
+              {product.marca}
+            </Text>
+            <Text style={{ fontSize: 18, color: '#bbb', marginLeft: 6 }}>
+              ›
+            </Text>
+          </View>
         </View>
 
         {product.presentaciones.map(pres => (
@@ -203,26 +245,28 @@ class Inventory extends Component {
               >
                 {pres.stock} Unidades
               </Text>
+              {/* Botón agregar unidades (única acción rápida inline) */}
               <TouchableOpacity
-                onPress={() => this.confirmDeletePresentacion(product, pres)}
+                onPress={() => this.openAgregarUnidadesModal(product, pres)}
               >
                 <Text
                   style={{
                     fontSize: 12,
-                    backgroundColor: 'red',
+                    backgroundColor: 'green',
                     color: '#fff',
                     padding: 5,
                     borderRadius: 5,
                     textAlign: 'center',
+                    minWidth: 24,
                   }}
                 >
-                  D
+                  +
                 </Text>
               </TouchableOpacity>
             </View>
           </View>
         ))}
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -233,6 +277,7 @@ class Inventory extends Component {
 
     return (
       <SafeAreaView style={{ flex: 1 }}>
+        {/* Modal: agregar producto */}
         <ProductFormModal
           visible={this.state.showAddProductModal}
           categories={categories}
@@ -250,6 +295,58 @@ class Inventory extends Component {
             }
             this.setState({ showAddProductModal: false });
           }}
+        />
+
+        {/* Modal: editar presentación */}
+        <EditProductModal
+          visible={this.state.showEditModal}
+          product={this.state.editProduct}
+          presentacion={this.state.editPresentacion}
+          onCancel={() =>
+            this.setState({ showEditModal: false, editProduct: null, editPresentacion: null })
+          }
+          onSave={(productId, presentacionId, cambios) => {
+            this.context.updatePresentacion(productId, presentacionId, cambios);
+            this.setState({ showEditModal: false, editProduct: null, editPresentacion: null });
+          }}
+        />
+
+        {/* Modal: agregar unidades */}
+        <AgregarUnidadesModal
+          visible={this.state.showAgregarUnidadesModal}
+          product={this.state.agregarProduct}
+          presentacion={this.state.agregarPresentacion}
+          onCancel={() =>
+            this.setState({
+              showAgregarUnidadesModal: false,
+              agregarProduct: null,
+              agregarPresentacion: null,
+            })
+          }
+          onSave={(productId, presentacionId, cantidad) => {
+            this.context.agregarStock(productId, presentacionId, cantidad);
+            this.setState({
+              showAgregarUnidadesModal: false,
+              agregarProduct: null,
+              agregarPresentacion: null,
+            });
+          }}
+        />
+
+        {/* Modal: detalle de producto (tap en la tarjeta) */}
+        <ProductDetailModal
+          visible={this.state.showDetailModal}
+          product={this.state.detailProduct}
+          onClose={() => this.closeDetailModal()}
+          onAgregarUnidades={(product, presentacion) =>
+            this.openAgregarUnidadesModal(product, presentacion)
+          }
+          onEditar={(product, presentacion) =>
+            this.openEditModal(product, presentacion)
+          }
+          onEliminar={(productId, presentacionId) =>
+            this.context.deletePresentacion(productId, presentacionId)
+          }
         />
 
         {/* Barra verde superior */}
@@ -299,7 +396,7 @@ class Inventory extends Component {
           </TouchableOpacity>
         </View>
 
-        {/* Contenido debajo del inventario */}
+        {/* Tarjetas de resumen */}
         <View
           style={{
             width: '90%',
@@ -309,78 +406,76 @@ class Inventory extends Component {
         >
           <View
             style={{
-              paddingVertical: 5,
-              width: '100%',
+              flexDirection: 'row',
+              justifyContent: 'center',
+              marginTop: 5,
             }}
           >
+            {/* Tarjeta: Valor total */}
             <View
               style={{
-                flexDirection: 'row',
+                width: '45%',
+                backgroundColor: '#0088ff',
+                borderRadius: 15,
+                marginHorizontal: 10,
                 justifyContent: 'center',
-                marginTop: 5,
+                alignItems: 'flex-start',
+                paddingVertical: 10,
+                paddingHorizontal: 10,
               }}
             >
-              {/* Tarjeta 1 */}
-              <View
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+                Valor total
+              </Text>
+              <Text
                 style={{
-                  width: '45%',
-                  backgroundColor: '#0088ff',
-                  borderRadius: 15,
-                  marginHorizontal: 10,
-                  justifyContent: 'center',
-                  alignItems: 'flex-start',
-                  paddingVertical: 10,
-                  paddingHorizontal: 10,
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: 18,
+                  marginTop: 5,
                 }}
               >
-                <Text
-                  style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}
-                >
-                  Valor total
-                </Text>
-                <Text
-                  style={{
-                    color: '#fff',
-                    fontWeight: 'bold',
-                    fontSize: 18,
-                    marginTop: 5,
-                  }}
-                >
-                  ${this.getTotalValue()}
-                </Text>
-              </View>
-
-              {/* Tarjeta 2 */}
-              <View
-                style={{
-                  width: '45%',
-                  backgroundColor: '#FC9E3A',
-                  borderRadius: 15,
-                  marginHorizontal: 10,
-                  justifyContent: 'center',
-                  alignItems: 'flex-start',
-                  paddingVertical: 10,
-                  paddingHorizontal: 10,
-                }}
-              >
-                <Text
-                  style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}
-                >
-                  Stock Bajo
-                </Text>
-                <Text
-                  style={{
-                    color: '#fff',
-                    fontWeight: 'bold',
-                    fontSize: 18,
-                    marginTop: 5,
-                  }}
-                >
-                  {lowStockCount + " " + (lowStockCount == 1 ? 'Presentación' : "Presentaciones")}
-                </Text>
-              </View>
+                ${this.getTotalValue()}
+              </Text>
             </View>
+
+            {/* Tarjeta: Stock bajo — toca para ir a LowStockView */}
+            <TouchableOpacity
+              onPress={() => this.props.navigation.navigate('LowStock')}
+              style={{
+                width: '45%',
+                backgroundColor: '#FC9E3A',
+                borderRadius: 15,
+                marginHorizontal: 10,
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+                paddingVertical: 10,
+                paddingHorizontal: 10,
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+                Stock Bajo
+              </Text>
+              <Text
+                style={{
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: 18,
+                  marginTop: 5,
+                }}
+              >
+                {lowStockCount +
+                  ' ' +
+                  (lowStockCount === 1 ? 'Presentación' : 'Presentaciones')}
+              </Text>
+              {lowStockCount > 0 && (
+                <Text style={{ color: '#fff', fontSize: 11, marginTop: 2, opacity: 0.85 }}>
+                  Toca para ver detalle →
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
+
           <TextInput
             style={{
               fontFamily: 'AvenirNext-DemiBold',
@@ -401,6 +496,7 @@ class Inventory extends Component {
             onChangeText={text => this.updateSearchText(text)}
           />
         </View>
+
         <View
           style={{
             width: '86%',

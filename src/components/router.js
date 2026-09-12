@@ -5,7 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Main from './Main';
-import Inventory from './Inventory'; // asegúrate de tener esto
+import Inventory from './Inventory';
+import LowStockView from './LowStockView';
 import { StoreProvider } from '../context/StoreContext';
 
 const Tab = createBottomTabNavigator();
@@ -24,6 +25,7 @@ function InventoryStack() {
   return (
     <InventoryViews.Navigator screenOptions={{ headerShown: false }}>
       <InventoryViews.Screen name="Inventory" component={Inventory} />
+      <InventoryViews.Screen name="LowStock" component={LowStockView} />
     </InventoryViews.Navigator>
   );
 }
@@ -37,7 +39,7 @@ function AppTabs() {
           height: 70,
           display: 'flex',
         },
-        tabBarActiveBackgroundColor: '#CDFEF9'
+        tabBarActiveBackgroundColor: '#CDFEF9',
       }}
     >
       <Tab.Screen
@@ -45,8 +47,13 @@ function AppTabs() {
         component={MainStack}
         options={{
           headerShown: false,
-          tabBarLabel: "Ventas",
-          tabBarLabelStyle: { fontSize: 16, color: 'black', fontWeight: 'bold', marginBottom: 10 },
+          tabBarLabel: 'Ventas',
+          tabBarLabelStyle: {
+            fontSize: 16,
+            color: 'black',
+            fontWeight: 'bold',
+            marginBottom: 10,
+          },
         }}
       />
 
@@ -55,8 +62,13 @@ function AppTabs() {
         component={InventoryStack}
         options={{
           headerShown: false,
-          tabBarLabel: "Inventario",
-          tabBarLabelStyle: { fontSize: 16, color: 'black', fontWeight: 'bold', marginBottom: 10 },
+          tabBarLabel: 'Inventario',
+          tabBarLabelStyle: {
+            fontSize: 16,
+            color: 'black',
+            fontWeight: 'bold',
+            marginBottom: 10,
+          },
         }}
       />
     </Tab.Navigator>
@@ -68,7 +80,7 @@ export default function Navigator() {
     <StoreProvider>
       <NavigationContainer>
         <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-        <AppTabs />
+          <AppTabs />
         </SafeAreaView>
       </NavigationContainer>
     </StoreProvider>

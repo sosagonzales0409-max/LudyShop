@@ -10,7 +10,7 @@ import React, { createContext, Component } from 'react';
  * Cuando se conecte la base de datos, esto se reemplaza por:
  *  - un fetch inicial en componentDidMount (en vez de este arreglo fijo)
  *  - llamadas a la API dentro de addProduct/addPresentacion/deletePresentacion/
- *    decreaseStock/addSale (en vez de solo hacer setState local)
+ *    decreaseStock/addSale/updatePresentacion/agregarStock (en vez de solo hacer setState local)
  *
  * Inventory.js y Main.js NO deberían cambiar cuando eso pase: siguen
  * leyendo/escribiendo a través de este mismo Context.
@@ -149,6 +149,44 @@ export class StoreProvider extends Component {
     }));
   };
 
+  // Edita precio, stock y/o tamaño de una presentación existente.
+  // TODO(backend): reemplazar por PATCH /products/:productId/presentaciones/:presentacionId
+  updatePresentacion = (productId, presentacionId, cambios) => {
+    this.setState(prevState => ({
+      products: prevState.products.map(p =>
+        p.id === productId
+          ? {
+              ...p,
+              presentaciones: p.presentaciones.map(pres =>
+                pres.id === presentacionId
+                  ? { ...pres, ...cambios }
+                  : pres,
+              ),
+            }
+          : p,
+      ),
+    }));
+  };
+
+  // Suma unidades a una presentación existente (entrada de mercancía).
+  // TODO(backend): reemplazar por PATCH /products/:productId/presentaciones/:presentacionId/stock
+  agregarStock = (productId, presentacionId, cantidad) => {
+    this.setState(prevState => ({
+      products: prevState.products.map(p =>
+        p.id === productId
+          ? {
+              ...p,
+              presentaciones: p.presentaciones.map(pres =>
+                pres.id === presentacionId
+                  ? { ...pres, stock: pres.stock + cantidad }
+                  : pres,
+              ),
+            }
+          : p,
+      ),
+    }));
+  };
+
   // Elimina una presentación puntual; si era la última del producto,
   // el producto completo desaparece del inventario.
   // TODO(backend): reemplazar por DELETE /products/:productId/presentaciones/:presentacionId
@@ -236,6 +274,8 @@ export class StoreProvider extends Component {
           sellableItems: this.getSellableItems(),
           addProduct: this.addProduct,
           addPresentacion: this.addPresentacion,
+          updatePresentacion: this.updatePresentacion,
+          agregarStock: this.agregarStock,
           deletePresentacion: this.deletePresentacion,
           decreaseStock: this.decreaseStock,
           addSale: this.addSale,
