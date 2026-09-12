@@ -3,17 +3,9 @@ import React, { createContext, Component } from 'react';
 /**
  * Datos "semilla" (hardcoded) mientras no existe backend.
  *
- * Modelo: un producto (nombre + marca + categoría) puede tener varias
- * "presentaciones" (tamaños), cada una con su propio precio y stock.
- * Ej: Arroz (Verde Valle) -> presentaciones: "1 kg", "1/2 kg".
- *
- * Cuando se conecte la base de datos, esto se reemplaza por:
- *  - un fetch inicial en componentDidMount (en vez de este arreglo fijo)
- *  - llamadas a la API dentro de addProduct/addPresentacion/deletePresentacion/
- *    decreaseStock/addSale/updatePresentacion/agregarStock (en vez de solo hacer setState local)
- *
- * Inventory.js y Main.js NO deberían cambiar cuando eso pase: siguen
- * leyendo/escribiendo a través de este mismo Context.
+ * Cuando se conecte la base de datos, este archivo es el único que cambia:
+ * reemplazar los setState locales por llamadas a la API correspondiente.
+ * Inventory.js, Main.js y todos los demás componentes siguen igual.
  */
 const initialProducts = [
   {
@@ -114,131 +106,185 @@ export class StoreProvider extends Component {
     sales: [],
   };
 
-  // Crea un producto nuevo con su primera presentación.
-  // TODO(backend): reemplazar por POST /products
+  // ─── Productos ────────────────────────────────────────────────────────────
+
   addProduct = product => {
     const { nombre, marca, categoriaId, tamano, precio, stock } = product;
     const newProduct = {
       id: Date.now().toString(),
-      nombre,
-      marca,
-      categoriaId,
+      nombre, marca, categoriaId,
       presentaciones: [{ id: `${Date.now()}-1`, tamano, precio, stock }],
     };
-    this.setState(prevState => ({
-      products: [...prevState.products, newProduct],
-    }));
+    this.setState(prev => ({ products: [...prev.products, newProduct] }));
     return newProduct;
   };
 
-  // Agrega una presentación (tamaño) nueva a un producto que ya existe.
-  // TODO(backend): reemplazar por POST /products/:id/presentaciones
   addPresentacion = (productId, presentacion) => {
-    this.setState(prevState => ({
-      products: prevState.products.map(p =>
+    this.setState(prev => ({
+      products: prev.products.map(p =>
         p.id === productId
-          ? {
-              ...p,
-              presentaciones: [
-                ...p.presentaciones,
-                { id: Date.now().toString(), ...presentacion },
-              ],
-            }
+          ? { ...p, presentaciones: [...p.presentaciones, { id: Date.now().toString(), ...presentacion }] }
           : p,
       ),
     }));
   };
 
-  // Edita precio, stock y/o tamaño de una presentación existente.
-  // TODO(backend): reemplazar por PATCH /products/:productId/presentaciones/:presentacionId
   updatePresentacion = (productId, presentacionId, cambios) => {
-    this.setState(prevState => ({
-      products: prevState.products.map(p =>
+    this.setState(prev => ({
+      products: prev.products.map(p =>
         p.id === productId
-          ? {
-              ...p,
-              presentaciones: p.presentaciones.map(pres =>
-                pres.id === presentacionId
-                  ? { ...pres, ...cambios }
-                  : pres,
-              ),
-            }
+          ? { ...p, presentaciones: p.presentaciones.map(pres => pres.id === presentacionId ? { ...pres, ...cambios } : pres) }
           : p,
       ),
     }));
   };
 
-  // Suma unidades a una presentación existente (entrada de mercancía).
-  // TODO(backend): reemplazar por PATCH /products/:productId/presentaciones/:presentacionId/stock
   agregarStock = (productId, presentacionId, cantidad) => {
-    this.setState(prevState => ({
-      products: prevState.products.map(p =>
+    this.setState(prev => ({
+      products: prev.products.map(p =>
         p.id === productId
-          ? {
-              ...p,
-              presentaciones: p.presentaciones.map(pres =>
-                pres.id === presentacionId
-                  ? { ...pres, stock: pres.stock + cantidad }
-                  : pres,
-              ),
-            }
+          ? { ...p, presentaciones: p.presentaciones.map(pres => pres.id === presentacionId ? { ...pres, stock: pres.stock + cantidad } : pres) }
           : p,
       ),
     }));
   };
 
-  // Elimina una presentación puntual; si era la última del producto,
-  // el producto completo desaparece del inventario.
-  // TODO(backend): reemplazar por DELETE /products/:productId/presentaciones/:presentacionId
   deletePresentacion = (productId, presentacionId) => {
-    this.setState(prevState => ({
-      products: prevState.products
-        .map(p =>
-          p.id === productId
-            ? {
-                ...p,
-                presentaciones: p.presentaciones.filter(
-                  pres => pres.id !== presentacionId,
-                ),
-              }
-            : p,
-        )
+    this.setState(prev => ({
+      products: prev.products
+        .map(p => p.id === productId
+          ? { ...p, presentaciones: p.presentaciones.filter(pres => pres.id !== presentacionId) }
+          : p)
         .filter(p => p.presentaciones.length > 0),
     }));
   };
 
-  // items: [{ productId, presentacionId, cantidad }]
-  // TODO(backend): normalmente esto lo hace el servidor al registrar la venta
   decreaseStock = items => {
-    this.setState(prevState => ({
-      products: prevState.products.map(p => ({
+    this.setState(prev => ({
+      products: prev.products.map(p => ({
         ...p,
         presentaciones: p.presentaciones.map(pres => {
-          const match = items.find(
-            i => i.productId === p.id && i.presentacionId === pres.id,
-          );
+          const match = items.find(i => i.productId === p.id && i.presentacionId === pres.id);
           return match ? { ...pres, stock: pres.stock - match.cantidad } : pres;
         }),
       })),
     }));
   };
 
-  // TODO(backend): reemplazar por POST /sales
+  // ─── Categorías ───────────────────────────────────────────────────────────
+
+  addCategory = nombre => {
+    const newCat = { id: Date.now().toString(), nombre: nombre.trim() };
+    this.setState(prev => ({ categories: [...prev.categories, newCat] }));
+  };
+
+  renameCategory = (id, nuevoNombre) => {
+    this.setState(prev => ({
+      categories: prev.categories.map(c =>
+        String(c.id) === String(id) ? { ...c, nombre: nuevoNombre.trim() } : c,
+      ),
+    }));
+  };
+
+  deleteCategory = id => {
+    this.setState(prev => ({
+      categories: prev.categories.filter(c => String(c.id) !== String(id)),
+    }));
+  };
+
+  // ─── Ventas ───────────────────────────────────────────────────────────────
+
   addSale = sale => {
     const newSale = {
       id: Date.now().toString(),
       fecha: new Date().toISOString(),
+      totalAbonado: 0,
       ...sale,
     };
-    this.setState(prevState => ({
-      sales: [newSale, ...prevState.sales],
-    }));
+    this.setState(prev => ({ sales: [newSale, ...prev.sales] }));
     return newSale;
   };
 
-  // Aplana productos + presentaciones en items vendibles individuales.
-  // Lo usan el carrito y el modal de "seleccionar producto para vender",
-  // que necesitan elegir una talla/tamaño concreta, no solo el producto base.
+  // Registra un abono parcial o pago total de una venta a crédito.
+  // Distribuye el monto entre las ventas pendientes del cliente, de la más
+  // antigua a la más reciente (FIFO), hasta agotar el monto.
+  registrarAbono = (clienteNombre, monto) => {
+    this.setState(prev => {
+      let restante = monto;
+      const sales = prev.sales.map(sale => {
+        if (
+          sale.tipoPago !== 'Credito' ||
+          (sale.cliente || '').trim() !== clienteNombre.trim() ||
+          restante <= 0
+        ) return sale;
+
+        const pendiente = sale.total - (sale.totalAbonado ?? 0);
+        if (pendiente <= 0) return sale;
+
+        const aplicar = Math.min(pendiente, restante);
+        restante -= aplicar;
+        return { ...sale, totalAbonado: (sale.totalAbonado ?? 0) + aplicar };
+      });
+      return { sales };
+    });
+  };
+
+  // Corrige el monto ya abonado de una venta en particular (0..total).
+  ajustarAbonoVenta = (saleId, nuevoAbonado) => {
+    this.setState(prev => ({
+      sales: prev.sales.map(sale =>
+        String(sale.id) === String(saleId)
+          ? { ...sale, totalAbonado: Math.max(0, Math.min(nuevoAbonado, sale.total)) }
+          : sale,
+      ),
+    }));
+  };
+
+  // Elimina una venta del historial. Si devolverStock es true, los productos
+  // de esa venta regresan al inventario (la venta "nunca existió"); en caso
+  // contrario la mercancía no vuelve (se usa junto con ajustarAbonoVenta para
+  // condonar la deuda sin tocar el inventario).
+  eliminarVenta = (saleId, devolverStock) => {
+    this.setState(prev => {
+      const sale = prev.sales.find(s => String(s.id) === String(saleId));
+      if (!sale) return null;
+
+      let products = prev.products;
+      if (devolverStock && Array.isArray(sale.productos)) {
+        products = products.map(p => ({
+          ...p,
+          presentaciones: p.presentaciones.map(pres => {
+            const match = sale.productos.find(
+              i => i.productId === p.id && i.presentacionId === pres.id,
+            );
+            return match
+              ? { ...pres, stock: pres.stock + (match.numProducts || 1) }
+              : pres;
+          }),
+        }));
+      }
+
+      return {
+        sales: prev.sales.filter(s => String(s.id) !== String(saleId)),
+        products,
+      };
+    });
+  };
+
+  // Cambia el nombre del cliente en todas sus ventas (para unificar deudas mal escritas).
+  renombrarCliente = (nombreActual, nombreNuevo) => {
+    const nuevo = nombreNuevo.trim();
+    if (!nuevo) return;
+    const actual = (nombreActual || '').trim();
+    this.setState(prev => ({
+      sales: prev.sales.map(sale =>
+        (sale.cliente || '').trim() === actual ? { ...sale, cliente: nuevo } : sale,
+      ),
+    }));
+  };
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+
   getSellableItems = () => {
     const items = [];
     this.state.products.forEach(product => {
@@ -264,6 +310,18 @@ export class StoreProvider extends Component {
     );
   };
 
+  // Número de clientes con saldo pendiente (para el badge del header).
+  getClientesConDeudaCount = () => {
+    const { sales } = this.state;
+    const mapa = {};
+    sales.filter(s => s.tipoPago === 'Credito').forEach(s => {
+      const key = (s.cliente || '').trim();
+      if (!mapa[key]) mapa[key] = 0;
+      mapa[key] += s.total - (s.totalAbonado ?? 0);
+    });
+    return Object.values(mapa).filter(saldo => saldo > 0.009).length;
+  };
+
   render() {
     return (
       <StoreContext.Provider
@@ -272,13 +330,24 @@ export class StoreProvider extends Component {
           categories: this.state.categories,
           sales: this.state.sales,
           sellableItems: this.getSellableItems(),
+          clientesConDeudaCount: this.getClientesConDeudaCount(),
+          // productos
           addProduct: this.addProduct,
           addPresentacion: this.addPresentacion,
           updatePresentacion: this.updatePresentacion,
           agregarStock: this.agregarStock,
           deletePresentacion: this.deletePresentacion,
           decreaseStock: this.decreaseStock,
+          // categorías
+          addCategory: this.addCategory,
+          renameCategory: this.renameCategory,
+          deleteCategory: this.deleteCategory,
+          // ventas
           addSale: this.addSale,
+          registrarAbono: this.registrarAbono,
+          ajustarAbonoVenta: this.ajustarAbonoVenta,
+          eliminarVenta: this.eliminarVenta,
+          renombrarCliente: this.renombrarCliente,
         }}
       >
         {this.props.children}

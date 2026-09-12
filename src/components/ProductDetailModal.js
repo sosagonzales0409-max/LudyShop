@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { colors, spacing, radius, fontSize, buttonHeight, iconButton } from '../config/theme';
 
 /**
  * Modal de detalle de un producto completo.
@@ -18,11 +19,11 @@ import {
  *   🗑 Eliminar          →  confirma y llama onEliminar(productId, presentacionId)
  *
  * @param {boolean}  visible
- * @param {object}   product     — objeto completo con presentaciones[]
+ * @param {object}   product             — objeto completo con presentaciones[]
  * @param {function} onClose
- * @param {function} onAgregarUnidades — (product, presentacion)
- * @param {function} onEditar         — (product, presentacion)
- * @param {function} onEliminar       — (productId, presentacionId)
+ * @param {function} onAgregarUnidades   — (product, presentacion)
+ * @param {function} onEditar            — (product, presentacion)
+ * @param {function} onEliminar          — (productId, presentacionId)
  */
 export default class ProductDetailModal extends Component {
   confirmDelete(product, presentacion) {
@@ -36,7 +37,6 @@ export default class ProductDetailModal extends Component {
           style: 'destructive',
           onPress: () => {
             this.props.onEliminar(product.id, presentacion.id);
-            // Si era la última presentación, cerrar el modal
             if (product.presentaciones.length === 1) {
               this.props.onClose();
             }
@@ -44,6 +44,12 @@ export default class ProductDetailModal extends Component {
         },
       ],
     );
+  }
+
+  stockBadgeColor(stock) {
+    if (stock === 0) return colors.danger;
+    if (stock < 5) return colors.warning;
+    return colors.success;
   }
 
   render() {
@@ -56,17 +62,17 @@ export default class ProductDetailModal extends Component {
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: colors.overlay,
             justifyContent: 'flex-end',
           }}
         >
           <View
             style={{
-              backgroundColor: '#fff',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-              paddingTop: 12,
-              paddingBottom: 32,
+              backgroundColor: colors.card,
+              borderTopLeftRadius: radius.xl,
+              borderTopRightRadius: radius.xl,
+              paddingTop: spacing.sm,
+              paddingBottom: spacing.xxl,
               maxHeight: '85%',
             }}
           >
@@ -75,50 +81,57 @@ export default class ProductDetailModal extends Component {
               style={{
                 width: 40,
                 height: 4,
-                backgroundColor: '#ddd',
+                backgroundColor: colors.chipInactive,
                 borderRadius: 2,
                 alignSelf: 'center',
-                marginBottom: 16,
+                marginBottom: spacing.lg,
               }}
             />
 
             {/* Header del producto */}
             <View
               style={{
-                paddingHorizontal: 20,
+                paddingHorizontal: spacing.xl,
                 flexDirection: 'row',
                 alignItems: 'flex-start',
-                marginBottom: 4,
+                marginBottom: spacing.xs,
               }}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1a1a1a' }}>
+                <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
                   {product.nombre}
                 </Text>
-                <Text style={{ fontSize: 15, color: '#7A7C80', fontStyle: 'italic', marginTop: 2 }}>
+                <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, fontStyle: 'italic', marginTop: spacing.xs }}>
                   {product.marca}
                 </Text>
               </View>
-              <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-                <Text style={{ fontSize: 22, color: '#aaa' }}>✕</Text>
+              <TouchableOpacity onPress={onClose} style={{ padding: spacing.xs }}>
+                <Text style={{ fontSize: fontSize.heading, color: colors.textMuted }}>✕</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={{ fontSize: 13, color: '#aaa', paddingHorizontal: 20, marginBottom: 16 }}>
+            <Text
+              style={{
+                fontSize: fontSize.caption,
+                color: colors.textMuted,
+                paddingHorizontal: spacing.xl,
+                marginBottom: spacing.lg,
+              }}
+            >
               {product.presentaciones.length}{' '}
               {product.presentaciones.length === 1 ? 'presentación' : 'presentaciones'}
             </Text>
 
             {/* Lista de presentaciones */}
-            <ScrollView style={{ paddingHorizontal: 20 }}>
-              {product.presentaciones.map((pres, index) => (
+            <ScrollView style={{ paddingHorizontal: spacing.xl }}>
+              {product.presentaciones.map(pres => (
                 <View
                   key={pres.id}
                   style={{
-                    backgroundColor: '#f8f8f8',
-                    borderRadius: 14,
-                    padding: 16,
-                    marginBottom: 10,
+                    backgroundColor: colors.background,
+                    borderRadius: radius.md,
+                    padding: spacing.lg,
+                    marginBottom: spacing.sm,
                   }}
                 >
                   {/* Info de la presentación */}
@@ -127,74 +140,65 @@ export default class ProductDetailModal extends Component {
                       flexDirection: 'row',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginBottom: 12,
+                      marginBottom: spacing.md,
                     }}
                   >
                     <View>
-                      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1a1a1a' }}>
+                      <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>
                         {pres.tamano}
                       </Text>
-                      <Text style={{ fontSize: 15, color: '#555', marginTop: 2 }}>
+                      <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs }}>
                         ${pres.precio.toFixed(2)} c/u
                       </Text>
                     </View>
+
                     {/* Badge de stock */}
                     <View
                       style={{
-                        backgroundColor: pres.stock === 0
-                          ? '#D9534F'
-                          : pres.stock < 5
-                          ? '#FC9E3A'
-                          : '#2e9e5b',
-                        borderRadius: 10,
-                        paddingVertical: 6,
-                        paddingHorizontal: 12,
+                        backgroundColor: this.stockBadgeColor(pres.stock),
+                        borderRadius: radius.sm,
+                        paddingVertical: spacing.sm,
+                        paddingHorizontal: spacing.md,
                       }}
                     >
-                      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>
+                      <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.body }}>
                         {pres.stock} uds
                       </Text>
                     </View>
                   </View>
 
                   {/* Acciones */}
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                     {/* + Agregar unidades */}
                     <TouchableOpacity
-                      onPress={() => {
-                        onClose();
-                        onAgregarUnidades(product, pres);
-                      }}
+                      onPress={() => { onClose(); onAgregarUnidades(product, pres); }}
                       style={{
                         flex: 2,
-                        height: 40,
-                        borderRadius: 10,
-                        backgroundColor: '#0088ff',
+                        height: buttonHeight.action,
+                        borderRadius: radius.lg,
+                        backgroundColor: colors.primary,
                         justifyContent: 'center',
                         alignItems: 'center',
                       }}
                     >
-                      <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 14 }}>
+                      <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>
                         + Agregar unidades
                       </Text>
                     </TouchableOpacity>
 
                     {/* Editar */}
                     <TouchableOpacity
-                      onPress={() => {
-                        onClose();
-                        onEditar(product, pres);
-                      }}
+                      onPress={() => { onClose(); onEditar(product, pres); }}
                       style={{
                         flex: 1,
-                        height: 40,
-                        borderRadius: 10,
-                        backgroundColor: '#e8e8e8',
+                        height: buttonHeight.action,
+                        borderRadius: radius.lg,
+                        backgroundColor: colors.chipInactive,
                         justifyContent: 'center',
                         alignItems: 'center',
                       }}
                     >
-                      <Text style={{ color: '#333', fontWeight: 'bold', fontSize: 14 }}>
+                      <Text style={{ color: colors.textPrimary, fontWeight: 'bold', fontSize: fontSize.label }}>
                         ✏️ Editar
                       </Text>
                     </TouchableOpacity>
@@ -203,15 +207,15 @@ export default class ProductDetailModal extends Component {
                     <TouchableOpacity
                       onPress={() => this.confirmDelete(product, pres)}
                       style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 10,
+                        width: buttonHeight.action,
+                        height: buttonHeight.action,
+                        borderRadius: radius.lg,
                         backgroundColor: '#fde8e8',
                         justifyContent: 'center',
                         alignItems: 'center',
                       }}
                     >
-                      <Text style={{ fontSize: 16 }}>🗑️</Text>
+                      <Text style={{ fontSize: fontSize.label }}>🗑️</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

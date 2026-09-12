@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 
 /**
  * Modal para dar de alta un producto (o una nueva presentación/tamaño de
@@ -124,7 +125,7 @@ export default class ProductFormModal extends Component {
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: colors.overlay,
             justifyContent: 'center',
             alignItems: 'center',
           }}
@@ -133,126 +134,122 @@ export default class ProductFormModal extends Component {
             style={{
               width: '90%',
               maxHeight: '85%',
-              backgroundColor: '#ffffff',
-              borderRadius: 20,
-              padding: 20,
+              backgroundColor: colors.card,
+              borderRadius: radius.xl,
+              padding: spacing.lg,
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold' }}>
+              <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
                 Nuevo Producto
               </Text>
               <View style={{ flex: 1 }} />
               <TouchableOpacity onPress={onCancel}>
-                <Text style={{ fontSize: 20, fontWeight: 'bold' }}>X</Text>
+                <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
+                  X
+                </Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={{ fontSize: 13, color: '#888', marginTop: 5 }}>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs }}>
               Si el nombre y la marca ya existen, esto se agrega como una nueva
               presentación (tamaño) de ese mismo producto.
             </Text>
 
-            <ScrollView style={{ marginTop: 15 }}>
-              <Text style={{ fontSize: 16, marginBottom: 5 }}>Nombre</Text>
+            <ScrollView style={{ marginTop: spacing.lg }}>
+              <Text style={labelStyle}>Nombre</Text>
               <TextInput
                 style={inputStyle}
                 placeholder="Ej. Arroz"
-                placeholderTextColor="#777"
+                placeholderTextColor={colors.textMuted}
                 value={this.state.nombre}
                 onChangeText={text => this.setState({ nombre: text })}
               />
 
-              <Text style={{ fontSize: 16, marginTop: 15, marginBottom: 5 }}>
-                Marca
-              </Text>
+              <Text style={[labelStyle, { marginTop: spacing.lg }]}>Marca</Text>
               <TextInput
                 style={inputStyle}
                 placeholder="Ej. Verde Valle"
-                placeholderTextColor="#777"
+                placeholderTextColor={colors.textMuted}
                 value={this.state.marca}
                 onChangeText={text => this.setState({ marca: text })}
               />
 
-              <Text style={{ fontSize: 16, marginTop: 15, marginBottom: 5 }}>
+              <Text style={[labelStyle, { marginTop: spacing.lg }]}>
                 Tamaño / Presentación
               </Text>
               <TextInput
                 style={inputStyle}
                 placeholder="Ej. 1 kg, 600 ml, 3 L"
-                placeholderTextColor="#777"
+                placeholderTextColor={colors.textMuted}
                 value={this.state.tamano}
                 onChangeText={text => this.setState({ tamano: text })}
               />
 
-              <Text style={{ fontSize: 16, marginTop: 15, marginBottom: 5 }}>
-                Precio
-              </Text>
+              <Text style={[labelStyle, { marginTop: spacing.lg }]}>Precio</Text>
               <TextInput
                 style={inputStyle}
                 placeholder="0.00"
-                placeholderTextColor="#777"
+                placeholderTextColor={colors.textMuted}
                 keyboardType="decimal-pad"
                 value={this.state.precio}
                 onChangeText={text => this.setState({ precio: text })}
               />
 
-              <Text style={{ fontSize: 16, marginTop: 15, marginBottom: 5 }}>
-                Stock inicial
-              </Text>
+              <Text style={[labelStyle, { marginTop: spacing.lg }]}>Stock inicial</Text>
               <TextInput
                 style={inputStyle}
                 placeholder="0"
-                placeholderTextColor="#777"
+                placeholderTextColor={colors.textMuted}
                 keyboardType="number-pad"
                 value={this.state.stock}
                 onChangeText={text => this.setState({ stock: text })}
               />
 
-              <Text style={{ fontSize: 16, marginTop: 15, marginBottom: 5 }}>
-                Categoría
-              </Text>
+              <Text style={[labelStyle, { marginTop: spacing.lg }]}>Categoría</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                {selectableCategories.map(cat => (
-                  <TouchableOpacity
-                    key={cat.id}
-                    onPress={() => this.setState({ categoriaId: cat.id })}
-                    style={{
-                      backgroundColor:
-                        this.state.categoriaId === cat.id ? '#0088ff' : '#eee',
-                      borderRadius: 15,
-                      paddingVertical: 8,
-                      paddingHorizontal: 14,
-                      marginRight: 8,
-                      marginBottom: 8,
-                    }}
-                  >
-                    <Text
+                {selectableCategories.map(cat => {
+                  const isSelected = this.state.categoriaId === cat.id;
+                  return (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() => this.setState({ categoriaId: cat.id })}
                       style={{
-                        color:
-                          this.state.categoriaId === cat.id ? '#fff' : '#000',
-                        fontWeight: 'bold',
+                        backgroundColor: isSelected ? colors.primary : colors.chipInactive,
+                        borderRadius: radius.lg,
+                        paddingVertical: spacing.sm,
+                        paddingHorizontal: spacing.md,
+                        marginRight: spacing.sm,
+                        marginBottom: spacing.sm,
                       }}
                     >
-                      {cat.nombre}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Text
+                        style={{
+                          fontSize: fontSize.label,
+                          fontWeight: 'bold',
+                          color: isSelected ? colors.white : colors.textPrimary,
+                        }}
+                      >
+                        {cat.nombre}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </ScrollView>
 
             <TouchableOpacity
               onPress={this.handleSave}
               style={{
-                backgroundColor: '#0088ff',
-                borderRadius: 15,
-                height: 48,
+                height: buttonHeight.action,
+                backgroundColor: colors.primary,
+                borderRadius: radius.lg,
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginTop: 15,
+                marginTop: spacing.lg,
               }}
             >
-              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
+              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
                 Guardar producto
               </Text>
             </TouchableOpacity>
@@ -263,12 +260,18 @@ export default class ProductFormModal extends Component {
   }
 }
 
+const labelStyle = {
+  fontSize: fontSize.label,
+  color: colors.textPrimary,
+  marginBottom: spacing.xs,
+};
+
 const inputStyle = {
   borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 10,
-  paddingHorizontal: 12,
-  paddingVertical: 10,
-  fontSize: 16,
-  color: '#000',
+  borderColor: colors.chipInactive,
+  borderRadius: radius.sm,
+  paddingHorizontal: spacing.md,
+  paddingVertical: spacing.sm,
+  fontSize: fontSize.body,
+  color: colors.textPrimary,
 };

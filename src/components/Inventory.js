@@ -2,22 +2,23 @@ import React, { Component } from 'react';
 import {
   View,
   TouchableOpacity,
-  Image,
   Text,
   Dimensions,
   SafeAreaView,
   TextInput,
   FlatList,
-  Alert,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import ProductFormModal from './ProductFormModal';
 import EditProductModal from './EditProductModal';
 import AgregarUnidadesModal from './AgregarUnidadesModal';
 import ProductDetailModal from './ProductDetailModal';
+import CategoriasModal from './CategoriasModal';
+import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
+const HEADER_HEIGHT = 60;
 
 class Inventory extends Component {
   static contextType = StoreContext;
@@ -36,26 +37,19 @@ class Inventory extends Component {
       agregarPresentacion: null,
       showDetailModal: false,
       detailProduct: null,
+      showCategoriasModal: false,
     };
     this.productListRef = React.createRef();
   }
 
-  // Al cambiar de categoría o de texto de búsqueda, el FlatList conserva su
-  // posición de scroll anterior. Si el nuevo listado filtrado es más corto,
-  // eso se ve como un hueco en blanco. Forzamos el scroll a 0 en cada cambio.
   resetListScroll() {
     if (this.productListRef.current) {
-      this.productListRef.current.scrollToOffset({
-        offset: 0,
-        animated: false,
-      });
+      this.productListRef.current.scrollToOffset({ offset: 0, animated: false });
     }
   }
 
   selectCategory(categoryId) {
-    this.setState({ selectedCategory: categoryId }, () =>
-      this.resetListScroll(),
-    );
+    this.setState({ selectedCategory: categoryId }, () => this.resetListScroll());
   }
 
   updateSearchText(text) {
@@ -65,110 +59,50 @@ class Inventory extends Component {
   getTotalValue() {
     const { products } = this.context;
     let total = 0;
-    products.forEach(product => {
-      product.presentaciones.forEach(pres => {
-        total += pres.precio * pres.stock;
-      });
-    });
+    products.forEach(p => p.presentaciones.forEach(pres => { total += pres.precio * pres.stock; }));
     return total.toFixed(2);
   }
 
   getLowStockCount() {
     const { products } = this.context;
     let count = 0;
-    products.forEach(product => {
-      product.presentaciones.forEach(pres => {
-        if (pres.stock < 5) count += 1;
-      });
-    });
+    products.forEach(p => p.presentaciones.forEach(pres => { if (pres.stock < 5) count++; }));
     return count;
   }
 
-  // Filtro combinado de categoría + búsqueda (por nombre o marca), calculado
-  // directo del Context, a nivel de producto (no de presentación individual).
   getFilteredProducts() {
     const { products } = this.context;
     const { selectedCategory, searchText } = this.state;
     const search = searchText.trim().toLowerCase();
-
     return products
-      .filter(product => {
-        const matchesCategory =
-          selectedCategory === 0 ||
-          String(product.categoriaId) === String(selectedCategory);
-        const matchesSearch =
-          !search ||
-          product.nombre.toLowerCase().includes(search) ||
-          product.marca.toLowerCase().includes(search);
-        return matchesCategory && matchesSearch;
+      .filter(p => {
+        const matchCat = selectedCategory === 0 || String(p.categoriaId) === String(selectedCategory);
+        const matchSearch = !search || p.nombre.toLowerCase().includes(search) || p.marca.toLowerCase().includes(search);
+        return matchCat && matchSearch;
       })
       .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
   }
 
-  confirmDeletePresentacion(product, presentacion) {
-    Alert.alert(
-      'Eliminar presentación',
-      `¿Seguro que quieres eliminar "${product.nombre} ${presentacion.tamano}" (${product.marca})?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: () =>
-            this.context.deletePresentacion(product.id, presentacion.id),
-        },
-      ],
-    );
-  }
-
   openEditModal(product, presentacion) {
-    this.setState({
-      showEditModal: true,
-      editProduct: product,
-      editPresentacion: presentacion,
-    });
+    this.setState({ showEditModal: true, editProduct: product, editPresentacion: presentacion });
   }
 
   openAgregarUnidadesModal(product, presentacion) {
-    this.setState({
-      showAgregarUnidadesModal: true,
-      agregarProduct: product,
-      agregarPresentacion: presentacion,
-    });
-  }
-
-  openDetailModal(product) {
-    this.setState({ showDetailModal: true, detailProduct: product });
-  }
-
-  closeDetailModal() {
-    this.setState({ showDetailModal: false, detailProduct: null });
+    this.setState({ showAgregarUnidadesModal: true, agregarProduct: product, agregarPresentacion: presentacion });
   }
 
   renderCategories(item) {
+    const isSelected = this.state.selectedCategory == item.id;
     return (
       <TouchableOpacity
         onPress={() => this.selectCategory(item.id)}
         style={{
-          height: 45,
-          width: 'auto',
-          backgroundColor:
-            this.state.selectedCategory == item.id ? '#0088ff' : '#ccc',
-          borderRadius: 15,
-          justifyContent: 'center',
-          alignItems: 'center',
-          flex: 1,
-          marginHorizontal: 5,
+          height: buttonHeight.chip, paddingHorizontal: spacing.lg,
+          backgroundColor: isSelected ? colors.primary : colors.chipInactive,
+          borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm,
         }}
       >
-        <Text
-          style={{
-            textAlign: 'center',
-            fontSize: 18,
-            fontWeight: 'bold',
-            marginHorizontal: 10,
-          }}
-        >
+        <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: isSelected ? colors.white : colors.textPrimary }}>
           {item.nombre}
         </Text>
       </TouchableOpacity>
@@ -179,37 +113,22 @@ class Inventory extends Component {
     return (
       <TouchableOpacity
         activeOpacity={0.7}
-        onPress={() => this.openDetailModal(product)}
+        onPress={() => this.setState({ showDetailModal: true, detailProduct: product })}
         style={{
-          marginTop: 10,
-          width: '100%',
-          paddingHorizontal: 15,
-          backgroundColor: '#fff',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          elevation: 4,
-          shadowOpacity: 0.1,
-          borderRadius: 10,
-          paddingVertical: 10,
+          marginTop: spacing.md, padding: spacing.lg,
+          backgroundColor: colors.card, borderRadius: radius.md,
+          elevation: 4, shadowOpacity: 0.1,
         }}
       >
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ fontSize: 20, fontWeight: 'bold' }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>
             {product.nombre}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 14, color: '#7A7C80', fontStyle: 'italic' }}>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic' }}>
               {product.marca}
             </Text>
-            <Text style={{ fontSize: 18, color: '#bbb', marginLeft: 6 }}>
-              ›
-            </Text>
+            <Text style={{ fontSize: fontSize.itemTitle, color: colors.textMuted, marginLeft: spacing.xs }}>›</Text>
           </View>
         </View>
 
@@ -217,51 +136,27 @@ class Inventory extends Component {
           <View
             key={pres.id}
             style={{
-              flexDirection: 'row',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              borderTopWidth: 1,
-              borderTopColor: '#eee',
-              paddingTop: 10,
-              marginTop: 10,
+              flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+              borderTopWidth: 1, borderTopColor: colors.border,
+              paddingTop: spacing.md, marginTop: spacing.md,
             }}
           >
             <View>
-              <Text style={{ fontSize: 16, fontWeight: '600' }}>
-                {pres.tamano}
-              </Text>
-              <Text style={{ fontSize: 14, color: '#7A7C80' }}>
-                ${pres.precio}
-              </Text>
+              <Text style={{ fontSize: fontSize.body, fontWeight: '600', color: colors.textPrimary }}>{pres.tamano}</Text>
+              <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 }}>${pres.precio}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: 'bold',
-                  color: pres.stock < 5 ? '#D9534F' : 'green',
-                  marginRight: 10,
-                }}
-              >
+              <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: pres.stock < 5 ? colors.danger : colors.success, marginRight: spacing.md }}>
                 {pres.stock} Unidades
               </Text>
-              {/* Botón agregar unidades (única acción rápida inline) */}
               <TouchableOpacity
                 onPress={() => this.openAgregarUnidadesModal(product, pres)}
+                style={{
+                  width: 32, height: 32, borderRadius: radius.sm,
+                  backgroundColor: colors.success, justifyContent: 'center', alignItems: 'center',
+                }}
               >
-                <Text
-                  style={{
-                    fontSize: 12,
-                    backgroundColor: 'green',
-                    color: '#fff',
-                    padding: 5,
-                    borderRadius: 5,
-                    textAlign: 'center',
-                    minWidth: 24,
-                  }}
-                >
-                  +
-                </Text>
+                <Text style={{ fontSize: fontSize.label, color: colors.white, fontWeight: 'bold' }}>+</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -271,245 +166,148 @@ class Inventory extends Component {
   }
 
   render() {
-    const { categories } = this.context;
+    const { categories, products } = this.context;
     const filteredProducts = this.getFilteredProducts();
     const lowStockCount = this.getLowStockCount();
+    const sortedCategories = [
+      ...categories.filter(c => c.nombre === 'Todos'),
+      ...categories
+        .filter(c => c.nombre !== 'Todos')
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')),
+    ];
 
     return (
-      <SafeAreaView style={{ flex: 1 }}>
-        {/* Modal: agregar producto */}
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+        {/* Modales */}
         <ProductFormModal
           visible={this.state.showAddProductModal}
-          categories={categories}
-          products={this.context.products}
+          categories={categories} products={products}
           onCancel={() => this.setState({ showAddProductModal: false })}
           onSave={data => {
             if (data.existingProductId) {
-              this.context.addPresentacion(data.existingProductId, {
-                tamano: data.tamano,
-                precio: data.precio,
-                stock: data.stock,
-              });
+              this.context.addPresentacion(data.existingProductId, { tamano: data.tamano, precio: data.precio, stock: data.stock });
             } else {
               this.context.addProduct(data);
             }
             this.setState({ showAddProductModal: false });
           }}
         />
-
-        {/* Modal: editar presentación */}
         <EditProductModal
           visible={this.state.showEditModal}
-          product={this.state.editProduct}
-          presentacion={this.state.editPresentacion}
-          onCancel={() =>
-            this.setState({ showEditModal: false, editProduct: null, editPresentacion: null })
-          }
+          product={this.state.editProduct} presentacion={this.state.editPresentacion}
+          onCancel={() => this.setState({ showEditModal: false, editProduct: null, editPresentacion: null })}
           onSave={(productId, presentacionId, cambios) => {
             this.context.updatePresentacion(productId, presentacionId, cambios);
             this.setState({ showEditModal: false, editProduct: null, editPresentacion: null });
           }}
         />
-
-        {/* Modal: agregar unidades */}
         <AgregarUnidadesModal
           visible={this.state.showAgregarUnidadesModal}
-          product={this.state.agregarProduct}
-          presentacion={this.state.agregarPresentacion}
-          onCancel={() =>
-            this.setState({
-              showAgregarUnidadesModal: false,
-              agregarProduct: null,
-              agregarPresentacion: null,
-            })
-          }
+          product={this.state.agregarProduct} presentacion={this.state.agregarPresentacion}
+          onCancel={() => this.setState({ showAgregarUnidadesModal: false, agregarProduct: null, agregarPresentacion: null })}
           onSave={(productId, presentacionId, cantidad) => {
             this.context.agregarStock(productId, presentacionId, cantidad);
-            this.setState({
-              showAgregarUnidadesModal: false,
-              agregarProduct: null,
-              agregarPresentacion: null,
-            });
+            this.setState({ showAgregarUnidadesModal: false, agregarProduct: null, agregarPresentacion: null });
           }}
         />
-
-        {/* Modal: detalle de producto (tap en la tarjeta) */}
         <ProductDetailModal
           visible={this.state.showDetailModal}
           product={this.state.detailProduct}
-          onClose={() => this.closeDetailModal()}
-          onAgregarUnidades={(product, presentacion) =>
-            this.openAgregarUnidadesModal(product, presentacion)
-          }
-          onEditar={(product, presentacion) =>
-            this.openEditModal(product, presentacion)
-          }
-          onEliminar={(productId, presentacionId) =>
-            this.context.deletePresentacion(productId, presentacionId)
-          }
+          onClose={() => this.setState({ showDetailModal: false, detailProduct: null })}
+          onAgregarUnidades={(product, pres) => this.openAgregarUnidadesModal(product, pres)}
+          onEditar={(product, pres) => this.openEditModal(product, pres)}
+          onEliminar={(productId, presentacionId) => this.context.deletePresentacion(productId, presentacionId)}
+        />
+        <CategoriasModal
+          visible={this.state.showCategoriasModal}
+          categories={categories} products={products}
+          onClose={() => this.setState({ showCategoriasModal: false })}
+          onAdd={nombre => this.context.addCategory(nombre)}
+          onRename={(id, nombre) => this.context.renameCategory(id, nombre)}
+          onDelete={id => this.context.deleteCategory(id)}
         />
 
-        {/* Barra verde superior */}
-        <View
-          style={{
-            width: _window.width,
-            height: GREEN_BAR_HEIGHT,
-            backgroundColor: 'green',
-          }}
-        />
+        {/* Barra verde */}
+        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
 
-        {/* Header Inventario */}
+        {/* ── Header ── */}
         <View
           style={{
-            paddingHorizontal: 15,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            elevation: 4,
-            shadowOpacity: 0.1,
-            shadowOffset: { width: 0, height: 2 },
-            backgroundColor: '#fff',
-            height: 60,
+            height: HEADER_HEIGHT, paddingHorizontal: spacing.lg,
+            flexDirection: 'row', alignItems: 'center',
+            backgroundColor: colors.card, elevation: 4,
+            shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 },
           }}
         >
-          <Text style={{ fontSize: 18, fontWeight: 'bold', flex: 1 }}>
+          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
             Inventario
           </Text>
 
-          <TouchableOpacity
-            onPress={() => this.props.navigation.navigate('perfilView')}
-            style={{
-              justifyContent: 'center',
-              alignItems: 'center',
-              width: _window.width / 8,
-              height: _window.height / 12,
-            }}
-          >
-            <Image
-              source={require('../images/user-circle.png')}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            {/* Botón Categorías */}
+            <TouchableOpacity
+              onPress={() => this.setState({ showCategoriasModal: true })}
+              hitSlop={8}
               style={{
-                width: _window.width / 14,
-                height: _window.width / 14,
-                tintColor: '#000',
+                width: 44, height: 44, borderRadius: radius.sm,
+                justifyContent: 'center', alignItems: 'center',
               }}
-            />
-          </TouchableOpacity>
+            >
+              <Text style={{ fontSize: fontSize.label, color: colors.textSecondary }}>🏷️</Text>
+            </TouchableOpacity>
+
+            {/* Botón Configuración */}
+            <TouchableOpacity
+              onPress={() => this.props.navigation.navigate('ConfigView')}
+              hitSlop={8}
+              style={{
+                width: 44, height: 44, borderRadius: radius.sm,
+                justifyContent: 'center', alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: fontSize.label, color: colors.textSecondary }}>⚙️</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Tarjetas de resumen */}
-        <View
-          style={{
-            width: '90%',
-            alignSelf: 'center',
-            paddingVertical: 10,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: 'row',
-              justifyContent: 'center',
-              marginTop: 5,
-            }}
-          >
-            {/* Tarjeta: Valor total */}
-            <View
-              style={{
-                width: '45%',
-                backgroundColor: '#0088ff',
-                borderRadius: 15,
-                marginHorizontal: 10,
-                justifyContent: 'center',
-                alignItems: 'flex-start',
-                paddingVertical: 10,
-                paddingHorizontal: 10,
-              }}
-            >
-              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
-                Valor total
-              </Text>
-              <Text
-                style={{
-                  color: '#fff',
-                  fontWeight: 'bold',
-                  fontSize: 18,
-                  marginTop: 5,
-                }}
-              >
-                ${this.getTotalValue()}
-              </Text>
+        <View style={{ flex: 1, paddingHorizontal: spacing.lg }}>
+          {/* Tarjetas de resumen */}
+          <View style={{ flexDirection: 'row', marginTop: spacing.lg }}>
+            <View style={{ flex: 1, backgroundColor: colors.primary, borderRadius: radius.md, marginRight: spacing.sm, padding: spacing.md }}>
+              <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>Valor total</Text>
+              <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.itemTitle, marginTop: spacing.xs }}>${this.getTotalValue()}</Text>
             </View>
-
-            {/* Tarjeta: Stock bajo — toca para ir a LowStockView */}
             <TouchableOpacity
               onPress={() => this.props.navigation.navigate('LowStock')}
-              style={{
-                width: '45%',
-                backgroundColor: '#FC9E3A',
-                borderRadius: 15,
-                marginHorizontal: 10,
-                justifyContent: 'center',
-                alignItems: 'flex-start',
-                paddingVertical: 10,
-                paddingHorizontal: 10,
-              }}
+              style={{ flex: 1, backgroundColor: colors.warning, borderRadius: radius.md, marginLeft: spacing.sm, padding: spacing.md }}
             >
-              <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>
-                Stock Bajo
-              </Text>
-              <Text
-                style={{
-                  color: '#fff',
-                  fontWeight: 'bold',
-                  fontSize: 18,
-                  marginTop: 5,
-                }}
-              >
-                {lowStockCount +
-                  ' ' +
-                  (lowStockCount === 1 ? 'Presentación' : 'Presentaciones')}
+              <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>Stock Bajo</Text>
+              <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.itemTitle, marginTop: spacing.xs }}>
+                {lowStockCount} {lowStockCount === 1 ? 'Presentación' : 'Presentaciones'}
               </Text>
               {lowStockCount > 0 && (
-                <Text style={{ color: '#fff', fontSize: 11, marginTop: 2, opacity: 0.85 }}>
-                  Toca para ver detalle →
-                </Text>
+                <Text style={{ color: colors.white, fontSize: fontSize.small, marginTop: 2, opacity: 0.85 }}>Toca para ver detalle →</Text>
               )}
             </TouchableOpacity>
           </View>
 
           <TextInput
             style={{
-              fontFamily: 'AvenirNext-DemiBold',
-              color: '#000000',
-              paddingHorizontal: 10,
-              fontSize: 18,
-              marginTop: 10,
-              textAlign: 'left',
-              borderWidth: 1,
-              borderRadius: 10,
-              width: 'auto',
-              justifyContent: 'center',
-              marginHorizontal: 8,
+              color: colors.textPrimary, paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm, fontSize: fontSize.body,
+              marginTop: spacing.md, borderWidth: 1,
+              borderColor: colors.chipInactive, borderRadius: radius.sm,
             }}
             placeholder="Buscar por nombre o marca"
-            placeholderTextColor="#777"
+            placeholderTextColor={colors.textMuted}
             value={this.state.searchText}
             onChangeText={text => this.updateSearchText(text)}
           />
-        </View>
 
-        <View
-          style={{
-            width: '86%',
-            alignSelf: 'center',
-            alignItems: 'center',
-            flex: 1,
-          }}
-        >
           <FlatList
-            style={{ paddingBottom: 20, flexGrow: 0 }}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={categories}
+            style={{ marginTop: spacing.md, flexGrow: 0 }}
+            horizontal showsHorizontalScrollIndicator={false}
+            data={sortedCategories}
             keyExtractor={(item, index) => index.toString()}
             renderItem={({ item }) => this.renderCategories(item)}
           />
@@ -517,34 +315,23 @@ class Inventory extends Component {
           <TouchableOpacity
             onPress={() => this.setState({ showAddProductModal: true })}
             style={{
-              width: '100%',
-              height: 45,
-              backgroundColor: '#0088ff',
-              borderRadius: 15,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginTop: 0,
+              height: buttonHeight.action, backgroundColor: colors.primary,
+              borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginTop: spacing.md,
             }}
           >
-            <Text
-              style={{ textAlign: 'center', fontSize: 18, fontWeight: 'bold' }}
-            >
-              + Agregar Producto
-            </Text>
+            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>+ Agregar Producto</Text>
           </TouchableOpacity>
 
           <FlatList
             ref={this.productListRef}
-            style={{ width: '100%', marginTop: 10, flex: 1 }}
+            style={{ flex: 1 }}
             data={filteredProducts}
             keyExtractor={item => item.id}
             renderItem={({ item }) => this.renderProductItem(item)}
-            contentContainerStyle={{ paddingBottom: 20 }}
+            contentContainerStyle={{ paddingBottom: spacing.xl }}
             ListEmptyComponent={() => (
-              <View style={{ alignItems: 'center', marginTop: 20 }}>
-                <Text style={{ fontSize: 16, color: '#888' }}>
-                  No hay productos
-                </Text>
+              <View style={{ alignItems: 'center', marginTop: spacing.xl }}>
+                <Text style={{ fontSize: fontSize.body, color: colors.textMuted }}>No hay productos</Text>
               </View>
             )}
           />

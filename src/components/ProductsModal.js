@@ -2,31 +2,29 @@ import React, { Component } from 'react';
 import {
   Modal,
   View,
-  Dimensions,
   Text,
   TouchableOpacity,
   Platform,
-  Image,
   TextInput,
   FlatList,
 } from 'react-native';
-const _window = Dimensions.get('window');
+import { colors, spacing, radius, fontSize } from '../config/theme';
 
-export default class BirthdayModal extends Component {
+/**
+ * Modal para seleccionar un producto (presentación específica) y agregarlo
+ * al carrito de venta.
+ *
+ * @param {boolean} visible
+ * @param {Array} listProducts // items vendibles aplanados (una fila por presentación)
+ * @param {Array} cartProducts // productos ya en el carrito, para ocultarlos de la lista
+ * @param {function} onCancel
+ * @param {function} onSelectProduct
+ */
+export default class ProductsModal extends Component {
   state = {
     searchText: '',
     filteredProducts: this.props.listProducts || [],
   };
-  /**
-   * This component shows a modal with a birthday greeting
-   *
-   * @param {boolean} visible // Indicates whether the modal should be visible or not.
-   * @param {string} birthdayName // Indicates the name that should appear in the modal
-   * @param {function} onCancel // Function to execute when clicking "Cancel".
-   * @param {function} onLoad // Function that is executed when loading the component
-   * @return {*}
-   * @memberof BirthdayModal
-   */
 
   componentDidUpdate(prevProps) {
     if (this.props.visible && prevProps.visible !== this.props.visible) {
@@ -42,47 +40,40 @@ export default class BirthdayModal extends Component {
       <TouchableOpacity
         onPress={() => this.props.onSelectProduct(item)}
         style={{
-          backgroundColor: '#F7F7F7',
-          padding: 15,
-          borderRadius: 12,
-          marginBottom: 20,
+          backgroundColor: colors.background,
+          padding: spacing.lg,
+          borderRadius: radius.md,
+          marginBottom: spacing.lg,
           elevation: 3,
           shadowOpacity: 0.15,
           shadowRadius: 4,
-          width: '100%',
         }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <View style={{ flex: 1 }}>
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: 'bold',
-                marginBottom: 2,
-                flex: 1,
-                marginRight: 10,
-              }}
-            >
+          <View style={{ flex: 1, marginRight: spacing.md }}>
+            <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>
               {item.nombre} {item.tamano}
             </Text>
-            <Text style={{ fontSize: 13, color: '#7A7C80', fontStyle: 'italic' }}>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
               {item.marca}
             </Text>
           </View>
           <Text
             style={{
-              fontSize: 16,
+              fontSize: fontSize.body,
+              fontWeight: 'bold',
               backgroundColor: '#B8E2FF',
-              padding: 5,
-              borderRadius: 5,
-              textAlign: 'center',
-              marginBottom: item.nombre.length >= 18 ? 20 : 0,
+              color: colors.textPrimary,
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.sm,
+              borderRadius: radius.sm,
+              alignSelf: 'flex-start',
             }}
           >
             Stock: {item.stock}
           </Text>
         </View>
-        <Text style={{ fontSize: 16, color: '#7A7C80', marginTop: 6 }}>
+        <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.sm }}>
           ${item.precio}
         </Text>
       </TouchableOpacity>
@@ -113,93 +104,66 @@ export default class BirthdayModal extends Component {
 
   render() {
     return (
-      <View>
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={this.props.visible}
+      <Modal animationType="slide" transparent visible={this.props.visible}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            backgroundColor: colors.overlay,
+          }}
         >
           <View
             style={{
-              height: _window.height / 1,
+              borderWidth: Platform.OS === 'ios' ? 0.5 : 0.5,
+              borderColor: '#A8B6C8',
+              width: '90%',
+              marginTop: '5%',
               alignItems: 'center',
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              backgroundColor: colors.card,
+              borderRadius: radius.xl,
+              height: '85%',
             }}
           >
-            <View
-              style={{
-                borderWidth: Platform.OS === 'ios' ? 0.5 : 0.5,
-                borderColor: '#A8B6C8',
-                width: '90%',
-                marginTop: '5%',
-                alignItems: 'center',
-                backgroundColor: '#ffffff',
-                borderRadius: 20,
-                height: '85%',
-              }}
-            >
-              <View
-                style={{
-                  width: '85%',
-                  alignItems: 'flex-start',
-                  marginTop: 15,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text
-                    style={{
-                      fontFamily: 'AvenirNext-DemiBold',
-                      fontSize: 20,
-                      color: '#000000',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    Seleccionar Producto
+            <View style={{ width: '85%', alignItems: 'flex-start', marginTop: spacing.lg, flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
+                  Seleccionar Producto
+                </Text>
+                <View style={{ flex: 1 }} />
+                <TouchableOpacity onPress={() => this.props.onCancel()}>
+                  <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
+                    X
                   </Text>
-                  <View style={{ flex: 1 }} />
-                  <TouchableOpacity onPress={() => this.props.onCancel()}>
-                    <Text
-                      style={{
-                        fontFamily: 'AvenirNext-DemiBold',
-                        fontSize: 20,
-                        color: '#000000',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      X
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <TextInput
-                  style={{
-                    fontSize: 16,
-                    fontFamily: 'AvenirNext-DemiBold',
-                    color: '#000000',
-                    paddingHorizontal: 10,
-                    fontSize: 18,
-                    marginTop: 10,
-                    textAlign: 'left',
-                    borderWidth: 1,
-                    borderRadius: 10,
-                    width: '100%',
-                  }}
-                  placeholder="Buscar productos"
-                  placeholderTextColor="#777"
-                  value={this.state.searchText}
-                  onChangeText={text => this.filterProducts(text)}
-                ></TextInput>
-                <View style={{ height: '85%', width: '100%', marginTop: 10 }}>
-                  <FlatList
-                    data={this.state.filteredProducts}
-                    keyExtractor={(item, index) => index.toString()}
-                    renderItem={({ item }) => this.renderProductItem(item)}
-                  />
-                </View>
+                </TouchableOpacity>
+              </View>
+              <TextInput
+                style={{
+                  fontSize: fontSize.body,
+                  color: colors.textPrimary,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: spacing.sm,
+                  marginTop: spacing.md,
+                  borderWidth: 1,
+                  borderColor: colors.chipInactive,
+                  borderRadius: radius.sm,
+                  width: '100%',
+                }}
+                placeholder="Buscar productos"
+                placeholderTextColor={colors.textMuted}
+                value={this.state.searchText}
+                onChangeText={text => this.filterProducts(text)}
+              />
+              <View style={{ flex: 1, width: '100%', marginTop: spacing.md }}>
+                <FlatList
+                  data={this.state.filteredProducts}
+                  keyExtractor={(item, index) => index.toString()}
+                  renderItem={({ item }) => this.renderProductItem(item)}
+                />
               </View>
             </View>
           </View>
-        </Modal>
-      </View>
+        </View>
+      </Modal>
     );
   }
 }

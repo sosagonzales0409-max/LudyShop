@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Platform } from 'react-native';
+import { View, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -7,16 +7,34 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Main from './Main';
 import Inventory from './Inventory';
 import LowStockView from './LowStockView';
+import CreditosView from './CreditosView';
 import { StoreProvider } from '../context/StoreContext';
+import { colors, fontSize } from '../config/theme';
 
 const Tab = createBottomTabNavigator();
 const MainViews = createNativeStackNavigator();
 const InventoryViews = createNativeStackNavigator();
 
+// Placeholder hasta que se implemente ConfigView completo
+function ConfigViewPlaceholder({ navigation }) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
+        ⚙️ Configuración
+      </Text>
+      <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: 8 }}>
+        Próximamente
+      </Text>
+    </View>
+  );
+}
+
 function MainStack() {
   return (
     <MainViews.Navigator screenOptions={{ headerShown: false }}>
       <MainViews.Screen name="Main" component={Main} />
+      <MainViews.Screen name="Creditos" component={CreditosView} />
+      <MainViews.Screen name="ConfigView" component={ConfigViewPlaceholder} />
     </MainViews.Navigator>
   );
 }
@@ -26,6 +44,7 @@ function InventoryStack() {
     <InventoryViews.Navigator screenOptions={{ headerShown: false }}>
       <InventoryViews.Screen name="Inventory" component={Inventory} />
       <InventoryViews.Screen name="LowStock" component={LowStockView} />
+      <InventoryViews.Screen name="ConfigView" component={ConfigViewPlaceholder} />
     </InventoryViews.Navigator>
   );
 }
@@ -35,10 +54,7 @@ function AppTabs() {
     <Tab.Navigator
       initialRouteName="MainTab"
       screenOptions={{
-        tabBarStyle: {
-          height: 70,
-          display: 'flex',
-        },
+        tabBarStyle: { height: 70 },
         tabBarActiveBackgroundColor: '#CDFEF9',
       }}
     >
@@ -48,27 +64,16 @@ function AppTabs() {
         options={{
           headerShown: false,
           tabBarLabel: 'Ventas',
-          tabBarLabelStyle: {
-            fontSize: 16,
-            color: 'black',
-            fontWeight: 'bold',
-            marginBottom: 10,
-          },
+          tabBarLabelStyle: { fontSize: fontSize.label, color: 'black', fontWeight: 'bold', marginBottom: 10 },
         }}
       />
-
       <Tab.Screen
         name="InventoryTab"
         component={InventoryStack}
         options={{
           headerShown: false,
           tabBarLabel: 'Inventario',
-          tabBarLabelStyle: {
-            fontSize: 16,
-            color: 'black',
-            fontWeight: 'bold',
-            marginBottom: 10,
-          },
+          tabBarLabelStyle: { fontSize: fontSize.label, color: 'black', fontWeight: 'bold', marginBottom: 10 },
         }}
       />
     </Tab.Navigator>

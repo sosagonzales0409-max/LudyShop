@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 
 /**
  * Mini-modal para sumar unidades a una presentación existente.
@@ -53,7 +54,7 @@ export default class AgregarUnidadesModal extends Component {
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: colors.overlay,
             justifyContent: 'center',
             alignItems: 'center',
           }}
@@ -61,65 +62,61 @@ export default class AgregarUnidadesModal extends Component {
           <View
             style={{
               width: '85%',
-              backgroundColor: '#fff',
-              borderRadius: 20,
-              padding: 24,
+              backgroundColor: colors.card,
+              borderRadius: radius.xl,
+              padding: spacing.xl,
             }}
           >
-            {/* Título */}
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#1a1a1a' }}>
+            <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
               Agregar unidades
             </Text>
-            <Text style={{ fontSize: 14, color: '#888', marginTop: 4, marginBottom: 20 }}>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg }}>
               {product.nombre} {presentacion.tamano} · {product.marca}
             </Text>
 
-            {/* Stock actual */}
             <View
               style={{
-                backgroundColor: '#f0f0f0',
-                borderRadius: 10,
-                paddingVertical: 10,
-                paddingHorizontal: 14,
-                marginBottom: 16,
+                backgroundColor: colors.background,
+                borderRadius: radius.sm,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.md,
+                marginBottom: spacing.lg,
                 flexDirection: 'row',
                 justifyContent: 'space-between',
               }}
             >
-              <Text style={{ fontSize: 15, color: '#555' }}>Stock actual</Text>
-              <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#1a1a1a' }}>
+              <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Stock actual</Text>
+              <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>
                 {presentacion.stock} unidades
               </Text>
             </View>
 
-            {/* Campo de cantidad */}
-            <Text style={{ fontSize: 16, marginBottom: 8, color: '#333' }}>
+            <Text style={{ fontSize: fontSize.label, color: colors.textPrimary, marginBottom: spacing.sm }}>
               ¿Cuántas unidades llegaron?
             </Text>
             <TextInput
               style={{
                 borderWidth: 1,
-                borderColor: '#ccc',
-                borderRadius: 10,
-                paddingHorizontal: 14,
-                paddingVertical: 12,
-                fontSize: 24,
+                borderColor: colors.chipInactive,
+                borderRadius: radius.sm,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.md,
+                fontSize: fontSize.heading,
                 fontWeight: 'bold',
-                color: '#000',
+                color: colors.textPrimary,
                 textAlign: 'center',
-                marginBottom: 8,
+                marginBottom: spacing.sm,
               }}
               placeholder="0"
-              placeholderTextColor="#bbb"
+              placeholderTextColor={colors.chipInactive}
               keyboardType="number-pad"
               autoFocus
               value={this.state.cantidad}
               onChangeText={text => this.setState({ cantidad: text })}
             />
 
-            {/* Vista previa del nuevo stock */}
             {parseInt(this.state.cantidad, 10) > 0 && (
-              <Text style={{ fontSize: 13, color: '#0088ff', textAlign: 'center', marginBottom: 16 }}>
+              <Text style={{ fontSize: fontSize.caption, color: colors.primary, textAlign: 'center', marginBottom: spacing.lg }}>
                 Nuevo stock:{' '}
                 <Text style={{ fontWeight: 'bold' }}>
                   {presentacion.stock + parseInt(this.state.cantidad, 10)} unidades
@@ -127,20 +124,19 @@ export default class AgregarUnidadesModal extends Component {
               </Text>
             )}
 
-            {/* Botones */}
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
               <TouchableOpacity
                 onPress={onCancel}
                 style={{
                   flex: 1,
-                  height: 48,
-                  borderRadius: 14,
-                  backgroundColor: '#eee',
+                  height: buttonHeight.action,
+                  borderRadius: radius.lg,
+                  backgroundColor: colors.chipInactive,
                   justifyContent: 'center',
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333' }}>
+                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
                   Cancelar
                 </Text>
               </TouchableOpacity>
@@ -149,14 +145,14 @@ export default class AgregarUnidadesModal extends Component {
                 onPress={this.handleSave}
                 style={{
                   flex: 1,
-                  height: 48,
-                  borderRadius: 14,
-                  backgroundColor: '#0088ff',
+                  height: buttonHeight.action,
+                  borderRadius: radius.lg,
+                  backgroundColor: colors.primary,
                   justifyContent: 'center',
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#fff' }}>
+                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
                   Agregar
                 </Text>
               </TouchableOpacity>

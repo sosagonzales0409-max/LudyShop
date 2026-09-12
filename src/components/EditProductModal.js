@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
+import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 
 /**
  * Modal para editar una presentación existente (precio, stock, tamaño).
@@ -76,7 +77,7 @@ export default class EditProductModal extends Component {
         <View
           style={{
             flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: colors.overlay,
             justifyContent: 'center',
             alignItems: 'center',
           }}
@@ -84,72 +85,69 @@ export default class EditProductModal extends Component {
           <View
             style={{
               width: '90%',
-              backgroundColor: '#ffffff',
-              borderRadius: 20,
-              padding: 20,
+              backgroundColor: colors.card,
+              borderRadius: radius.xl,
+              padding: spacing.lg,
             }}
           >
-            {/* Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ fontSize: 20, fontWeight: 'bold', flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
                 Editar presentación
               </Text>
               <TouchableOpacity onPress={onCancel}>
-                <Text style={{ fontSize: 20, fontWeight: 'bold' }}>✕</Text>
+                <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
+                  ✕
+                </Text>
               </TouchableOpacity>
             </View>
-            <Text style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg }}>
               {product.nombre} · {product.marca}
             </Text>
 
             <ScrollView>
-              {/* Tamaño */}
               <Text style={labelStyle}>Tamaño / Presentación</Text>
               <TextInput
                 style={inputStyle}
                 placeholder="Ej. 1 kg, 600 ml"
-                placeholderTextColor="#777"
+                placeholderTextColor={colors.textMuted}
                 value={this.state.tamano}
                 onChangeText={text => this.setState({ tamano: text })}
               />
 
-              {/* Precio */}
-              <Text style={[labelStyle, { marginTop: 16 }]}>Precio ($)</Text>
+              <Text style={[labelStyle, { marginTop: spacing.lg }]}>Precio ($)</Text>
               <TextInput
                 style={inputStyle}
                 placeholder="0.00"
-                placeholderTextColor="#777"
+                placeholderTextColor={colors.textMuted}
                 keyboardType="decimal-pad"
                 value={this.state.precio}
                 onChangeText={text => this.setState({ precio: text })}
               />
 
-              {/* Stock */}
-              <Text style={[labelStyle, { marginTop: 16 }]}>Stock actual</Text>
+              <Text style={[labelStyle, { marginTop: spacing.lg }]}>Stock actual</Text>
               <TextInput
                 style={inputStyle}
                 placeholder="0"
-                placeholderTextColor="#777"
+                placeholderTextColor={colors.textMuted}
                 keyboardType="number-pad"
                 value={this.state.stock}
                 onChangeText={text => this.setState({ stock: text })}
               />
             </ScrollView>
 
-            {/* Botones */}
-            <View style={{ flexDirection: 'row', marginTop: 20, gap: 10 }}>
+            <View style={{ flexDirection: 'row', marginTop: spacing.xl, gap: spacing.sm }}>
               <TouchableOpacity
                 onPress={onCancel}
                 style={{
                   flex: 1,
-                  height: 48,
-                  borderRadius: 15,
-                  backgroundColor: '#eee',
+                  height: buttonHeight.action,
+                  borderRadius: radius.lg,
+                  backgroundColor: colors.chipInactive,
                   justifyContent: 'center',
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#333' }}>
+                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
                   Cancelar
                 </Text>
               </TouchableOpacity>
@@ -158,14 +156,14 @@ export default class EditProductModal extends Component {
                 onPress={this.handleSave}
                 style={{
                   flex: 1,
-                  height: 48,
-                  borderRadius: 15,
-                  backgroundColor: '#0088ff',
+                  height: buttonHeight.action,
+                  borderRadius: radius.lg,
+                  backgroundColor: colors.primary,
                   justifyContent: 'center',
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ fontWeight: 'bold', fontSize: 16, color: '#fff' }}>
+                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
                   Guardar
                 </Text>
               </TouchableOpacity>
@@ -178,17 +176,17 @@ export default class EditProductModal extends Component {
 }
 
 const labelStyle = {
-  fontSize: 16,
-  marginBottom: 6,
-  color: '#333',
+  fontSize: fontSize.label,
+  color: colors.textPrimary,
+  marginBottom: spacing.xs,
 };
 
 const inputStyle = {
   borderWidth: 1,
-  borderColor: '#ccc',
-  borderRadius: 10,
-  paddingHorizontal: 12,
-  paddingVertical: 10,
-  fontSize: 16,
-  color: '#000',
+  borderColor: colors.chipInactive,
+  borderRadius: radius.sm,
+  paddingHorizontal: spacing.md,
+  paddingVertical: spacing.sm,
+  fontSize: fontSize.body,
+  color: colors.textPrimary,
 };
