@@ -10,6 +10,7 @@ import LowStockView from './LowStockView';
 import ProductDetailView from './ProductDetailView';
 import CreditosView from './CreditosView';
 import ClientDebtDetailView from './ClientDebtDetailView';
+import HistorialView from './HistorialView';
 import { StoreProvider } from '../context/StoreContext';
 import { colors, fontSize } from '../config/theme';
 
@@ -32,6 +33,7 @@ function MainStack() {
       <MainViews.Screen name="Main" component={Main} />
       <MainViews.Screen name="Creditos" component={CreditosView} />
       <MainViews.Screen name="ClientDebtDetail" component={ClientDebtDetailView} />
+      <MainViews.Screen name="Historial" component={HistorialView} />
       <MainViews.Screen name="ConfigView" component={ConfigViewPlaceholder} />
     </MainViews.Navigator>
   );

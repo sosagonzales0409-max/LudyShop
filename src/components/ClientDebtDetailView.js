@@ -45,16 +45,14 @@ export default class ClientDebtDetailView extends Component {
   }
 
   // Obtiene el clienteData recalculado del Context para reflejar cambios
-  // (abonos, eliminaciones) sin necesidad de pasar el objeto por ref.
+  // (abonos, eliminaciones, renombrado) sin necesidad de pasar el objeto por ref.
   getClienteActualizado() {
     const { sales } = this.context;
     const clienteOriginal = this.props.route?.params?.clienteData;
     if (!clienteOriginal) return null;
 
-    // Usamos el nombre actual (puede haber sido renombrado en esta misma pantalla)
-    const nombreBuscar = this.state.editandoNombre
-      ? clienteOriginal.cliente
-      : clienteOriginal.cliente;
+    // Siempre usar el nombre del param (actualizado por setParams tras renombrar).
+    const nombreBuscar = clienteOriginal.cliente;
 
     const mapa = {};
     sales
@@ -66,19 +64,21 @@ export default class ClientDebtDetailView extends Component {
             cliente: key,
             totalDeuda: 0,
             totalAbonado: 0,
+            totalCondonado: 0,
             ventas: [],
             fechaUltima: sale.fecha,
           };
         }
         mapa[key].totalDeuda += sale.total;
         mapa[key].totalAbonado += sale.totalAbonado ?? 0;
+        mapa[key].totalCondonado += sale.condonado ?? 0;
         mapa[key].ventas.push(sale);
         if (sale.fecha > mapa[key].fechaUltima) mapa[key].fechaUltima = sale.fecha;
       });
 
     const entry = Object.values(mapa)[0];
     if (!entry) return null;
-    return { ...entry, saldo: entry.totalDeuda - entry.totalAbonado };
+    return { ...entry, saldo: entry.totalDeuda - entry.totalAbonado - entry.totalCondonado };
   }
 
   formatFecha(iso) {
@@ -88,7 +88,7 @@ export default class ClientDebtDetailView extends Component {
   }
 
   pendienteDe(venta) {
-    return Math.max(0, venta.total - (venta.totalAbonado ?? 0));
+    return Math.max(0, venta.total - (venta.totalAbonado ?? 0) - (venta.condonado ?? 0));
   }
 
   // ─── Acciones ────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ export default class ClientDebtDetailView extends Component {
         {
           text: 'Condonar (no devolver mercancía)',
           onPress: () => {
-            this.context.ajustarAbonoVenta(venta.id, venta.total);
+            this.context.condonarVenta(venta.id);
           },
         },
         {
@@ -231,6 +231,12 @@ export default class ClientDebtDetailView extends Component {
               </Text>
             </TouchableOpacity>
           </View>
+        )}
+
+        {(venta.condonado ?? 0) > 0.009 && (
+          <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs }}>
+            Condonado: ${(venta.condonado ?? 0).toFixed(2)} — deuda perdonada
+          </Text>
         )}
       </View>
     );
@@ -385,6 +391,14 @@ export default class ClientDebtDetailView extends Component {
                       ${cliente.totalAbonado.toFixed(2)}
                     </Text>
                   </View>
+                  {cliente.totalCondonado > 0.009 && (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                      <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Condonado</Text>
+                      <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.warning }}>
+                        ${cliente.totalCondonado.toFixed(2)}
+                      </Text>
+                    </View>
+                  )}
                   <View
                     style={{
                       flexDirection: 'row', justifyContent: 'space-between',

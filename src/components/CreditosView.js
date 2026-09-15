@@ -38,6 +38,9 @@ export default class CreditosView extends Component {
   //   'antiguedad' → deuda más antigua primero (inicio de la deuda), desempate por saldo.
   //   'saldo'      → mayor deuda primero.
   ordenarClientes = (a, b) => {
+    if (this.state.orden === 'alfabetico') {
+      return a.cliente.localeCompare(b.cliente, 'es');
+    }
     if (this.state.orden === 'saldo') {
       return b.saldo - a.saldo;
     }
@@ -60,23 +63,25 @@ export default class CreditosView extends Component {
             cliente: key,
             totalDeuda: 0,
             totalAbonado: 0,
+            totalCondonado: 0,
             ventas: [],
             fechaUltima: sale.fecha,
           };
         }
         mapa[key].totalDeuda += sale.total;
         mapa[key].totalAbonado += sale.totalAbonado ?? 0;
+        mapa[key].totalCondonado += sale.condonado ?? 0;
         mapa[key].ventas.push(sale);
         if (sale.fecha > mapa[key].fechaUltima) mapa[key].fechaUltima = sale.fecha;
       });
 
     return Object.values(mapa)
       .map(c => {
-        const saldo = c.totalDeuda - c.totalAbonado;
+        const saldo = c.totalDeuda - c.totalAbonado - c.totalCondonado;
         // Inicio de la deuda: fecha de la venta pendiente más antigua.
         // (campo calculado en memoria, no se almacena ni se pide al usuario)
         const pendientes = c.ventas.filter(
-          v => v.total - (v.totalAbonado ?? 0) > 0.009,
+          v => v.total - (v.totalAbonado ?? 0) - (v.condonado ?? 0) > 0.009,
         );
         const fechaDeuda =
           pendientes.length > 0
@@ -238,7 +243,9 @@ export default class CreditosView extends Component {
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.md }}>
             {this.state.orden === 'antiguedad'
               ? 'Clientes con saldo pendiente, de la deuda más antigua a la más reciente.'
-              : 'Clientes con saldo pendiente, ordenados de mayor a menor deuda.'}
+              : this.state.orden === 'saldo'
+                ? 'Clientes con saldo pendiente, ordenados de mayor a menor deuda.'
+                : 'Clientes con saldo pendiente, en orden alfabético.'}
           </Text>
 
           {/* Selector de orden */}
@@ -246,6 +253,7 @@ export default class CreditosView extends Component {
             {[
               { key: 'antiguedad', label: 'Más antiguo' },
               { key: 'saldo', label: 'Mayor deuda' },
+              { key: 'alfabetico', label: 'A-Z' },
             ].map(op => (
               <TouchableOpacity
                 key={op.key}

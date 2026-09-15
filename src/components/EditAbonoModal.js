@@ -37,13 +37,14 @@ export default class EditAbonoModal extends Component {
   handleSave = () => {
     const { venta, onSave } = this.props;
     const monto = parseFloat(this.state.montoInput.replace(',', '.'));
+    const maxAbono = Math.max(0, venta.total - (venta.condonado ?? 0));
 
     if (isNaN(monto) || monto < 0) {
-      Alert.alert('Monto inválido', 'Ingresa un valor entre 0 y el total de la venta.');
+      Alert.alert('Monto inválido', 'Ingresa un valor entre 0 y el cobrable de la venta.');
       return;
     }
-    if (monto > venta.total + 0.009) {
-      Alert.alert('Monto excede la venta', `El total de esta venta es $${venta.total.toFixed(2)}.`);
+    if (monto > maxAbono + 0.009) {
+      Alert.alert('Monto excede la venta', `El total cobrable de esta venta es $${maxAbono.toFixed(2)}.`);
       return;
     }
 
@@ -55,8 +56,10 @@ export default class EditAbonoModal extends Component {
     if (!venta) return null;
 
     const montoNum = parseFloat(this.state.montoInput.replace(',', '.'));
+    const maxAbono = Math.max(0, venta.total - (venta.condonado ?? 0));
+    const condonado = venta.condonado ?? 0;
     const nuevoPendiente = !isNaN(montoNum) && montoNum >= 0
-      ? Math.max(0, venta.total - montoNum)
+      ? Math.max(0, venta.total - montoNum - condonado)
       : null;
 
     return (
@@ -101,10 +104,27 @@ export default class EditAbonoModal extends Component {
                 ${(venta.totalAbonado ?? 0).toFixed(2)}
               </Text>
             </View>
+            {condonado > 0.009 && (
+              <View
+                style={{
+                  backgroundColor: colors.background,
+                  borderRadius: radius.sm,
+                  padding: spacing.md,
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  marginBottom: spacing.lg,
+                }}
+              >
+                <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Condonado</Text>
+                <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.warning }}>
+                  ${condonado.toFixed(2)}
+                </Text>
+              </View>
+            )}
 
             {/* Label */}
             <Text style={{ fontSize: fontSize.label, color: colors.textPrimary, marginBottom: spacing.sm }}>
-              Nuevo monto abonado (0 – ${venta.total.toFixed(2)})
+              Nuevo monto abonado (0 – ${maxAbono.toFixed(2)})
             </Text>
 
             {/* Input */}

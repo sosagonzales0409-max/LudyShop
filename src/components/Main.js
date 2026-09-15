@@ -4,14 +4,15 @@ import {
   TouchableOpacity,
   Dimensions,
   Text,
+  TextInput,
   FlatList,
   Alert,
   Image,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import ProductsModal from './ProductsModal.js';
+import ConfirmarVentaModal from './ConfirmarVentaModal.js';
 import NumericStepper from './NumericStepper.js';
-import ClientNameInput from './ClientNameInput';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 
 const _window = Dimensions.get('window');
@@ -27,6 +28,7 @@ class Main extends Component {
       paymentType: 'Contado',
       clienteNombre: '',
       showProductModal: false,
+      showConfirmarModal: false,
       cartProducts: [],
     };
   }
@@ -55,10 +57,16 @@ class Main extends Component {
   confirmCompleteSale = () => {
     const { cartProducts, paymentType, clienteNombre } = this.state;
     if (cartProducts.length === 0) return;
-    if (paymentType === 'Credito' && !clienteNombre.trim()) {
-      Alert.alert('Falta información', 'Ingresa el nombre del cliente para ventas a crédito.');
+
+    if (paymentType === 'Credito') {
+      if (!clienteNombre.trim()) {
+        Alert.alert('Falta información', 'Ingresa el nombre del cliente para ventas a crédito.');
+        return;
+      }
+      this.setState({ showConfirmarModal: true });
       return;
     }
+
     Alert.alert(
       'Confirmar venta',
       `Total: $${this.getTotalCart()}\n¿Deseas completar esta venta?`,
@@ -66,22 +74,26 @@ class Main extends Component {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Confirmar',
-          onPress: () => {
-            this.context.decreaseStock(
-              cartProducts.map(p => ({ productId: p.productId, presentacionId: p.presentacionId, cantidad: p.numProducts })),
-            );
-            this.context.addSale({
-              productos: cartProducts,
-              total: parseFloat(this.getTotalCart()),
-              tipoPago: paymentType,
-              cliente: paymentType === 'Credito' ? clienteNombre.trim() : null,
-            });
-            this.setState({ cartProducts: [], clienteNombre: '', paymentType: 'Contado' });
-            Alert.alert('Venta completada', 'La venta se registró correctamente.');
-          },
+          onPress: () => this.finalizarVenta(0),
         },
       ],
     );
+  };
+
+  finalizarVenta = abonoInicial => {
+    const { cartProducts, paymentType, clienteNombre } = this.state;
+    this.context.decreaseStock(
+      cartProducts.map(p => ({ productId: p.productId, presentacionId: p.presentacionId, cantidad: p.numProducts })),
+    );
+    this.context.addSale({
+      productos: cartProducts,
+      total: parseFloat(this.getTotalCart()),
+      tipoPago: paymentType,
+      cliente: paymentType === 'Credito' ? clienteNombre.trim() : null,
+      totalAbonado: abonoInicial || 0,
+    });
+    this.setState({ cartProducts: [], clienteNombre: '', paymentType: 'Contado', showConfirmarModal: false });
+    Alert.alert('Venta completada', 'La venta se registró correctamente.');
   };
 
   // Pie de la FlatList: total + botón confirmar (solo si hay productos)
@@ -200,6 +212,14 @@ class Main extends Component {
           cartProducts={this.state.cartProducts}
         />
 
+        <ConfirmarVentaModal
+          visible={this.state.showConfirmarModal}
+          cliente={this.state.clienteNombre.trim()}
+          total={parseFloat(this.getTotalCart())}
+          onCancel={() => this.setState({ showConfirmarModal: false })}
+          onConfirmar={abono => this.finalizarVenta(abono)}
+        />
+
         {/* ── Header ── */}
         <View
           style={{
@@ -214,6 +234,15 @@ class Main extends Component {
           </Text>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            {/* Historial */}
+            <TouchableOpacity
+              onPress={() => this.props.navigation.navigate('Historial')}
+              hitSlop={8}
+              style={{ width: 44, height: 44, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: fontSize.label }}>📋</Text>
+            </TouchableOpacity>
+
             {/* Créditos con badge */}
             <TouchableOpacity
               onPress={() => this.props.navigation.navigate('Creditos')}
@@ -290,9 +319,22 @@ class Main extends Component {
                 <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.sm }}>
                   Nombre del cliente
                 </Text>
-                <ClientNameInput
+                <TextInput
+                  style={{
+                    borderColor: colors.chipInactive,
+                    borderWidth: 1,
+                    borderRadius: radius.sm,
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: spacing.sm,
+                    fontSize: fontSize.body,
+                    color: colors.textPrimary,
+                  }}
+                  placeholder="Ingresa el nombre del cliente"
+                  placeholderTextColor={colors.textMuted}
                   value={this.state.clienteNombre}
                   onChangeText={text => this.setState({ clienteNombre: text })}
+                  autoCorrect={false}
+                  returnKeyType="done"
                 />
               </View>
             )}
