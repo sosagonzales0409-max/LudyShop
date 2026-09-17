@@ -12,6 +12,7 @@ import { StoreContext } from '../context/StoreContext';
 import AgregarUnidadesModal from './AgregarUnidadesModal';
 import EditProductModal from './EditProductModal';
 import { colors, spacing, radius, fontSize, buttonHeight, iconButton } from '../config/theme';
+import { IconEdit, IconTrash, IconPlus, IconBack } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
@@ -44,8 +45,9 @@ export default class ProductDetailView extends Component {
   }
 
   stockBadgeColor(stock) {
+    const threshold = this.context.config?.umbralStock ?? 5;
     if (stock === 0) return colors.danger;
-    if (stock < 5) return colors.warning;
+    if (stock < threshold) return colors.warning;
     return colors.success;
   }
 
@@ -92,7 +94,7 @@ export default class ProductDetailView extends Component {
               {pres.tamano}
             </Text>
             <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.xs }}>
-              ${pres.precio.toFixed(2)} por unidad
+              {(this.context.config?.moneda ?? '$')}{pres.precio.toFixed(2)} por unidad
             </Text>
           </View>
 
@@ -124,9 +126,12 @@ export default class ProductDetailView extends Component {
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
-              + Agregar unidades
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IconPlus size={fontSize.label} color={colors.white} />
+            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white, marginLeft: spacing.xs }}>
+              Agregar unidades
             </Text>
+          </View>
           </TouchableOpacity>
 
           {/* Editar */}
@@ -141,7 +146,7 @@ export default class ProductDetailView extends Component {
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: fontSize.body }}>✏️</Text>
+            <IconEdit size={fontSize.body} color={colors.textPrimary} />
           </TouchableOpacity>
 
           {/* Eliminar */}
@@ -156,7 +161,7 @@ export default class ProductDetailView extends Component {
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: fontSize.body }}>🗑️</Text>
+            <IconTrash size={fontSize.body} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -172,7 +177,12 @@ export default class ProductDetailView extends Component {
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={{ fontSize: fontSize.body, color: colors.textMuted }}>Producto no encontrado</Text>
           <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ marginTop: spacing.lg }}>
-            <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: fontSize.label }}>← Volver</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <IconBack size={fontSize.label} color={colors.primary} />
+              <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: fontSize.label, marginLeft: spacing.xs }}>
+                Volver
+              </Text>
+            </View>
           </TouchableOpacity>
         </SafeAreaView>
       );
@@ -222,7 +232,7 @@ export default class ProductDetailView extends Component {
             onPress={() => this.props.navigation.goBack()}
             style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm }}
           >
-            <Text style={{ fontSize: fontSize.heading, color: colors.primary }}>←</Text>
+            <IconBack size={28} color={colors.primary} />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>

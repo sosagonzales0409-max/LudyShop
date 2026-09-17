@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { IconClose, IconEdit, IconPlus, IconTrash } from './Icon';
 
 /**
  * CategoriasModal — CRUD completo de categorías.
@@ -141,7 +142,7 @@ export default class CategoriasModal extends Component {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ color: colors.textPrimary, fontSize: fontSize.label }}>✕</Text>
+              <IconClose size={fontSize.label} color={colors.textPrimary} />
             </TouchableOpacity>
           </>
         ) : (
@@ -162,7 +163,7 @@ export default class CategoriasModal extends Component {
                 marginRight: spacing.sm,
               }}
             >
-              <Text style={{ fontSize: fontSize.body }}>✏️</Text>
+              <IconEdit size={fontSize.body} color={colors.textPrimary} />
             </TouchableOpacity>
             {/* Eliminar */}
             <TouchableOpacity
@@ -176,7 +177,7 @@ export default class CategoriasModal extends Component {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: fontSize.body }}>🗑️</Text>
+              <IconTrash size={fontSize.body} color={colors.textPrimary} />
             </TouchableOpacity>
           </>
         )}
@@ -233,7 +234,7 @@ export default class CategoriasModal extends Component {
                 Categorías
               </Text>
               <TouchableOpacity onPress={onClose}>
-                <Text style={{ fontSize: fontSize.heading, color: colors.textMuted }}>✕</Text>
+                <IconClose size={fontSize.heading} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
@@ -292,9 +293,12 @@ export default class CategoriasModal extends Component {
                   alignItems: 'center',
                 }}
               >
-                <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>
-                  + Agregar
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <IconPlus size={fontSize.label} color={colors.white} />
+                <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label, marginLeft: spacing.xs }}>
+                  Agregar
                 </Text>
+              </View>
               </TouchableOpacity>
             </View>
           </View>

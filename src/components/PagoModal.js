@@ -8,6 +8,8 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { IconClose } from './Icon';
+import { StoreContext } from '../context/StoreContext';
 
 /**
  * PagoModal — registra un abono o pago completo a un cliente con deuda.
@@ -19,6 +21,11 @@ import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme
  * @param {function} onSave       — recibe (cliente, monto)
  */
 export default class PagoModal extends Component {
+  static contextType = StoreContext;
+
+  get moneda() {
+    return this.context.config?.moneda ?? '$';
+  }
   state = { monto: '' };
 
   componentDidUpdate(prevProps) {
@@ -36,7 +43,7 @@ export default class PagoModal extends Component {
     if (monto > this.props.deudaTotal + 0.009) {
       Alert.alert(
         'Monto excede la deuda',
-        `El saldo pendiente es $${this.props.deudaTotal.toFixed(2)}. No puedes abonar más de eso.`,
+        `El saldo pendiente es ${this.moneda}${this.props.deudaTotal.toFixed(2)}. No puedes abonar más de eso.`,
       );
       return;
     }
@@ -47,7 +54,7 @@ export default class PagoModal extends Component {
     const total = this.props.deudaTotal.toFixed(2);
     Alert.alert(
       'Confirmar pago completo',
-      `Se registrará el pago de toda la deuda: $${total}. ¿Deseas continuar?`,
+      `Se registrará el pago de toda la deuda: ${this.moneda}${total}. ¿Deseas continuar?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -87,9 +94,17 @@ export default class PagoModal extends Component {
             }}
           >
             {/* Título */}
-            <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
-              Registrar pago
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+              <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
+                Registrar pago
+              </Text>
+              <TouchableOpacity
+                onPress={onCancel}
+                style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}
+              >
+                <IconClose size={fontSize.heading} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
             <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg }}>
               {cliente}
             </Text>

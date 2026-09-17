@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,21 +10,20 @@ import ProductDetailView from './ProductDetailView';
 import CreditosView from './CreditosView';
 import ClientDebtDetailView from './ClientDebtDetailView';
 import HistorialView from './HistorialView';
+import ConfigView from './ConfigView';
+import TiendaView from './TiendaView';
+import ReportesView from './ReportesView';
+import ConsumoPropioView from './ConsumoPropioView';
+import ActivityLogView from './ActivityLogView';
 import { StoreProvider } from '../context/StoreContext';
-import { colors, fontSize } from '../config/theme';
+import { fontSize, colors } from '../config/theme';
+import { IconShoppingCart, IconBoxes } from './Icon';
 
 const Tab = createBottomTabNavigator();
 const MainViews = createNativeStackNavigator();
 const InventoryViews = createNativeStackNavigator();
 
-function ConfigViewPlaceholder() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-      <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>⚙️ Configuración</Text>
-      <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: 8 }}>Próximamente</Text>
-    </View>
-  );
-}
+const TAB_BAR_HEIGHT = 70;
 
 function MainStack() {
   return (
@@ -34,7 +32,11 @@ function MainStack() {
       <MainViews.Screen name="Creditos" component={CreditosView} />
       <MainViews.Screen name="ClientDebtDetail" component={ClientDebtDetailView} />
       <MainViews.Screen name="Historial" component={HistorialView} />
-      <MainViews.Screen name="ConfigView" component={ConfigViewPlaceholder} />
+      <MainViews.Screen name="Reportes" component={ReportesView} />
+      <MainViews.Screen name="ConfigView" component={ConfigView} />
+      <MainViews.Screen name="TiendaView" component={TiendaView} />
+      <MainViews.Screen name="ConsumoPropioView" component={ConsumoPropioView} />
+      <MainViews.Screen name="ActivityLogView" component={ActivityLogView} />
     </MainViews.Navigator>
   );
 }
@@ -45,9 +47,20 @@ function InventoryStack() {
       <InventoryViews.Screen name="Inventory" component={Inventory} />
       <InventoryViews.Screen name="ProductDetail" component={ProductDetailView} />
       <InventoryViews.Screen name="LowStock" component={LowStockView} />
-      <InventoryViews.Screen name="ConfigView" component={ConfigViewPlaceholder} />
+      <InventoryViews.Screen name="ConfigView" component={ConfigView} />
+      <InventoryViews.Screen name="TiendaView" component={TiendaView} />
+      <InventoryViews.Screen name="Reportes" component={ReportesView} />
+      <InventoryViews.Screen name="ConsumoPropioView" component={ConsumoPropioView} />
+      <InventoryViews.Screen name="ActivityLogView" component={ActivityLogView} />
     </InventoryViews.Navigator>
   );
+}
+
+function tabVisibility(route, rootName) {
+  const rutaActiva = getFocusedRouteNameFromRoute(route) ?? rootName;
+  return rutaActiva === rootName
+    ? { height: TAB_BAR_HEIGHT }
+    : { display: 'none' };
 }
 
 function AppTabs() {
@@ -55,27 +68,44 @@ function AppTabs() {
     <Tab.Navigator
       initialRouteName="MainTab"
       screenOptions={{
-        tabBarStyle: { height: 70 },
+        tabBarStyle: { height: TAB_BAR_HEIGHT },
         tabBarActiveBackgroundColor: '#CDFEF9',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarIconStyle: { marginBottom: -8 },
       }}
     >
       <Tab.Screen
         name="MainTab"
         component={MainStack}
-        options={{
+        options={({ route }) => ({
           headerShown: false,
           tabBarLabel: 'Ventas',
-          tabBarLabelStyle: { fontSize: fontSize.label, color: 'black', fontWeight: 'bold', marginBottom: 10 },
-        }}
+          tabBarIcon: ({ color }) => <IconShoppingCart color={color} size={30} />,
+          tabBarLabelStyle: {
+            fontSize: fontSize.label,
+            color: 'black',
+            fontWeight: 'bold',
+            marginBottom: 12,
+          },
+          tabBarStyle: tabVisibility(route, 'Main'),
+        })}
       />
       <Tab.Screen
         name="InventoryTab"
         component={InventoryStack}
-        options={{
+        options={({ route }) => ({
           headerShown: false,
           tabBarLabel: 'Inventario',
-          tabBarLabelStyle: { fontSize: fontSize.label, color: 'black', fontWeight: 'bold', marginBottom: 10 },
-        }}
+          tabBarIcon: ({ color }) => <IconBoxes color={color} size={30} />,
+          tabBarLabelStyle: {
+            fontSize: fontSize.label,
+            color: 'black',
+            fontWeight: 'bold',
+            marginBottom: 12,
+          },
+          tabBarStyle: tabVisibility(route, 'Inventory'),
+        })}
       />
     </Tab.Navigator>
   );

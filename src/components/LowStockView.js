@@ -10,6 +10,7 @@ import {
 import { StoreContext } from '../context/StoreContext';
 import AgregarUnidadesModal from './AgregarUnidadesModal';
 import { colors, spacing, radius, fontSize, iconButton } from '../config/theme';
+import { IconBack, IconPlus } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
@@ -25,7 +26,7 @@ export default class LowStockView extends Component {
   static contextType = StoreContext;
 
   get threshold() {
-    return this.props.route?.params?.threshold ?? 5;
+    return this.props.route?.params?.threshold ?? this.context.config?.umbralStock ?? 5;
   }
 
   state = {
@@ -121,9 +122,7 @@ export default class LowStockView extends Component {
               alignItems: 'center',
             }}
           >
-            <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.itemTitle }}>
-              +
-            </Text>
+            <IconPlus size={fontSize.itemTitle} color={colors.white} />
           </TouchableOpacity>
         </View>
       </View>
@@ -168,7 +167,7 @@ export default class LowStockView extends Component {
             onPress={() => this.props.navigation.goBack()}
             style={{ marginRight: spacing.md }}
           >
-            <Text style={{ fontSize: fontSize.heading, color: colors.primary }}>←</Text>
+            <IconBack size={28} color={colors.primary} />
           </TouchableOpacity>
           <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
             Stock bajo

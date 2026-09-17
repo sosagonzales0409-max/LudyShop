@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { IconClose } from './Icon';
 
 /**
  * Modal para editar una presentación existente (precio, stock, tamaño).
@@ -95,9 +96,7 @@ export default class EditProductModal extends Component {
                 Editar presentación
               </Text>
               <TouchableOpacity onPress={onCancel}>
-                <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
-                  ✕
-                </Text>
+                <IconClose size={fontSize.heading} color={colors.textPrimary} />
               </TouchableOpacity>
             </View>
             <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg }}>

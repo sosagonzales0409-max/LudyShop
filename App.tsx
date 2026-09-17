@@ -1,38 +1,26 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import Main from './src/components/Main.js';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
 import Navigator from './src/components/router';
+import Toast from './src/components/Toast';
 
+/**
+ * App.tsx — punto de entrada.
+ *
+ * Toast se monta UNA sola vez aquí, encima de todo el árbol de navegación,
+ * para que sea visible desde cualquier pantalla o modal.
+ * Se llama desde cualquier lugar con Toast.show('mensaje', 'success'|'error'|'info').
+ */
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
   return (
+    <View style={styles.root}>
       <Navigator />
-  );
-}
-
-function AppContent() {
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-      />
+      <Toast ref={ref => Toast.setRef(ref)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  root: { flex: 1 },
 });
 
 export default App;

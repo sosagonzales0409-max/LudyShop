@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { IconClose } from './Icon';
 
 /**
  * Mini-modal para sumar unidades a una presentación existente.
@@ -67,10 +68,18 @@ export default class AgregarUnidadesModal extends Component {
               padding: spacing.xl,
             }}
           >
-            <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+            <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
               Agregar unidades
             </Text>
-            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg }}>
+            <TouchableOpacity
+              onPress={onCancel}
+              style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}
+            >
+              <IconClose size={fontSize.heading} color={colors.textMuted} />
+            </TouchableOpacity>
+            </View>
+          <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg }}>
               {product.nombre} {presentacion.tamano} · {product.marca}
             </Text>
 

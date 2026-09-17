@@ -13,6 +13,7 @@ import ProductFormModal from './ProductFormModal';
 import AgregarUnidadesModal from './AgregarUnidadesModal';
 import CategoriasModal from './CategoriasModal';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { IconTag, IconSettings, IconPlus, IconChevron } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
@@ -42,6 +43,14 @@ class Inventory extends Component {
     }
   }
 
+  get threshold() {
+    return this.context.config?.umbralStock ?? 5;
+  }
+
+  get moneda() {
+    return this.context.config?.moneda ?? '$';
+  }
+
   selectCategory(categoryId) {
     this.setState({ selectedCategory: categoryId }, () => this.resetListScroll());
   }
@@ -60,7 +69,7 @@ class Inventory extends Component {
   getLowStockCount() {
     const { products } = this.context;
     let count = 0;
-    products.forEach(p => p.presentaciones.forEach(pres => { if (pres.stock < 5) count++; }));
+    products.forEach(p => p.presentaciones.forEach(pres => { if (pres.stock < this.threshold) count++; }));
     return count;
   }
 
@@ -117,7 +126,7 @@ class Inventory extends Component {
             <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic', marginRight: spacing.xs }}>
               {product.marca}
             </Text>
-            <Text style={{ fontSize: fontSize.itemTitle, color: colors.textMuted }}>›</Text>
+            <IconChevron size={fontSize.itemTitle} color={colors.textMuted} />
           </View>
         </View>
 
@@ -136,16 +145,16 @@ class Inventory extends Component {
                 {pres.tamano}
               </Text>
               <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 }}>
-                ${pres.precio.toFixed(2)}
+                {this.moneda}{pres.precio.toFixed(2)}
               </Text>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+<View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
               <Text style={{
                 fontSize: fontSize.body, fontWeight: 'bold',
-                color: pres.stock < 5 ? colors.danger : colors.success,
+                color: pres.stock < this.threshold ? colors.danger : colors.success,
               }}>
-                {pres.stock} uds
+                {pres.stock} u
               </Text>
 
               {/* Botón + directo desde la lista — acción más frecuente */}
@@ -164,7 +173,7 @@ class Inventory extends Component {
                   justifyContent: 'center', alignItems: 'center',
                 }}
               >
-                <Text style={{ fontSize: fontSize.label, color: colors.white, fontWeight: 'bold' }}>+</Text>
+                <IconPlus size={fontSize.label} color={colors.white} />
               </TouchableOpacity>
             </View>
           </View>
@@ -239,20 +248,20 @@ class Inventory extends Component {
           <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
             Inventario
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 0 }}>
             <TouchableOpacity
               onPress={() => this.setState({ showCategoriasModal: true })}
               hitSlop={8}
               style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}
             >
-              <Text style={{ fontSize: fontSize.label }}>🏷️</Text>
+              <IconTag size={28} color={colors.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => this.props.navigation.navigate('ConfigView')}
               hitSlop={8}
               style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}
             >
-              <Text style={{ fontSize: fontSize.label }}>⚙️</Text>
+              <IconSettings size={28} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -269,11 +278,11 @@ class Inventory extends Component {
             >
               <Text style={{ color: colors.textSecondary, fontWeight: 'bold', fontSize: fontSize.caption }}>Valor total</Text>
               <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: fontSize.label, marginTop: spacing.xs }}>
-                ${this.getTotalValue()}
+                {this.moneda}{this.getTotalValue()}
               </Text>
             </View>
             <TouchableOpacity
-              onPress={() => this.props.navigation.navigate('LowStock')}
+              onPress={() => this.props.navigation.navigate('LowStock', { threshold: this.threshold })}
               style={{
                 flex: 1, height: SUMMARY_CARD_HEIGHT,
                 backgroundColor: colors.warning, borderRadius: radius.md,
@@ -319,9 +328,12 @@ class Inventory extends Component {
               borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginTop: spacing.md,
             }}
           >
-            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
-              + Agregar Producto
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <IconPlus size={fontSize.label} color={colors.white} />
+              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white, marginLeft: spacing.xs }}>
+                Agregar Producto
+              </Text>
+            </View>
           </TouchableOpacity>
 
           {/* Lista de productos */}

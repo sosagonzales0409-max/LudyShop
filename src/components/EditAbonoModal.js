@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { IconClose } from './Icon';
 
 /**
  * EditAbonoModal — corrige el monto ya abonado de una venta puntual.
@@ -81,9 +82,17 @@ export default class EditAbonoModal extends Component {
             }}
           >
             {/* Título */}
-            <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
-              Editar abono
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 0 }}>
+              <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
+                Editar abono
+              </Text>
+              <TouchableOpacity
+                onPress={onCancel}
+                style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}
+              >
+                <IconClose size={fontSize.heading} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
             <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs, marginBottom: spacing.lg }}>
               Venta del {this.formatFecha(venta.fecha)} · Total ${venta.total.toFixed(2)}
             </Text>

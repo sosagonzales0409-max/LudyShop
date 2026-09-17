@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { Modal, View, Text, TouchableOpacity } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { IconReceipt } from './Icon';
 
 /**
  * CorteModal — resumen del día (corte de caja).
@@ -124,9 +125,12 @@ export default class CorteModal extends Component {
               padding: spacing.xl,
             }}
           >
-            <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>
-              💰 Corte del día
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <IconReceipt size={fontSize.heading} color={colors.textPrimary} />
+              <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, marginLeft: spacing.sm }}>
+                Corte del día
+              </Text>
+            </View>
             <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg }}>
               {this.formatFecha(new Date().toISOString())}
             </Text>

@@ -10,6 +10,7 @@ import {
 import { StoreContext } from '../context/StoreContext';
 import PagoModal from './PagoModal';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { IconBack, IconChevron } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
@@ -154,7 +155,7 @@ export default class CreditosView extends Component {
           <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.danger }}>
             ${item.saldo.toFixed(2)}
           </Text>
-          <Text style={{ fontSize: fontSize.itemTitle, color: colors.textMuted, marginLeft: spacing.xs }}>›</Text>
+          <IconChevron size={fontSize.itemTitle} color={colors.textMuted} style={{ marginLeft: spacing.xs }} />
         </TouchableOpacity>
 
         {/* Botón registrar pago */}
@@ -218,7 +219,7 @@ export default class CreditosView extends Component {
             onPress={() => this.props.navigation.goBack()}
             style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}
           >
-            <Text style={{ fontSize: fontSize.heading, color: colors.primary }}>←</Text>
+            <IconBack size={28} color={colors.primary} />
           </TouchableOpacity>
           <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
             Créditos
