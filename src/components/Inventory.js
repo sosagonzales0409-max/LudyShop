@@ -320,9 +320,9 @@ class Inventory extends Component {
             renderItem={({ item }) => this.renderCategories(item)}
           />
 
-          {/* Botón agregar producto */}
+          {/* Botón agregar producto — navega a AgregarProductoView (pantalla completa) */}
           <TouchableOpacity
-            onPress={() => this.setState({ showAddProductModal: true })}
+            onPress={() => this.props.navigation.navigate('AgregarProducto')}
             style={{
               height: buttonHeight.action, backgroundColor: colors.primary,
               borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginTop: spacing.md,

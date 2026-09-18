@@ -10,9 +10,8 @@ import {
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import AgregarUnidadesModal from './AgregarUnidadesModal';
-import EditProductModal from './EditProductModal';
 import { colors, spacing, radius, fontSize, buttonHeight, iconButton } from '../config/theme';
-import { IconEdit, IconTrash, IconPlus, IconBack } from './Icon';
+import { IconEdit, IconTrash, IconPlus, IconBack, IconShoppingBag } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
@@ -34,8 +33,6 @@ export default class ProductDetailView extends Component {
   state = {
     showAgregarModal: false,
     agregarPres: null,
-    showEditModal: false,
-    editPres: null,
   };
 
   // Obtiene el producto actualizado desde el contexto usando el id del param
@@ -136,14 +133,11 @@ export default class ProductDetailView extends Component {
 
           {/* Editar */}
           <TouchableOpacity
-            onPress={() => this.setState({ showEditModal: true, editPres: pres })}
+            onPress={() => this.props.navigation.navigate('EditarProducto', { productId: product.id, presentacionId: pres.id })}
             style={{
-              width: buttonHeight.action,
-              height: buttonHeight.action,
-              borderRadius: radius.lg,
-              backgroundColor: colors.chipInactive,
-              justifyContent: 'center',
-              alignItems: 'center',
+              width: buttonHeight.action, height: buttonHeight.action,
+              borderRadius: radius.lg, backgroundColor: colors.chipInactive,
+              justifyContent: 'center', alignItems: 'center',
             }}
           >
             <IconEdit size={fontSize.body} color={colors.textPrimary} />
@@ -153,17 +147,30 @@ export default class ProductDetailView extends Component {
           <TouchableOpacity
             onPress={() => this.confirmDelete(product, pres)}
             style={{
-              width: buttonHeight.action,
-              height: buttonHeight.action,
-              borderRadius: radius.lg,
-              backgroundColor: '#fde8e8',
-              justifyContent: 'center',
-              alignItems: 'center',
+              width: buttonHeight.action, height: buttonHeight.action,
+              borderRadius: radius.lg, backgroundColor: '#fde8e8',
+              justifyContent: 'center', alignItems: 'center',
             }}
           >
             <IconTrash size={fontSize.body} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
+
+        {/* Botón registrar compra — segunda fila, color secundario */}
+        <TouchableOpacity
+          onPress={() => this.props.navigation.navigate('RegistrarCompra', { productId: product.id, presentacionId: pres.id })}
+          style={{
+            height: buttonHeight.action, backgroundColor: colors.background,
+            borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.primary,
+            justifyContent: 'center', alignItems: 'center', marginTop: spacing.sm,
+            flexDirection: 'row',
+          }}
+        >
+          <IconShoppingBag size={fontSize.label} color={colors.primary} />
+          <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.primary, marginLeft: spacing.xs }}>
+            Registrar compra
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -199,16 +206,6 @@ export default class ProductDetailView extends Component {
           onSave={(productId, presentacionId, cantidad) => {
             this.context.agregarStock(productId, presentacionId, cantidad);
             this.setState({ showAgregarModal: false, agregarPres: null });
-          }}
-        />
-        <EditProductModal
-          visible={this.state.showEditModal}
-          product={product}
-          presentacion={this.state.editPres}
-          onCancel={() => this.setState({ showEditModal: false, editPres: null })}
-          onSave={(productId, presentacionId, cambios) => {
-            this.context.updatePresentacion(productId, presentacionId, cambios);
-            this.setState({ showEditModal: false, editPres: null });
           }}
         />
 
