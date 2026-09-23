@@ -49,9 +49,26 @@ export default class ProductDetailView extends Component {
   }
 
   confirmDelete(product, pres) {
+    const esUltima = product.presentaciones.length === 1;
+    const { sales = [], compras = [] } = this.context;
+    const tieneHistorial =
+      sales.some(s => (s.productos || []).some(p => p.productId === product.id && p.presentacionId === pres.id)) ||
+      compras.some(c => (c.items || []).some(i => i.productId === product.id && i.presentacionId === pres.id));
+
+    const advertencias = [];
+    if (pres.stock > 0) {
+      advertencias.push(`Se perderán ${pres.stock} ${pres.esGranel ? (pres.unidadGranel || '') : 'unidades'} de stock sin registrar como merma.`);
+    }
+    if (esUltima) {
+      advertencias.push(`Es la única presentación de "${product.nombre}" — se eliminará el producto completo del catálogo.`);
+    }
+    if (tieneHistorial) {
+      advertencias.push('El historial de ventas y compras de este producto no se ve afectado, se conserva tal cual.');
+    }
+
     Alert.alert(
-      'Eliminar presentación',
-      `¿Seguro que quieres eliminar "${product.nombre} ${pres.tamano}"?\n\nEsta acción no se puede deshacer.`,
+      esUltima ? 'Eliminar producto' : 'Eliminar presentación',
+      `¿Seguro que quieres eliminar "${product.nombre} ${pres.tamano}"?\n\n${advertencias.join('\n\n')}\n\nEsta acción no se puede deshacer.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -60,7 +77,7 @@ export default class ProductDetailView extends Component {
           onPress: () => {
             this.context.deletePresentacion(product.id, pres.id);
             // Si era la última presentación, volver al inventario
-            if (product.presentaciones.length === 1) {
+            if (esUltima) {
               this.props.navigation.goBack();
             }
           },

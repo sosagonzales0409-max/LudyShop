@@ -8,9 +8,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import AgregarUnidadesModal from './AgregarUnidadesModal';
 import { colors, spacing, radius, fontSize, iconButton } from '../config/theme';
-import { IconBack, IconPlus } from './Icon';
+import { IconBack, IconShoppingBag } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
@@ -26,14 +25,11 @@ export default class LowStockView extends Component {
   static contextType = StoreContext;
 
   get threshold() {
-    return this.props.route?.params?.threshold ?? this.context.config?.umbralStock ?? 5;
+    // Config en vivo tiene prioridad sobre el param de navegación — si el
+    // umbral cambia en Config mientras esta pantalla sigue montada (stacks
+    // anidados de React Navigation), debe reflejarse sin tener que reabrirla.
+    return this.context.config?.umbralStock ?? this.props.route?.params?.threshold ?? 5;
   }
-
-  state = {
-    showAgregarModal: false,
-    agregarProduct: null,
-    agregarPresentacion: null,
-  };
 
   getLowStockItems() {
     const { products } = this.context;
@@ -58,7 +54,9 @@ export default class LowStockView extends Component {
     const chip = this.stockChip(presentacion.stock);
 
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => this.props.navigation.navigate('EditarProducto', { productId: product.id, presentacionId: presentacion.id })}
         style={{
           backgroundColor: colors.card,
           borderRadius: radius.md,
@@ -104,49 +102,30 @@ export default class LowStockView extends Component {
 
         {/* Acciones rápidas */}
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {/* + Agregar unidades */}
+          {/* Registrar compra — pre-carga este producto/presentación */}
           <TouchableOpacity
-            onPress={() =>
-              this.setState({
-                showAgregarModal: true,
-                agregarProduct: product,
-                agregarPresentacion: presentacion,
-              })
-            }
+            onPress={() => this.props.navigation.navigate('RegistrarCompra', { productId: product.id, presentacionId: presentacion.id })}
             style={{
               width: iconButton.size + 8,
               height: iconButton.size + 8,
               borderRadius: radius.sm,
-              backgroundColor: colors.success,
+              backgroundColor: colors.primary,
               justifyContent: 'center',
               alignItems: 'center',
             }}
           >
-            <IconPlus size={fontSize.itemTitle} color={colors.white} />
+            <IconShoppingBag size={fontSize.itemTitle} color={colors.white} />
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 
   render() {
     const items = this.getLowStockItems();
-    const { showAgregarModal, agregarProduct, agregarPresentacion } = this.state;
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* Modal: agregar unidades */}
-        <AgregarUnidadesModal
-          visible={showAgregarModal}
-          product={agregarProduct}
-          presentacion={agregarPresentacion}
-          onCancel={() => this.setState({ showAgregarModal: false, agregarProduct: null, agregarPresentacion: null })}
-          onSave={(productId, presentacionId, cantidad) => {
-            this.context.agregarStock(productId, presentacionId, cantidad);
-            this.setState({ showAgregarModal: false, agregarProduct: null, agregarPresentacion: null });
-          }}
-        />
-
         {/* Barra verde superior */}
         <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
 

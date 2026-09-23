@@ -18,8 +18,14 @@ const GREEN_BAR_HEIGHT = 50;
 // Ancho disponible para la gráfica dentro de la tarjeta.
 // ScrollView tiene padding:spacing.lg en cada lado,
 // la tarjeta tiene padding:spacing.lg en cada lado.
-// Total descuento: spacing.lg * 4. El eje Y de gifted-charts ocupa ~50px.
-const CHART_INNER_WIDTH = _window.width - spacing.lg * 4 - 50;
+// Total descuento: spacing.lg * 4. El eje Y (YAXIS_LABEL_WIDTH) ocupa el resto.
+//
+// Bug fix: gifted-charts reserva por default solo 35px para las etiquetas
+// del eje Y (yAxisLabelWidth). Con el prefijo de moneda, un valor de 4+
+// dígitos (ej. "$1500") no cabe ahí y se recorta visualmente a "150" — la
+// barra se dibuja con la altura correcta, solo la etiqueta se veía mal.
+const YAXIS_LABEL_WIDTH = 55;
+const CHART_INNER_WIDTH = _window.width - spacing.lg * 4 - YAXIS_LABEL_WIDTH;
 
 // Barras del año: ancho y espaciado fijos para que los 12 meses quepan con
 // scroll horizontal y los labels no se encimen.
@@ -91,7 +97,7 @@ function horaActual() {
 export default class ReportesView extends Component {
   static contextType = StoreContext;
 
-  state = { periodo: '7d', tooltipIdx: null };
+  state = { periodo: '7d', tooltipIdx: null, modoVentas: 'ingresoReal', ordenTop: 'unidades' };
 
   // ─── Fechas ────────────────────────────────────────────────────────────────
 
@@ -112,23 +118,30 @@ export default class ReportesView extends Component {
 
   // ─── Cálculos ──────────────────────────────────────────────────────────────
 
-  totalContadoEnRango(ini, fin) {
-    return this.context.sales
-      .filter(s => s.tipoPago !== 'Credito' && new Date(s.fecha).getTime() >= ini && new Date(s.fecha).getTime() <= fin)
+  // modo: 'ingresoReal' (contado cobrado + abonos recibidos, dinero que de
+  // verdad entró) o 'todas' (valor de venta de contado + crédito, se haya
+  // cobrado o no).
+  totalVentasEnRango(ini, fin, modo) {
+    const ventas = this.context.sales
+      .filter(s => (modo === 'todas' || s.tipoPago !== 'Credito') && new Date(s.fecha).getTime() >= ini && new Date(s.fecha).getTime() <= fin)
       .reduce((sum, s) => sum + s.total, 0);
+    if (modo === 'todas') return ventas;
+    const abonos = (this.context.abonos ?? [])
+      .filter(a => a.tipo === 'abono' && new Date(a.fecha).getTime() >= ini && new Date(a.fecha).getTime() <= fin)
+      .reduce((sum, a) => sum + a.monto, 0);
+    return ventas + abonos;
   }
 
   getDatosGrafica() {
     const { sales } = this.context;
     const inicio = this.inicioPeriodo(this.state.periodo);
     const dias   = this.diasEnRango(inicio);
+    const modo   = this.state.modoVentas;
 
     const totalDelDia = dia => {
       const ini = new Date(dia).setHours(0,0,0,0);
       const fin = new Date(dia).setHours(23,59,59,999);
-      return sales
-        .filter(s => s.tipoPago !== 'Credito' && new Date(s.fecha).getTime() >= ini && new Date(s.fecha).getTime() <= fin)
-        .reduce((sum, s) => sum + s.total, 0);
+      return this.totalVentasEnRango(ini, fin, modo);
     };
 
     let buckets;
@@ -162,7 +175,7 @@ export default class ReportesView extends Component {
     const largoDias   = dias.length;
     const iniAnt      = new Date(inicio); iniAnt.setDate(iniAnt.getDate()-largoDias);
     const finAnt      = new Date(inicio); finAnt.setMilliseconds(-1);
-    const totalAnt    = this.totalContadoEnRango(iniAnt.getTime(), finAnt.getTime());
+    const totalAnt    = this.totalVentasEnRango(iniAnt.getTime(), finAnt.getTime(), modo);
 
     return {
       data: buckets.map(b => ({
@@ -183,46 +196,93 @@ export default class ReportesView extends Component {
     };
   }
 
+  // Ventas totales del período (contado + crédito): número de ventas y
+  // ticket promedio, dos métricas básicas de retail que faltaban del todo.
+  getVentasStats() {
+    const { sales } = this.context;
+    const inicioISO = this.inicioPeriodo(this.state.periodo).toISOString();
+    const ventasPeriodo = sales.filter(s => s.fecha >= inicioISO);
+    const numVentas = ventasPeriodo.length;
+    const totalVentas = ventasPeriodo.reduce((s,v) => s+v.total, 0);
+    return { numVentas, ticketPromedio: numVentas > 0 ? totalVentas / numVentas : 0 };
+  }
+
+  // Top productos: por unidades vendidas (todas las ventas) o por margen
+  // generado (solo productos con precioCompra registrado en la venta —
+  // ventas viejas o productos sin costo capturado no entran en ese conteo).
   getTopProductos() {
     const { sales } = this.context;
     const inicio = this.inicioPeriodo(this.state.periodo);
-    const mapa = {}; let totalUnidades = 0;
+    const mapa = {};
+    let totalUnidades = 0;
+    let totalMargen = 0;
 
     sales.filter(s => new Date(s.fecha) >= inicio).forEach(s => {
       (s.productos || []).forEach(p => {
         const key = `${p.nombre} ${p.tamano}`;
-        const prev = mapa[key] || { nombre: p.nombre, tamano: p.tamano, unidades: 0, monto: 0 };
+        const prev = mapa[key] || { nombre: p.nombre, tamano: p.tamano, unidades: 0, monto: 0, margen: 0, tieneCosto: false };
         const u = p.numProducts || 1;
-        mapa[key] = { ...prev, unidades: prev.unidades+u, monto: prev.monto + u*(p.precio||0) };
+        const tieneCosto = p.precioCompra != null;
+        const margenLinea = tieneCosto ? (p.precio - p.precioCompra) * u : 0;
+        mapa[key] = {
+          nombre: p.nombre, tamano: p.tamano,
+          unidades: prev.unidades + u,
+          monto: prev.monto + u * (p.precio || 0),
+          margen: prev.margen + margenLinea,
+          tieneCosto: prev.tieneCosto || tieneCosto,
+        };
         totalUnidades += u;
+        if (tieneCosto) totalMargen += margenLinea;
       });
     });
 
-    return Object.values(mapa)
-      .sort((a,b) => b.unidades - a.unidades)
+    const criterio = this.state.ordenTop; // 'unidades' | 'margen'
+    const lista = Object.values(mapa);
+    const base = criterio === 'margen' ? lista.filter(p => p.tieneCosto) : lista;
+
+    return [...base]
+      .sort((a,b) => criterio === 'margen' ? b.margen - a.margen : b.unidades - a.unidades)
       .slice(0, 5)
-      .map(p => ({ ...p, porcentaje: totalUnidades > 0 ? (p.unidades/totalUnidades)*100 : 0 }));
+      .map(p => ({
+        ...p,
+        porcentaje: criterio === 'margen'
+          ? (totalMargen > 0 ? (p.margen/totalMargen)*100 : 0)
+          : (totalUnidades > 0 ? (p.unidades/totalUnidades)*100 : 0),
+      }));
   }
 
   getFlujoDinero() {
-    const { sales, abonos } = this.context;
+    const { sales, abonos, compras } = this.context;
     const inicio    = this.inicioPeriodo(this.state.periodo);
     const inicioISO = inicio.toISOString();
     const vp        = sales.filter(s => s.fecha >= inicioISO);
+    const cp        = (compras ?? []).filter(c => c.fecha >= inicioISO);
+    const invertidoCompras = cp.reduce((s,c) => s+c.total, 0);
+
+    // Período anterior (misma duración) para saber si se está comprando
+    // más o menos que antes — mismo criterio que usa la gráfica de ventas.
+    const largoDias = this.diasEnRango(inicio).length;
+    const iniAnt = new Date(inicio); iniAnt.setDate(iniAnt.getDate()-largoDias);
+    const finAntISO = new Date(new Date(inicio).getTime()-1).toISOString();
+    const invertidoComprasAnt = (compras ?? [])
+      .filter(c => c.fecha >= iniAnt.toISOString() && c.fecha <= finAntISO)
+      .reduce((s,c) => s+c.total, 0);
 
     return {
       contado:          vp.filter(s => s.tipoPago !== 'Credito').reduce((s,v) => s+v.total, 0),
       creditoGenerado:  vp.filter(s => s.tipoPago === 'Credito').reduce((s,v) => s+v.total, 0),
       abonosRecibidos:  (abonos??[]).filter(a => a.tipo==='abono' && a.fecha>=inicioISO).reduce((s,a) => s+a.monto, 0),
       pendienteGlobal:  sales.filter(s => s.tipoPago==='Credito').reduce((s,v) => s+Math.max(0,v.total-(v.totalAbonado??0)-(v.condonado??0)), 0),
+      invertidoCompras,
+      variacionCompras: variacion(invertidoCompras, invertidoComprasAnt),
     };
   }
 
   // ─── Render helpers ────────────────────────────────────────────────────────
 
-  renderCard(children) {
+  renderCard(children, key) {
     return (
-      <View style={{ backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.lg, elevation: 3, shadowOpacity: 0.07, shadowRadius: 4, shadowOffset: { width:0, height:2 } }}>
+      <View key={key} style={{ backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.lg, elevation: 3, shadowOpacity: 0.07, shadowRadius: 4, shadowOffset: { width:0, height:2 } }}>
         {children}
       </View>
     );
@@ -267,7 +327,7 @@ export default class ReportesView extends Component {
 
     const barChart = (
       <BarChart
-        key={`barchart-${this.state.periodo}`}
+        key={`barchart-${this.state.periodo}-${this.state.modoVentas}`}
         data={datos.data}
         width={esAnual ? chartWidthAnual : CHART_INNER_WIDTH}
         height={CHART_HEIGHT}
@@ -281,6 +341,7 @@ export default class ReportesView extends Component {
         xAxisThickness={1}
         xAxisColor={colors.border}
         yAxisTextStyle={{ color: colors.textMuted, fontSize: fontSize.small }}
+        yAxisLabelWidth={YAXIS_LABEL_WIDTH}
         yAxisLabelPrefix={moneda}
         roundToDigits={0}
         xAxisLabelTextStyle={{ color: colors.textSecondary, fontSize: fontSize.small }}
@@ -293,15 +354,31 @@ export default class ReportesView extends Component {
       />
     );
 
+    const modoVentas = this.state.modoVentas;
+
     return this.renderCard(
       <View>
-        {/* Cabecera */}
-        <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start', marginBottom:spacing.sm }}>
-          <Text style={{ fontSize:fontSize.label, fontWeight:'bold', color:colors.textPrimary }}>Ventas de contado</Text>
-          <Text style={{ fontSize:fontSize.small, color:colors.textMuted }}>
-            {fmtFecha(datos.desde)} – {fmtFecha(datos.hasta)}{datos.agrupado ? ` · por ${datos.agrupado}` : ''}
+        {/* Cabecera + toggle Ingreso real/Ventas totales */}
+        <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:2 }}>
+          <Text style={{ fontSize:fontSize.label, fontWeight:'bold', color:colors.textPrimary }}>
+            {modoVentas === 'todas' ? 'Ventas totales' : 'Ingreso real'}
           </Text>
+          <View style={{ flexDirection:'row', backgroundColor:colors.background, borderRadius:radius.lg, padding:2 }}>
+            {[{ key:'ingresoReal', label:'Ingreso real' }, { key:'todas', label:'Ventas totales' }].map(o => {
+              const activo = modoVentas === o.key;
+              return (
+                <TouchableOpacity key={o.key} onPress={() => this.setState({ modoVentas: o.key, tooltipIdx: null })}
+                  style={{ paddingHorizontal:spacing.sm, paddingVertical:4, borderRadius:radius.lg, backgroundColor: activo?colors.primary:'transparent' }}>
+                  <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color: activo?colors.white:colors.textSecondary }}>{o.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
+        <Text style={{ fontSize:fontSize.small, color:colors.textMuted, marginBottom:spacing.sm }}>
+          {fmtFecha(datos.desde)} – {fmtFecha(datos.hasta)}{datos.agrupado ? ` · por ${datos.agrupado}` : ''}
+          {modoVentas === 'ingresoReal' ? ' · contado + abonos, no incluye crédito pendiente de cobro' : ' · incluye crédito aunque no se haya cobrado'}
+        </Text>
 
         {/* Total + comparativa */}
         <View style={{ flexDirection:'row', alignItems:'baseline', marginBottom:spacing.lg }}>
@@ -327,7 +404,7 @@ export default class ReportesView extends Component {
         {datos.sinVentas ? (
           <View style={{ height:CHART_HEIGHT, backgroundColor:colors.background, borderRadius:radius.sm, justifyContent:'center', alignItems:'center' }}>
             <Text style={{ fontSize:36 }}>📭</Text>
-            <Text style={{ fontSize:fontSize.body, color:colors.textMuted, marginTop:spacing.sm, textAlign:'center' }}>Sin ventas de contado{'\n'}en este período</Text>
+            <Text style={{ fontSize:fontSize.body, color:colors.textMuted, marginTop:spacing.sm, textAlign:'center' }}>Sin {modoVentas==='ingresoReal' ? 'ingresos' : 'ventas'}{'\n'}en este período</Text>
           </View>
         ) : esAnual ? (
           // Bug fix: scroll horizontal para que los 12 meses no se encimen
@@ -341,7 +418,7 @@ export default class ReportesView extends Component {
         {/* Leyenda */}
         {!datos.sinVentas && (
           <View style={{ flexDirection:'row', marginTop:spacing.md, gap:spacing.lg }}>
-            {[{ color:colors.success, label:'Más alto' }, { color:colors.primary, label:'Con ventas' }, { color:colors.border, label:'Sin ventas' }].map(l => (
+            {[{ color:colors.success, label:'Más alto' }, { color:colors.primary, label:modoVentas==='ingresoReal' ? 'Con ingreso' : 'Con ventas' }, { color:colors.border, label:modoVentas==='ingresoReal' ? 'Sin ingreso' : 'Sin ventas' }].map(l => (
               <View key={l.label} style={{ flexDirection:'row', alignItems:'center' }}>
                 <View style={{ width:10, height:10, borderRadius:2, backgroundColor:l.color, marginRight:spacing.xs }} />
                 <Text style={{ fontSize:fontSize.small, color:colors.textSecondary }}>{l.label}</Text>
@@ -353,22 +430,39 @@ export default class ReportesView extends Component {
           <Text style={{ fontSize:fontSize.small, color:colors.textMuted, marginTop:spacing.xs }}>← Desliza para ver todos los meses</Text>
         )}
       </View>,
+      `grafica-${this.state.periodo}-${modoVentas}`,
     );
   }
 
   // ─── Sección 2: Top productos ──────────────────────────────────────────────
 
   renderTopProductos() {
-    const moneda = this.context.config?.moneda ?? '$';
-    const top    = this.getTopProductos();
+    const moneda   = this.context.config?.moneda ?? '$';
+    const criterio = this.state.ordenTop;
+    const top      = this.getTopProductos();
 
     return this.renderCard(
       <View>
-        {this.renderTitulo('Top productos vendidos')}
+        <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:spacing.md }}>
+          <Text style={{ fontSize:fontSize.label, fontWeight:'bold', color:colors.textPrimary }}>Top productos</Text>
+          <View style={{ flexDirection:'row', backgroundColor:colors.background, borderRadius:radius.lg, padding:2 }}>
+            {[{ key:'unidades', label:'Más vendidos' }, { key:'margen', label:'Más rentables' }].map(o => {
+              const activo = criterio === o.key;
+              return (
+                <TouchableOpacity key={o.key} onPress={() => this.setState({ ordenTop: o.key })}
+                  style={{ paddingHorizontal:spacing.sm, paddingVertical:4, borderRadius:radius.lg, backgroundColor: activo?colors.primary:'transparent' }}>
+                  <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color: activo?colors.white:colors.textSecondary }}>{o.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
         {top.length === 0 ? (
           <View style={{ alignItems:'center', paddingVertical:spacing.xl }}>
             <Text style={{ fontSize:36 }}>📦</Text>
-            <Text style={{ fontSize:fontSize.body, color:colors.textMuted, marginTop:spacing.sm }}>Sin ventas en este período</Text>
+            <Text style={{ fontSize:fontSize.body, color:colors.textMuted, marginTop:spacing.sm, textAlign:'center' }}>
+              {criterio === 'margen' ? 'Sin datos de costo registrados\nen las ventas de este período' : 'Sin ventas en este período'}
+            </Text>
           </View>
         ) : top.map((item, idx) => (
           <View key={`${item.nombre}${item.tamano}`} style={{ marginBottom: idx < top.length-1 ? spacing.lg : 0 }}>
@@ -385,8 +479,12 @@ export default class ReportesView extends Component {
                 )}
               </View>
               <View style={{ alignItems:'flex-end', marginLeft:spacing.sm }}>
-                <Text style={{ fontSize:fontSize.body, fontWeight:'bold', color:colors.textPrimary }}>{item.unidades} uds</Text>
-                <Text style={{ fontSize:fontSize.small, color:colors.textSecondary }}>{fmt(moneda, item.monto)}</Text>
+                <Text style={{ fontSize:fontSize.body, fontWeight:'bold', color:colors.textPrimary }}>
+                  {criterio === 'margen' ? fmt(moneda, item.margen) : `${item.unidades} uds`}
+                </Text>
+                <Text style={{ fontSize:fontSize.small, color:colors.textSecondary }}>
+                  {criterio === 'margen' ? `${item.unidades} uds` : fmt(moneda, item.monto)}
+                </Text>
               </View>
             </View>
             <View style={{ flexDirection:'row', alignItems:'center' }}>
@@ -397,7 +495,11 @@ export default class ReportesView extends Component {
                 {item.porcentaje < 1 ? '<1' : Math.round(item.porcentaje)}%
               </Text>
             </View>
-            {idx === 0 && <Text style={{ fontSize:fontSize.small, color:colors.textMuted, marginTop:2 }}>% del total de unidades vendidas en el período</Text>}
+            {idx === 0 && (
+              <Text style={{ fontSize:fontSize.small, color:colors.textMuted, marginTop:2 }}>
+                {criterio === 'margen' ? '% del margen total generado en el período' : '% del total de unidades vendidas en el período'}
+              </Text>
+            )}
           </View>
         ))}
       </View>,
@@ -408,8 +510,13 @@ export default class ReportesView extends Component {
 
   renderFlujoDinero() {
     const moneda = this.context.config?.moneda ?? '$';
-    const { contado, creditoGenerado, abonosRecibidos, pendienteGlobal } = this.getFlujoDinero();
-    const ingresoReal = contado + abonosRecibidos;
+    const { contado, creditoGenerado, abonosRecibidos, pendienteGlobal, invertidoCompras, variacionCompras } = this.getFlujoDinero();
+    const ingresoReal  = contado + abonosRecibidos;
+    const margenBruto  = ingresoReal - invertidoCompras;
+    const hayCompras   = invertidoCompras > 0;
+    const subCompras   = variacionCompras
+      ? `${variacionCompras.sube ? '▲' : '▼'} ${variacionCompras.pct}% vs período anterior`
+      : 'Compras a proveedores en el período';
 
     return this.renderCard(
       <View>
@@ -417,7 +524,7 @@ export default class ReportesView extends Component {
 
         {/* Ingreso real — protagonista */}
         <View style={{ backgroundColor:'#edfaf3', borderRadius:radius.md, padding:spacing.lg, marginBottom:spacing.lg, borderLeftWidth:4, borderLeftColor:colors.success }}>
-          <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:colors.success, letterSpacing:0.5 }}>INGRESO REAL</Text>
+          <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:colors.success, letterSpacing:0.5 }}>💰 INGRESO REAL</Text>
           <Text style={{ fontSize:28, fontWeight:'bold', color:colors.success, marginTop:spacing.xs }}>{fmt(moneda, ingresoReal)}</Text>
           <Text style={{ fontSize:fontSize.caption, color:colors.textSecondary, marginTop:spacing.xs }}>Contado cobrado + abonos recibidos</Text>
         </View>
@@ -426,11 +533,11 @@ export default class ReportesView extends Component {
         <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:colors.textMuted, marginBottom:spacing.sm, letterSpacing:0.4 }}>DINERO QUE ENTRÓ</Text>
         <View style={{ flexDirection:'row', marginBottom:spacing.lg }}>
           {[
-            { label:'Contado cobrado',  sub:'Ventas pagadas al momento', valor:contado,          color:colors.primary, bg:'#e8f4ff' },
-            { label:'Abonos recibidos', sub:'Pagos de deudas',           valor:abonosRecibidos,  color:colors.success, bg:'#edfaf3' },
+            { icono:'💵', label:'Contado cobrado',  sub:'Ventas pagadas al momento', valor:contado,          color:colors.primary, bg:'#e8f4ff' },
+            { icono:'🤝', label:'Abonos recibidos', sub:'Pagos de deudas',           valor:abonosRecibidos,  color:colors.success, bg:'#edfaf3' },
           ].map(t => (
             <View key={t.label} style={{ flex:1, backgroundColor:t.bg, borderRadius:radius.md, padding:spacing.md, marginHorizontal:spacing.xs/2 }}>
-              <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.label}</Text>
+              <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.icono} {t.label}</Text>
               <Text style={{ fontSize:fontSize.itemTitle, fontWeight:'bold', color:colors.textPrimary, marginTop:spacing.xs }}>{fmt(moneda, t.valor)}</Text>
               <Text style={{ fontSize:fontSize.small, color:colors.textSecondary, marginTop:2 }} numberOfLines={2}>{t.sub}</Text>
             </View>
@@ -443,17 +550,65 @@ export default class ReportesView extends Component {
         <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:colors.textMuted, marginBottom:spacing.sm, letterSpacing:0.4 }}>DINERO QUE SE DEBE</Text>
         <View style={{ flexDirection:'row' }}>
           {[
-            { label:'Crédito otorgado', sub:'Ventas a crédito en el período', valor:creditoGenerado,  color:colors.warning, bg:'#fff8ed' },
-            { label:'Pendiente total',  sub:'Todas las deudas sin saldar',     valor:pendienteGlobal, color:colors.danger,  bg:'#fdf0f0' },
+            { icono:'🧾', label:'Crédito otorgado', sub:'Ventas a crédito en el período', valor:creditoGenerado,  color:colors.warning, bg:'#fff8ed' },
+            { icono:'⚠️', label:'Pendiente total',  sub:'Todas las deudas sin saldar',     valor:pendienteGlobal, color:colors.danger,  bg:'#fdf0f0' },
           ].map(t => (
             <View key={t.label} style={{ flex:1, backgroundColor:t.bg, borderRadius:radius.md, padding:spacing.md, marginHorizontal:spacing.xs/2 }}>
-              <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.label}</Text>
+              <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.icono} {t.label}</Text>
               <Text style={{ fontSize:fontSize.itemTitle, fontWeight:'bold', color:colors.textPrimary, marginTop:spacing.xs }}>{fmt(moneda, t.valor)}</Text>
               <Text style={{ fontSize:fontSize.small, color:colors.textSecondary, marginTop:2 }} numberOfLines={2}>{t.sub}</Text>
             </View>
           ))}
         </View>
+
+        {hayCompras && (
+          <React.Fragment>
+            <View style={{ height:1, backgroundColor:colors.border, marginTop:spacing.lg, marginBottom:spacing.lg }} />
+            <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:colors.textMuted, marginBottom:spacing.sm, letterSpacing:0.4 }}>INVERSIÓN EN COMPRAS</Text>
+            <View style={{ flexDirection:'row' }}>
+              {[
+                { icono:'🛍️', label:'Invertido en compras',  sub:subCompras,                              valor:invertidoCompras, color:colors.warning, bg:'#fff8ed' },
+                { icono:'📊', label:'Margen bruto estimado',  sub:'Ingreso real − inversión en compras',  valor:margenBruto,      color: margenBruto >= 0 ? colors.success : colors.danger, bg: margenBruto >= 0 ? '#edfaf3' : '#fdf0f0' },
+              ].map(t => (
+                <View key={t.label} style={{ flex:1, backgroundColor:t.bg, borderRadius:radius.md, padding:spacing.md, marginHorizontal:spacing.xs/2 }}>
+                  <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.icono} {t.label}</Text>
+                  <Text style={{ fontSize:fontSize.itemTitle, fontWeight:'bold', color:colors.textPrimary, marginTop:spacing.xs }}>{fmt(moneda, t.valor)}</Text>
+                  <Text style={{ fontSize:fontSize.small, color:colors.textSecondary, marginTop:2 }} numberOfLines={2}>{t.sub}</Text>
+                </View>
+              ))}
+            </View>
+          </React.Fragment>
+        )}
       </View>,
+    );
+  }
+
+  // ─── Sección 0: Resumen de KPIs ─────────────────────────────────────────────
+
+  renderResumenKPIs() {
+    const moneda = this.context.config?.moneda ?? '$';
+    const { contado, abonosRecibidos, invertidoCompras } = this.getFlujoDinero();
+    const ingresoReal = contado + abonosRecibidos;
+    const margenBruto = ingresoReal - invertidoCompras;
+    const { numVentas, ticketPromedio } = this.getVentasStats();
+
+    const kpis = [
+      { icono:'💰', label:'Ingreso real',    sub:'Dinero que ya cobraste',        valor: fmt(moneda, ingresoReal) },
+      { icono:'🧾', label:'Venta promedio',  sub:'Lo que deja cada venta',        valor: fmt(moneda, ticketPromedio) },
+      { icono:'🛒', label:'Ventas',          sub:'Número de ventas del período',  valor: `${numVentas}` },
+      { icono:'📊', label:'Margen bruto',    sub:'Ingreso real − compras',        valor: fmt(moneda, margenBruto) },
+    ];
+
+    return (
+      <View style={{ flexDirection:'row', flexWrap:'wrap', marginBottom:spacing.lg, gap:spacing.sm }}>
+        {kpis.map(k => (
+          <View key={k.label} style={{ flexBasis:'48%', flexGrow:1, backgroundColor:colors.card, borderRadius:radius.md, padding:spacing.md, elevation:2, shadowOpacity:0.06, shadowOffset:{ width:0, height:1 } }}>
+            <Text style={{ fontSize:fontSize.small, color:colors.textMuted, fontWeight:'bold' }} numberOfLines={1}>{k.icono} {k.label}</Text>
+            <Text style={{ fontSize:fontSize.itemTitle, fontWeight:'bold', color:colors.textPrimary, marginTop:2 }}>{k.valor}</Text>
+            <Text style={{ fontSize:fontSize.small, color:colors.textSecondary, marginTop:1 }} numberOfLines={1}>{k.sub}</Text>
+          </View>
+        ))}
+      </View>
     );
   }
 
@@ -466,7 +621,7 @@ export default class ReportesView extends Component {
 
         <View style={{ height:60, paddingHorizontal:spacing.lg, flexDirection:'row', alignItems:'center', backgroundColor:colors.card, elevation:4, shadowOpacity:0.1, shadowOffset:{ width:0, height:2 } }}>
           <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ width:44, height:44, justifyContent:'center', alignItems:'center', marginRight:spacing.xs }}>
-            <IconBack color={colors.primary} />
+            <IconBack size={28} color={colors.primary} />
           </TouchableOpacity>
           <Text style={{ fontSize:fontSize.heading, fontWeight:'bold', color:colors.textPrimary, flex:1 }}>Reportes</Text>
           <Text style={{ fontSize:fontSize.small, color:colors.textMuted }}>Actualizado {horaActual()}</Text>
@@ -474,6 +629,7 @@ export default class ReportesView extends Component {
 
         <ScrollView contentContainerStyle={{ padding:spacing.lg, paddingBottom:spacing.xxl }} showsVerticalScrollIndicator={false}>
           {this.renderSelectorPeriodo()}
+          {this.renderResumenKPIs()}
           {this.renderGraficaVentas()}
           {this.renderTopProductos()}
           {this.renderFlujoDinero()}

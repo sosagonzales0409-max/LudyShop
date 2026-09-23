@@ -9,16 +9,14 @@ import {
   FlatList,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import ProductFormModal from './ProductFormModal';
-import AgregarUnidadesModal from './AgregarUnidadesModal';
 import CategoriasModal from './CategoriasModal';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { IconTag, IconSettings, IconPlus, IconChevron } from './Icon';
+import { IconTag, IconSettings, IconPlus, IconChevron, IconShoppingBag, IconWarning } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
 const HEADER_HEIGHT = 60;
-const SUMMARY_CARD_HEIGHT = 60;
+const CATEGORY_CHIP_HEIGHT = 32;
 
 class Inventory extends Component {
   static contextType = StoreContext;
@@ -28,10 +26,6 @@ class Inventory extends Component {
     this.state = {
       selectedCategory: 0,
       searchText: '',
-      showAddProductModal: false,
-      showAgregarUnidadesModal: false,
-      agregarProduct: null,
-      agregarPresentacion: null,
       showCategoriasModal: false,
     };
     this.productListRef = React.createRef();
@@ -43,13 +37,8 @@ class Inventory extends Component {
     }
   }
 
-  get threshold() {
-    return this.context.config?.umbralStock ?? 5;
-  }
-
-  get moneda() {
-    return this.context.config?.moneda ?? '$';
-  }
+  get threshold() { return this.context.config?.umbralStock ?? 5; }
+  get moneda()    { return this.context.config?.moneda ?? '$'; }
 
   selectCategory(categoryId) {
     this.setState({ selectedCategory: categoryId }, () => this.resetListScroll());
@@ -92,12 +81,12 @@ class Inventory extends Component {
       <TouchableOpacity
         onPress={() => this.selectCategory(item.id)}
         style={{
-          height: buttonHeight.chip, paddingHorizontal: spacing.lg,
+          height: CATEGORY_CHIP_HEIGHT, paddingHorizontal: spacing.md,
           backgroundColor: isSelected ? colors.primary : colors.chipInactive,
           borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm,
         }}
       >
-        <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: isSelected ? colors.white : colors.textPrimary }}>
+        <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: isSelected ? colors.white : colors.textPrimary }}>
           {item.nombre}
         </Text>
       </TouchableOpacity>
@@ -106,18 +95,15 @@ class Inventory extends Component {
 
   renderProductItem(product) {
     return (
-      // Toca la tarjeta → navega a ProductDetailView (pantalla completa)
       <TouchableOpacity
         activeOpacity={0.7}
         onPress={() => this.props.navigation.navigate('ProductDetail', { productId: product.id })}
         style={{
           marginTop: spacing.md, padding: spacing.lg,
           backgroundColor: colors.card, borderRadius: radius.md,
-          elevation: 3, shadowOpacity: 0.07,
-          shadowOffset: { width: 0, height: 2 },
+          elevation: 3, shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 },
         }}
       >
-        {/* Nombre + marca + indicador de navegación */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
           <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
             {product.nombre}
@@ -130,8 +116,7 @@ class Inventory extends Component {
           </View>
         </View>
 
-        {/* Presentaciones — resumen compacto, acciones en la vista de detalle */}
-        {product.presentaciones.map((pres, idx) => (
+        {product.presentaciones.map(pres => (
           <View
             key={pres.id}
             style={{
@@ -146,34 +131,27 @@ class Inventory extends Component {
               </Text>
               <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 }}>
                 {this.moneda}{pres.precio.toFixed(2)}
+                {pres.esGranel ? ` / ${pres.unidadGranel ?? 'ud'}` : ''}
               </Text>
             </View>
 
-<View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
               <Text style={{
                 fontSize: fontSize.body, fontWeight: 'bold',
                 color: pres.stock < this.threshold ? colors.danger : colors.success,
               }}>
-                {pres.stock} u
+                {pres.stock}{pres.esGranel ? ` ${pres.unidadGranel ?? ''}` : ' u'}
               </Text>
 
-              {/* Botón + directo desde la lista — acción más frecuente */}
+              {/* Registrar compra — precarga este producto/presentación en RegistrarCompraView */}
               <TouchableOpacity
                 onPress={e => {
                   e.stopPropagation();
-                  this.setState({
-                    showAgregarUnidadesModal: true,
-                    agregarProduct: product,
-                    agregarPresentacion: pres,
-                  });
+                  this.props.navigation.navigate('RegistrarCompra', { productId: product.id, presentacionId: pres.id });
                 }}
-                style={{
-                  width: 36, height: 36, borderRadius: radius.sm,
-                  backgroundColor: colors.success,
-                  justifyContent: 'center', alignItems: 'center',
-                }}
+                style={{ width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.success, justifyContent: 'center', alignItems: 'center' }}
               >
-                <IconPlus size={fontSize.label} color={colors.white} />
+                <IconShoppingBag size={fontSize.label} color={colors.white} />
               </TouchableOpacity>
             </View>
           </View>
@@ -183,7 +161,7 @@ class Inventory extends Component {
   }
 
   render() {
-    const { categories, products } = this.context;
+    const { categories } = this.context;
     const filteredProducts = this.getFilteredProducts();
     const lowStockCount = this.getLowStockCount();
     const sortedCategories = [
@@ -194,162 +172,70 @@ class Inventory extends Component {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
 
-        {/* Modal: agregar producto */}
-        <ProductFormModal
-          visible={this.state.showAddProductModal}
-          categories={categories}
-          products={products}
-          onCancel={() => this.setState({ showAddProductModal: false })}
-          onSave={data => {
-            if (data.existingProductId) {
-              this.context.addPresentacion(data.existingProductId, { tamano: data.tamano, precio: data.precio, stock: data.stock });
-            } else {
-              this.context.addProduct(data);
-            }
-            this.setState({ showAddProductModal: false });
-          }}
-        />
-
-        {/* Modal: agregar unidades (desde el botón + de la lista) */}
-        <AgregarUnidadesModal
-          visible={this.state.showAgregarUnidadesModal}
-          product={this.state.agregarProduct}
-          presentacion={this.state.agregarPresentacion}
-          onCancel={() => this.setState({ showAgregarUnidadesModal: false, agregarProduct: null, agregarPresentacion: null })}
-          onSave={(productId, presentacionId, cantidad) => {
-            this.context.agregarStock(productId, presentacionId, cantidad);
-            this.setState({ showAgregarUnidadesModal: false, agregarProduct: null, agregarPresentacion: null });
-          }}
-        />
-
         {/* Modal: categorías */}
         <CategoriasModal
           visible={this.state.showCategoriasModal}
           categories={categories}
-          products={products}
+          products={this.context.products}
           onClose={() => this.setState({ showCategoriasModal: false })}
           onAdd={nombre => this.context.addCategory(nombre)}
           onRename={(id, nombre) => this.context.renameCategory(id, nombre)}
           onDelete={id => this.context.deleteCategory(id)}
         />
 
-        {/* Barra verde */}
         <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
 
         {/* Header */}
-        <View
-          style={{
-            height: HEADER_HEIGHT, paddingHorizontal: spacing.lg,
-            flexDirection: 'row', alignItems: 'center',
-            backgroundColor: colors.card, elevation: 4,
-            shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 },
-          }}
-        >
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
-            Inventario
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 0 }}>
-            <TouchableOpacity
-              onPress={() => this.setState({ showCategoriasModal: true })}
-              hitSlop={8}
-              style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}
-            >
+        <View style={{ minHeight: HEADER_HEIGHT, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>Inventario</Text>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 1 }}>
+              Valor total: {this.moneda}{this.getTotalValue()}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => this.setState({ showCategoriasModal: true })} hitSlop={8} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
               <IconTag size={28} color={colors.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => this.props.navigation.navigate('ConfigView')}
-              hitSlop={8}
-              style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}
-            >
+            <TouchableOpacity onPress={() => this.props.navigation.navigate('LowStock', { threshold: this.threshold })} hitSlop={8} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
+              <IconWarning size={28} color={colors.textPrimary} />
+              {lowStockCount > 0 && (
+                <View
+                  style={{
+                    position: 'absolute', top: 2, right: 2,
+                    backgroundColor: colors.danger,
+                    borderRadius: 9, minWidth: 18, height: 18,
+                    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
+                    borderWidth: 2, borderColor: colors.card,
+                  }}
+                >
+                  <Text style={{ color: colors.white, fontSize: 10, fontWeight: 'bold' }}>{lowStockCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => this.props.navigation.navigate('ConfigView')} hitSlop={8} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
               <IconSettings size={28} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={{ flex: 1, paddingHorizontal: spacing.lg }}>
-          {/* Tarjetas resumen */}
-          <View style={{ flexDirection: 'row', marginTop: spacing.lg }}>
-            <View
-              style={{
-                flex: 1, height: SUMMARY_CARD_HEIGHT,
-                backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.primary,
-                borderRadius: radius.md, marginRight: spacing.sm, paddingHorizontal: spacing.lg, justifyContent: 'center',
-              }}
-            >
-              <Text style={{ color: colors.textSecondary, fontWeight: 'bold', fontSize: fontSize.caption }}>Valor total</Text>
-              <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: fontSize.label, marginTop: spacing.xs }}>
-                {this.moneda}{this.getTotalValue()}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => this.props.navigation.navigate('LowStock', { threshold: this.threshold })}
-              style={{
-                flex: 1, height: SUMMARY_CARD_HEIGHT,
-                backgroundColor: colors.warning, borderRadius: radius.md,
-                marginLeft: spacing.sm, paddingHorizontal: spacing.lg, justifyContent: 'center',
-              }}
-            >
-              <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.caption, opacity: 0.9 }}>Stock bajo</Text>
-              <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label, marginTop: spacing.xs }}>
-                {lowStockCount} {lowStockCount === 1 ? 'Producto' : 'Productos'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <TextInput style={{ color: colors.textPrimary, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, marginTop: spacing.md, borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm }} placeholder="Buscar por nombre o marca" placeholderTextColor={colors.textMuted} value={this.state.searchText} onChangeText={text => this.updateSearchText(text)} />
 
-          {/* Buscador */}
-          <TextInput
-            style={{
-              color: colors.textPrimary, paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm, fontSize: fontSize.body,
-              marginTop: spacing.md, borderWidth: 1,
-              borderColor: colors.chipInactive, borderRadius: radius.sm,
-            }}
-            placeholder="Buscar por nombre o marca"
-            placeholderTextColor={colors.textMuted}
-            value={this.state.searchText}
-            onChangeText={text => this.updateSearchText(text)}
-          />
+          <FlatList style={{ marginTop: spacing.md, flexGrow: 0 }} horizontal showsHorizontalScrollIndicator={false} data={sortedCategories} keyExtractor={(item, index) => index.toString()} renderItem={({ item }) => this.renderCategories(item)} />
 
-          {/* Filtros de categoría */}
-          <FlatList
-            style={{ marginTop: spacing.md, flexGrow: 0 }}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={sortedCategories}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={({ item }) => this.renderCategories(item)}
-          />
-
-          {/* Botón agregar producto — navega a AgregarProductoView (pantalla completa) */}
+          {/* Botón + Agregar Producto → AgregarProductoView (pantalla completa) */}
           <TouchableOpacity
             onPress={() => this.props.navigation.navigate('AgregarProducto')}
-            style={{
-              height: buttonHeight.action, backgroundColor: colors.primary,
-              borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginTop: spacing.md,
-            }}
+            style={{ height: buttonHeight.action, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginTop: spacing.md }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <IconPlus size={fontSize.label} color={colors.white} />
-              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white, marginLeft: spacing.xs }}>
-                Agregar Producto
-              </Text>
+              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white, marginLeft: spacing.xs }}>Agregar Producto</Text>
             </View>
           </TouchableOpacity>
 
-          {/* Lista de productos */}
-          <FlatList
-            ref={this.productListRef}
-            style={{ flex: 1 }}
-            data={filteredProducts}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => this.renderProductItem(item)}
-            contentContainerStyle={{ paddingBottom: spacing.xl }}
-            ListEmptyComponent={() => (
-              <View style={{ alignItems: 'center', marginTop: spacing.xl }}>
-                <Text style={{ fontSize: fontSize.body, color: colors.textMuted }}>No hay productos</Text>
-              </View>
-            )}
-          />
+          <FlatList ref={this.productListRef} style={{ flex: 1 }} data={filteredProducts} keyExtractor={item => item.id} renderItem={({ item }) => this.renderProductItem(item)} contentContainerStyle={{ paddingBottom: spacing.xl }} ListEmptyComponent={() => (<View style={{ alignItems: 'center', marginTop: spacing.xl }}><Text style={{ fontSize: fontSize.body, color: colors.textMuted }}>No hay productos</Text></View>)} />
         </View>
       </SafeAreaView>
     );

@@ -11,7 +11,7 @@ import { StoreContext } from '../context/StoreContext';
 import { colors, spacing, radius, fontSize } from '../config/theme';
 import {
   IconStore, IconTrendingUp, IconCoffee, IconClipboard,
-  IconSave, IconFile, IconChevron, IconBack,
+  IconSave, IconFile, IconChevron, IconBack, IconShoppingBag, IconPlus,
 } from './Icon';
 
 const _window = Dimensions.get('window');
@@ -144,12 +144,18 @@ export default class ConfigView extends Component {
                 () => nav.navigate('Reportes'),
               )}
               {this.renderDivider()}
-              {/* ✅ Consumo propio — activo */}
+              {this.renderFila(<IconShoppingBag size={20} />, 'Compras', 'Historial de compras a proveedores',
+                () => nav.navigate('HistorialCompras'),
+              )}
+              {this.renderDivider()}
+              {this.renderFila(<IconPlus size={20} />, 'Registrar compra', 'Nueva compra a proveedor',
+                () => nav.navigate('RegistrarCompra'),
+              )}
+              {this.renderDivider()}
               {this.renderFila(<IconCoffee size={20} />, 'Consumo propio', 'Llevarte producto sin registrar venta',
                 () => nav.navigate('ConsumoPropioView'),
               )}
               {this.renderDivider()}
-              {/* ✅ Historial de actividad — activo */}
               {this.renderFila(<IconClipboard size={20} />, 'Historial de actividad', 'Registro de todos los cambios en la app',
                 () => nav.navigate('ActivityLogView'),
               )}

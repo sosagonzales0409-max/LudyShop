@@ -18,6 +18,7 @@ const FILTROS = [
   { key: 'todos',      label: 'Todos' },
   { key: 'ventas',     label: 'Ventas' },
   { key: 'creditos',   label: 'Créditos' },
+  { key: 'compras',    label: 'Compras' },
   { key: 'inventario', label: 'Inventario' },
   { key: 'otros',      label: 'Otros' },
 ];

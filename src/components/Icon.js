@@ -3,7 +3,7 @@ import {
   ChevronLeft, X, ChevronRight, Settings, Tag, ClipboardList, CreditCard,
   BarChart2, DollarSign, Pencil, Plus, Trash2, Store, Package, Save, FileText,
   ChevronUp, ChevronDown, CornerUpLeft, AlertTriangle, Check, Info,
-  ShoppingCart, Boxes, TrendingUp, Receipt, Coffee,
+  ShoppingCart, Boxes, TrendingUp, Receipt, Coffee, ShoppingBag, Truck, History,
 } from 'lucide-react-native';
 import { colors, fontSize } from '../config/theme';
 
@@ -115,4 +115,16 @@ export const IconReceipt = props => (
 
 export const IconCoffee = props => (
   <Coffee strokeWidth={STROKE} color={colors.textPrimary} size={fontSize.label} {...props} />
+);
+
+export const IconShoppingBag = props => (
+  <ShoppingBag strokeWidth={STROKE} color={colors.textPrimary} size={fontSize.label} {...props} />
+);
+
+export const IconTruck = props => (
+  <Truck strokeWidth={STROKE} color={colors.textPrimary} size={fontSize.label} {...props} />
+);
+
+export const IconHistory = props => (
+  <History strokeWidth={STROKE} color={colors.textPrimary} size={fontSize.label} {...props} />
 );

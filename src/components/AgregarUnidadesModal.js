@@ -31,7 +31,8 @@ export default class AgregarUnidadesModal extends Component {
   }
 
   handleSave = () => {
-    const cantidad = parseInt(this.state.cantidad, 10);
+    const esGranel = !!this.props.presentacion?.esGranel;
+    const cantidad = esGranel ? parseFloat(this.state.cantidad) : parseInt(this.state.cantidad, 10);
 
     if (!this.state.cantidad.trim() || isNaN(cantidad) || cantidad <= 0) {
       Alert.alert('Cantidad inválida', 'Ingresa un número mayor a 0.');
@@ -49,6 +50,10 @@ export default class AgregarUnidadesModal extends Component {
     const { visible, onCancel, product, presentacion } = this.props;
 
     if (!product || !presentacion) return null;
+
+    const esGranel = !!presentacion.esGranel;
+    const unidad = esGranel ? (presentacion.unidadGranel || 'kg') : 'unidades';
+    const cantidadNum = esGranel ? parseFloat(this.state.cantidad) : parseInt(this.state.cantidad, 10);
 
     return (
       <Modal animationType="fade" transparent visible={visible}>
@@ -96,12 +101,21 @@ export default class AgregarUnidadesModal extends Component {
             >
               <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Stock actual</Text>
               <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>
-                {presentacion.stock} unidades
+                {presentacion.stock} {unidad}
+              </Text>
+            </View>
+
+            <View style={{ backgroundColor: '#fff8ed', borderWidth: 1, borderColor: colors.warning, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.lg }}>
+              <Text style={{ fontSize: fontSize.caption, color: colors.warning, fontWeight: 'bold' }}>
+                ⚠️ Estas unidades no se registran como compra ni como inversión.
+              </Text>
+              <Text style={{ fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 }}>
+                Solo ajustan el stock. Si compraste mercancía, usa "Registrar compra" para llevar el costo y el historial al día.
               </Text>
             </View>
 
             <Text style={{ fontSize: fontSize.label, color: colors.textPrimary, marginBottom: spacing.sm }}>
-              ¿Cuántas unidades llegaron?
+              {esGranel ? `¿Cuántos ${unidad} llegaron?` : '¿Cuántas unidades llegaron?'}
             </Text>
             <TextInput
               style={{
@@ -116,19 +130,19 @@ export default class AgregarUnidadesModal extends Component {
                 textAlign: 'center',
                 marginBottom: spacing.sm,
               }}
-              placeholder="0"
+              placeholder={esGranel ? '0.000' : '0'}
               placeholderTextColor={colors.chipInactive}
-              keyboardType="number-pad"
+              keyboardType="decimal-pad"
               autoFocus
               value={this.state.cantidad}
-              onChangeText={text => this.setState({ cantidad: text })}
+              onChangeText={text => this.setState({ cantidad: esGranel ? text : text.replace(/[^0-9]/g, '') })}
             />
 
-            {parseInt(this.state.cantidad, 10) > 0 && (
+            {cantidadNum > 0 && (
               <Text style={{ fontSize: fontSize.caption, color: colors.primary, textAlign: 'center', marginBottom: spacing.lg }}>
                 Nuevo stock:{' '}
                 <Text style={{ fontWeight: 'bold' }}>
-                  {presentacion.stock + parseInt(this.state.cantidad, 10)} unidades
+                  {presentacion.stock + cantidadNum} {unidad}
                 </Text>
               </Text>
             )}

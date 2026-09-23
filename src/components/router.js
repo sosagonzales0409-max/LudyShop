@@ -15,6 +15,10 @@ import TiendaView from './TiendaView';
 import ReportesView from './ReportesView';
 import ConsumoPropioView from './ConsumoPropioView';
 import ActivityLogView from './ActivityLogView';
+import AgregarProductoView from './AgregarProductoView';
+import EditarProductoView from './EditarProductoView';
+import RegistrarCompraView from './RegistrarCompraView';
+import HistorialComprasView from './HistorialComprasView';
 import { StoreProvider } from '../context/StoreContext';
 import { fontSize, colors } from '../config/theme';
 import { IconShoppingCart, IconBoxes } from './Icon';
@@ -37,6 +41,8 @@ function MainStack() {
       <MainViews.Screen name="TiendaView" component={TiendaView} />
       <MainViews.Screen name="ConsumoPropioView" component={ConsumoPropioView} />
       <MainViews.Screen name="ActivityLogView" component={ActivityLogView} />
+      <MainViews.Screen name="HistorialCompras" component={HistorialComprasView} />
+      <MainViews.Screen name="RegistrarCompra" component={RegistrarCompraView} />
     </MainViews.Navigator>
   );
 }
@@ -52,6 +58,10 @@ function InventoryStack() {
       <InventoryViews.Screen name="Reportes" component={ReportesView} />
       <InventoryViews.Screen name="ConsumoPropioView" component={ConsumoPropioView} />
       <InventoryViews.Screen name="ActivityLogView" component={ActivityLogView} />
+      <InventoryViews.Screen name="AgregarProducto" component={AgregarProductoView} />
+      <InventoryViews.Screen name="EditarProducto" component={EditarProductoView} />
+      <InventoryViews.Screen name="RegistrarCompra" component={RegistrarCompraView} />
+      <InventoryViews.Screen name="HistorialCompras" component={HistorialComprasView} />
     </InventoryViews.Navigator>
   );
 }

@@ -72,21 +72,42 @@ export default class ClientDebtDetailView extends Component {
     const nuevo = this.state.nombreInput.trim();
     if (!nuevo) { Alert.alert('Nombre inválido', 'El nombre no puede quedar vacío.'); return; }
     const clienteData = this.props.route?.params?.clienteData;
-    this.context.renombrarCliente(clienteData.cliente, nuevo);
+    const ok = this.context.renombrarCliente(clienteData.cliente, nuevo);
+    if (!ok) {
+      Alert.alert('Nombre en uso', 'Ya existe otro cliente con ese nombre. Elige un nombre distinto para no mezclar su historial con el de esa persona.');
+      return;
+    }
     this.props.navigation.setParams({ clienteData: { ...clienteData, cliente: nuevo } });
     this.setState({ editandoNombre: false });
   };
 
   confirmarEliminar(venta) {
+    const abonado = venta.totalAbonado ?? 0;
+    const advertencia = abonado > 0.009
+      ? `\n\n⚠️ Esta venta ya tiene $${abonado.toFixed(2)} abonados. Al eliminarla, ese registro de pago también desaparece del historial.`
+      : '';
     Alert.alert(
       'Eliminar venta de la deuda',
-      `¿Qué ocurrió con esta venta de $${venta.total.toFixed(2)} del ${this.formatFecha(venta.fecha)}?`,
+      `¿Qué ocurrió con esta venta de $${venta.total.toFixed(2)} del ${this.formatFecha(venta.fecha)}?${advertencia}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Condonar (no devolver mercancía)', onPress: () => this.context.condonarVenta(venta.id) },
-        { text: 'Devolver al inventario',           style: 'destructive', onPress: () => this.context.eliminarVenta(venta.id, true) },
+        { text: 'Devolver al inventario',           style: 'destructive', onPress: () => this.eliminarVentaYAvisarSiFalta(venta) },
       ],
     );
+  }
+
+  // Elimina la venta y, si algún producto ya no existe en el inventario,
+  // avisa que ese stock no se pudo devolver (en vez de fallar en silencio).
+  eliminarVentaYAvisarSiFalta(venta) {
+    const resultado = this.context.eliminarVenta(venta.id, true);
+    if (resultado?.itemsNoEncontrados?.length > 0) {
+      const detalle = resultado.itemsNoEncontrados.map(i => `• ${i.nombre} ${i.tamano}`).join('\n');
+      Alert.alert(
+        'Stock no devuelto para algunos productos',
+        `Estos productos ya no existen en el inventario, así que su stock no se pudo devolver:\n\n${detalle}`,
+      );
+    }
   }
 
   // ─── Render de cada venta ─────────────────────────────────────────────────
@@ -205,8 +226,21 @@ export default class ClientDebtDetailView extends Component {
           venta={this.state.ventaDevolucion}
           onCancel={() => this.setState({ showDevolucionModal: false, ventaDevolucion: null })}
           onConfirmar={({ items, devolverStock }) => {
-            this.context.registrarDevolucion(this.state.ventaDevolucion.id, items, devolverStock);
+            const resultado = this.context.registrarDevolucion(this.state.ventaDevolucion.id, items, devolverStock);
             this.setState({ showDevolucionModal: false, ventaDevolucion: null });
+            if (resultado?.excedente > 0.009) {
+              Alert.alert(
+                'Hay que devolver dinero',
+                `El cliente ya había pagado $${resultado.excedente.toFixed(2)} más de lo que ahora debe por esta venta. Recuerda devolvérselo en efectivo — la app todavía no lleva notas de crédito.`,
+              );
+            }
+            if (resultado?.itemsNoEncontrados?.length > 0) {
+              const detalle = resultado.itemsNoEncontrados.map(i => `• ${i.nombre} ${i.tamano}`).join('\n');
+              Alert.alert(
+                'Stock no devuelto para algunos productos',
+                `Estos productos ya no existen en el inventario, así que su stock no se pudo devolver:\n\n${detalle}`,
+              );
+            }
           }}
         />
 

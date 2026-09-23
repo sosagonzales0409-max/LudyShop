@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import NumericStepper from './NumericStepper';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { IconClose } from './Icon';
 
 /**
  * DevolucionModal — bottom sheet para registrar una devolución parcial
@@ -132,7 +133,7 @@ export default class DevolucionModal extends Component {
                 onPress={onCancel}
                 style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}
               >
-                <Text style={{ fontSize: fontSize.heading, color: colors.textMuted }}>✕</Text>
+                <IconClose size={fontSize.heading} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 

@@ -68,8 +68,19 @@ class Main extends Component {
       .sort((a, b) => b.saldo - a.saldo);
   }
 
+  // Si el nombre capturado coincide (sin importar mayúsculas/espacios extra)
+  // con un cliente que ya tiene ventas a crédito, reutiliza ese nombre tal
+  // cual para no fragmentar su deuda en "dos personas" distintas.
+  normalizarCliente(nombre) {
+    const limpio = nombre.trim().replace(/\s+/g, ' ');
+    const existente = this.getClientesConDeuda().find(c => c.cliente.toLowerCase() === limpio.toLowerCase());
+    return existente ? existente.cliente : limpio;
+  }
+
   addProductToCart(product) {
-    const cartItem = { ...product, numProducts: 1, totalPrice: product.precio };
+    const cartItem = product.esGranel
+      ? { ...product, numProducts: 0, cantidadTexto: '', totalPrice: 0 }
+      : { ...product, numProducts: 1, totalPrice: product.precio };
     this.setState(prev => ({ cartProducts: [...prev.cartProducts, cartItem] }));
   }
 
@@ -77,6 +88,35 @@ class Main extends Component {
     const products = [...this.state.cartProducts];
     products[index] = { ...products[index], numProducts: value, totalPrice: products[index].precio * value };
     this.setState({ cartProducts: products });
+  }
+
+  // Cantidad decimal para productos a granel (ej. "2.5 kg"). Se guarda el
+  // texto tal cual lo escribe el usuario para no pelear con el punto decimal
+  // mientras teclea, y por separado el valor numérico ya parseado.
+  updateGranelAmount(index, text) {
+    let cleaned = text.replace(/[^0-9.]/g, '');
+    // Conservar solo el primer punto decimal — sin esto se podía escribir
+    // "1.2.3" y el texto mostrado no coincidía con lo que parseFloat calculaba.
+    const primerPunto = cleaned.indexOf('.');
+    if (primerPunto !== -1) {
+      cleaned = cleaned.slice(0, primerPunto + 1) + cleaned.slice(primerPunto + 1).replace(/\./g, '');
+    }
+    const value = parseFloat(cleaned);
+    const products = [...this.state.cartProducts];
+    products[index] = {
+      ...products[index],
+      cantidadTexto: cleaned,
+      numProducts: isNaN(value) ? 0 : value,
+      totalPrice: isNaN(value) ? 0 : products[index].precio * value,
+    };
+    this.setState({ cartProducts: products });
+  }
+
+  cartTieneCantidadesInvalidas() {
+    return this.state.cartProducts.some(p => {
+      if (p.esGranel) return !(p.numProducts > 0) || p.numProducts > p.stock;
+      return !(p.numProducts > 0);
+    });
   }
 
   deleteProductFromCart(index) {
@@ -92,6 +132,11 @@ class Main extends Component {
   confirmCompleteSale = () => {
     const { cartProducts, paymentType, clienteNombre } = this.state;
     if (cartProducts.length === 0) return;
+
+    if (this.cartTieneCantidadesInvalidas()) {
+      Alert.alert('Cantidad inválida', 'Revisa la cantidad de los productos a granel en el carrito.');
+      return;
+    }
 
     if (paymentType === 'Credito') {
       if (!clienteNombre.trim()) {
@@ -115,8 +160,24 @@ class Main extends Component {
     );
   };
 
+  // Productos que con esta venta cruzan (de arriba hacia abajo) el umbral de
+  // stock bajo — se calcula ANTES de decreaseStock, comparando contra el
+  // stock actual, para avisar solo cuando la venta es la causa de la caída
+  // (no cuando el producto ya estaba bajo desde antes).
+  getProductosQueCaenBajoUmbral(cartProducts) {
+    const umbral = this.context.config?.umbralStock ?? 5;
+    return cartProducts.filter(p => {
+      const producto = this.context.products.find(pr => pr.id === p.productId);
+      const pres = producto?.presentaciones.find(pr => pr.id === p.presentacionId);
+      if (!pres) return false;
+      const stockDespues = pres.stock - p.numProducts;
+      return pres.stock >= umbral && stockDespues < umbral;
+    });
+  }
+
   finalizarVenta = abonoInicial => {
     const { cartProducts, paymentType, clienteNombre } = this.state;
+    const caidos = this.getProductosQueCaenBajoUmbral(cartProducts);
     this.context.decreaseStock(
       cartProducts.map(p => ({ productId: p.productId, presentacionId: p.presentacionId, cantidad: p.numProducts })),
     );
@@ -124,11 +185,16 @@ class Main extends Component {
       productos: cartProducts,
       total: parseFloat(this.getTotalCart()),
       tipoPago: paymentType,
-      cliente: paymentType === 'Credito' ? clienteNombre.trim() : null,
+      cliente: paymentType === 'Credito' ? this.normalizarCliente(clienteNombre) : null,
       totalAbonado: abonoInicial || 0,
     });
     this.setState({ cartProducts: [], clienteNombre: '', paymentType: 'Contado', showConfirmarModal: false });
-    Toast.show('Venta completada');
+    if (caidos.length > 0) {
+      const nombres = caidos.map(p => `${p.nombre} ${p.tamano}`).join(', ');
+      Toast.show(`Venta completada · Stock bajo: ${nombres}`, 'info');
+    } else {
+      Toast.show('Venta completada');
+    }
   };
 
   // Pie de la FlatList: total + botón confirmar (solo si hay productos)
@@ -214,12 +280,33 @@ class Main extends Component {
           <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, flex: 1 }}>
             ${item.precio.toFixed(2)} c/u
           </Text>
-          <NumericStepper
-            value={item.numProducts}
-            onChange={v => this.updateAmountProduct(index, v)}
-            min={1}
-            max={item.stock}
-          />
+          {item.esGranel ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TextInput
+                style={{
+                  width: 76, height: 44, borderRadius: radius.md,
+                  backgroundColor: colors.background, textAlign: 'center',
+                  fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary,
+                  paddingHorizontal: spacing.sm,
+                }}
+                keyboardType="decimal-pad"
+                placeholder="0.000"
+                placeholderTextColor={colors.textMuted}
+                value={item.cantidadTexto}
+                onChangeText={text => this.updateGranelAmount(index, text)}
+              />
+              <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginLeft: spacing.xs }}>
+                {item.unidadGranel || 'kg'}
+              </Text>
+            </View>
+          ) : (
+            <NumericStepper
+              value={item.numProducts}
+              onChange={v => this.updateAmountProduct(index, v)}
+              min={1}
+              max={item.stock}
+            />
+          )}
           <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, minWidth: 72, textAlign: 'right' }}>
             ${item.totalPrice.toFixed(2)}
           </Text>
@@ -229,7 +316,7 @@ class Main extends Component {
   }
 
   render() {
-    const { sellableItems, clientesConDeudaCount } = this.context;
+    const { sellableItems, clientesConDeudaCount, categories, config } = this.context;
     const clientesDeuda = this.getClientesConDeuda();
     const clienteSeleccionado = this.state.clienteNombre.trim()
       ? clientesDeuda.find(c => c.cliente === this.state.clienteNombre.trim()) || null
@@ -243,6 +330,8 @@ class Main extends Component {
         <ProductsModal
           visible={this.state.showProductModal}
           listProducts={sellableItems}
+          categories={categories}
+          umbralStock={config?.umbralStock ?? 5}
           onCancel={() => this.setState({ showProductModal: false })}
           onSelectProduct={product => {
             this.addProductToCart(product);

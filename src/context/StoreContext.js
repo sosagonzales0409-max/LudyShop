@@ -69,26 +69,26 @@ const MAX_LOG = 500;
 // ─── Ventas semilla ───────────────────────────────────────────────────────────
 
 const initialSales = [
-  { id: 'seed-1',  fecha: diasAtras(0, 18),  tipoPago: 'Contado', cliente: null,                total: 83.0,   totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, numProducts: 2,  totalPrice: 68.0  }, { productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada', marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, numProducts: 1,  totalPrice: 15.0  }] },
-  { id: 'seed-2',  fecha: diasAtras(0, 14),  tipoPago: 'Contado', cliente: null,                total: 122.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '1',  presentacionId: '1-1',  nombre: 'Arroz',           marca: 'Verde Valle', tamano: '1 kg',           precio: 28.5, numProducts: 3,  totalPrice: 85.5  }, { productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, numProducts: 2,  totalPrice: 37.0  }] },
-  { id: 'seed-3',  fecha: diasAtras(0, 17),  tipoPago: 'Contado', cliente: null,                total: 154.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '10', presentacionId: '10-2', nombre: 'Coca-Cola',       marca: 'Coca-Cola',   tamano: '600 ml',         precio: 18.0, numProducts: 5,  totalPrice: 90.0  }, { productId: '2',  presentacionId: '2-1',  nombre: 'Frijol',          marca: 'La Costeña',  tamano: '1 kg',           precio: 32.0, numProducts: 2,  totalPrice: 64.0  }] },
-  { id: 'seed-4',  fecha: diasAtras(0, 10),  tipoPago: 'Credito', cliente: 'Tienda La Esquina', total: 354.0,  totalAbonado: 100.0, condonado: 0, productos: [{ productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, numProducts: 10, totalPrice: 150.0 }, { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, numProducts: 6,  totalPrice: 204.0 }] },
-  { id: 'seed-5',  fecha: diasAtras(0, 12),  tipoPago: 'Credito', cliente: 'Doña Rosa',         total: 145.5,  totalAbonado: 0.0,   condonado: 50.0, productos: [{ productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',           marca: 'San Juan',    tamano: 'Cartón 12 pzas', precio: 36.0, numProducts: 2,  totalPrice: 72.0  }, { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, numProducts: 3,  totalPrice: 73.5  }] },
-  { id: 'seed-6',  fecha: diasAtras(2, 16),  tipoPago: 'Contado', cliente: null,                total: 126.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',          marca: 'Zulka',       tamano: '1 kg',           precio: 27.0, numProducts: 4,  totalPrice: 108.0 }, { productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, numProducts: 1,  totalPrice: 18.5  }] },
-  { id: 'seed-7',  fecha: diasAtras(3, 15),  tipoPago: 'Contado', cliente: null,                total: 147.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, numProducts: 6,  totalPrice: 147.0 }] },
-  { id: 'seed-8',  fecha: diasAtras(4, 13),  tipoPago: 'Contado', cliente: null,                total: 360.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '10', presentacionId: '10-1', nombre: 'Coca-Cola',       marca: 'Coca-Cola',   tamano: '3 L',            precio: 45.0, numProducts: 8,  totalPrice: 360.0 }] },
-  { id: 'seed-9',  fecha: diasAtras(1, 11),  tipoPago: 'Credito', cliente: 'Juan Pérez',        total: 36.0,   totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',           marca: 'San Juan',    tamano: 'Cartón 12 pzas', precio: 36.0, numProducts: 1,  totalPrice: 36.0  }] },
-  { id: 'seed-10', fecha: diasAtras(3, 9),   tipoPago: 'Credito', cliente: 'María García',      total: 116.7,  totalAbonado: 50.0,  condonado: 0, productos: [{ productId: '4',  presentacionId: '4-1',  nombre: 'Aceite vegetal',  marca: '1-2-3',       tamano: '1 L',            precio: 38.9, numProducts: 3,  totalPrice: 116.7 }] },
-  { id: 'seed-11', fecha: diasAtras(8, 12),  tipoPago: 'Contado', cliente: null,                total: 113.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, numProducts: 3,  totalPrice: 45.0  }, { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, numProducts: 2,  totalPrice: 68.0  }] },
-  { id: 'seed-12', fecha: diasAtras(10, 17), tipoPago: 'Contado', cliente: null,                total: 146.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, numProducts: 5,  totalPrice: 92.5  }, { productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',          marca: 'Zulka',       tamano: '1 kg',           precio: 27.0, numProducts: 2,  totalPrice: 54.0  }] },
-  { id: 'seed-13', fecha: diasAtras(15, 14), tipoPago: 'Contado', cliente: null,                total: 128.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '2',  presentacionId: '2-1',  nombre: 'Frijol',          marca: 'La Costeña',  tamano: '1 kg',           precio: 32.0, numProducts: 4,  totalPrice: 128.0 }] },
-  { id: 'seed-14', fecha: diasAtras(20, 10), tipoPago: 'Contado', cliente: null,                total: 145.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, numProducts: 3,  totalPrice: 73.5  }, { productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',           marca: 'San Juan',    tamano: 'Cartón 12 pzas', precio: 36.0, numProducts: 2,  totalPrice: 72.0  }] },
-  { id: 'seed-15', fecha: diasAtras(10, 15), tipoPago: 'Credito', cliente: 'María García',      total: 225.0,  totalAbonado: 225.0, condonado: 0, productos: [{ productId: '10', presentacionId: '10-1', nombre: 'Coca-Cola',       marca: 'Coca-Cola',   tamano: '3 L',            precio: 45.0, numProducts: 5,  totalPrice: 225.0 }] },
-  { id: 'seed-16', fecha: diasAtras(2, 13),  tipoPago: 'Credito', cliente: 'Juan Pérez',        total: 81.5,   totalAbonado: 30.0,  condonado: 0, productos: [{ productId: '1',  presentacionId: '1-1',  nombre: 'Arroz',           marca: 'Verde Valle', tamano: '1 kg',           precio: 28.5, numProducts: 2,  totalPrice: 57.0  }, { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, numProducts: 1,  totalPrice: 24.5  }] },
-  { id: 'seed-17', fecha: diasAtras(32, 11), tipoPago: 'Contado', cliente: null,                total: 261.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',          marca: 'Zulka',       tamano: '1 kg',           precio: 27.0, numProducts: 8,  totalPrice: 216.0 }, { productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, numProducts: 3,  totalPrice: 45.0  }] },
-  { id: 'seed-18', fecha: diasAtras(45, 16), tipoPago: 'Contado', cliente: null,                total: 142.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, numProducts: 4,  totalPrice: 74.0  }, { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, numProducts: 2,  totalPrice: 68.0  }] },
-  { id: 'seed-19', fecha: diasAtras(30, 9),  tipoPago: 'Credito', cliente: 'Roberto Díaz',      total: 128.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '2',  presentacionId: '2-1',  nombre: 'Frijol',          marca: 'La Costeña',  tamano: '1 kg',           precio: 32.0, numProducts: 4,  totalPrice: 128.0 }] },
-  { id: 'seed-20', fecha: diasAtras(45, 10), tipoPago: 'Credito', cliente: 'Lupita Torres',     total: 165.7,  totalAbonado: 50.0,  condonado: 0, productos: [{ productId: '4',  presentacionId: '4-1',  nombre: 'Aceite vegetal',  marca: '1-2-3',       tamano: '1 L',            precio: 38.9, numProducts: 3,  totalPrice: 116.7 }, { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, numProducts: 2,  totalPrice: 49.0  }] },
+  { id: 'seed-1',  fecha: diasAtras(0, 18),  tipoPago: 'Contado', cliente: null,                total: 83.0,   totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, precioCompra: 26.0, numProducts: 2,  totalPrice: 68.0  }, { productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada', marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, precioCompra: 10.5, numProducts: 1,  totalPrice: 15.0  }] },
+  { id: 'seed-2',  fecha: diasAtras(0, 14),  tipoPago: 'Contado', cliente: null,                total: 122.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '1',  presentacionId: '1-1',  nombre: 'Arroz',           marca: 'Verde Valle', tamano: '1 kg',           precio: 28.5, precioCompra: 22.0, numProducts: 3,  totalPrice: 85.5  }, { productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, precioCompra: 13.0, numProducts: 2,  totalPrice: 37.0  }] },
+  { id: 'seed-3',  fecha: diasAtras(0, 17),  tipoPago: 'Contado', cliente: null,                total: 154.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '10', presentacionId: '10-2', nombre: 'Coca-Cola',       marca: 'Coca-Cola',   tamano: '600 ml',         precio: 18.0, precioCompra: 12.5, numProducts: 5,  totalPrice: 90.0  }, { productId: '2',  presentacionId: '2-1',  nombre: 'Frijol',          marca: 'La Costeña',  tamano: '1 kg',           precio: 32.0, precioCompra: 25.0, numProducts: 2,  totalPrice: 64.0  }] },
+  { id: 'seed-4',  fecha: diasAtras(0, 10),  tipoPago: 'Credito', cliente: 'Tienda La Esquina', total: 354.0,  totalAbonado: 100.0, condonado: 0, productos: [{ productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, precioCompra: 10.5, numProducts: 10, totalPrice: 150.0 }, { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, precioCompra: 26.0, numProducts: 6,  totalPrice: 204.0 }] },
+  { id: 'seed-5',  fecha: diasAtras(0, 12),  tipoPago: 'Credito', cliente: 'Doña Rosa',         total: 145.5,  totalAbonado: 0.0,   condonado: 50.0, productos: [{ productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',           marca: 'San Juan',    tamano: 'Cartón 12 pzas', precio: 36.0, precioCompra: 28.0, numProducts: 2,  totalPrice: 72.0  }, { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 3,  totalPrice: 73.5  }] },
+  { id: 'seed-6',  fecha: diasAtras(2, 16),  tipoPago: 'Contado', cliente: null,                total: 126.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',          marca: 'Zulka',       tamano: '1 kg',           precio: 27.0, precioCompra: 20.5, numProducts: 4,  totalPrice: 108.0 }, { productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, precioCompra: 13.0, numProducts: 1,  totalPrice: 18.5  }] },
+  { id: 'seed-7',  fecha: diasAtras(3, 15),  tipoPago: 'Contado', cliente: null,                total: 147.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 6,  totalPrice: 147.0 }] },
+  { id: 'seed-8',  fecha: diasAtras(4, 13),  tipoPago: 'Contado', cliente: null,                total: 360.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '10', presentacionId: '10-1', nombre: 'Coca-Cola',       marca: 'Coca-Cola',   tamano: '3 L',            precio: 45.0, precioCompra: 34.0, numProducts: 8,  totalPrice: 360.0 }] },
+  { id: 'seed-9',  fecha: diasAtras(1, 11),  tipoPago: 'Credito', cliente: 'Juan Pérez',        total: 36.0,   totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',           marca: 'San Juan',    tamano: 'Cartón 12 pzas', precio: 36.0, precioCompra: 28.0, numProducts: 1,  totalPrice: 36.0  }] },
+  { id: 'seed-10', fecha: diasAtras(3, 9),   tipoPago: 'Credito', cliente: 'María García',      total: 116.7,  totalAbonado: 50.0,  condonado: 0, productos: [{ productId: '4',  presentacionId: '4-1',  nombre: 'Aceite vegetal',  marca: '1-2-3',       tamano: '1 L',            precio: 38.9, precioCompra: 30.0, numProducts: 3,  totalPrice: 116.7 }] },
+  { id: 'seed-11', fecha: diasAtras(8, 12),  tipoPago: 'Contado', cliente: null,                total: 113.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, precioCompra: 10.5, numProducts: 3,  totalPrice: 45.0  }, { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, precioCompra: 26.0, numProducts: 2,  totalPrice: 68.0  }] },
+  { id: 'seed-12', fecha: diasAtras(10, 17), tipoPago: 'Contado', cliente: null,                total: 146.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, precioCompra: 13.0, numProducts: 5,  totalPrice: 92.5  }, { productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',          marca: 'Zulka',       tamano: '1 kg',           precio: 27.0, precioCompra: 20.5, numProducts: 2,  totalPrice: 54.0  }] },
+  { id: 'seed-13', fecha: diasAtras(15, 14), tipoPago: 'Contado', cliente: null,                total: 128.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '2',  presentacionId: '2-1',  nombre: 'Frijol',          marca: 'La Costeña',  tamano: '1 kg',           precio: 32.0, precioCompra: 25.0, numProducts: 4,  totalPrice: 128.0 }] },
+  { id: 'seed-14', fecha: diasAtras(20, 10), tipoPago: 'Contado', cliente: null,                total: 145.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 3,  totalPrice: 73.5  }, { productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',           marca: 'San Juan',    tamano: 'Cartón 12 pzas', precio: 36.0, precioCompra: 28.0, numProducts: 2,  totalPrice: 72.0  }] },
+  { id: 'seed-15', fecha: diasAtras(10, 15), tipoPago: 'Credito', cliente: 'María García',      total: 225.0,  totalAbonado: 225.0, condonado: 0, productos: [{ productId: '10', presentacionId: '10-1', nombre: 'Coca-Cola',       marca: 'Coca-Cola',   tamano: '3 L',            precio: 45.0, precioCompra: 34.0, numProducts: 5,  totalPrice: 225.0 }] },
+  { id: 'seed-16', fecha: diasAtras(2, 13),  tipoPago: 'Credito', cliente: 'Juan Pérez',        total: 81.5,   totalAbonado: 30.0,  condonado: 0, productos: [{ productId: '1',  presentacionId: '1-1',  nombre: 'Arroz',           marca: 'Verde Valle', tamano: '1 kg',           precio: 28.5, precioCompra: 22.0, numProducts: 2,  totalPrice: 57.0  }, { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 1,  totalPrice: 24.5  }] },
+  { id: 'seed-17', fecha: diasAtras(32, 11), tipoPago: 'Contado', cliente: null,                total: 261.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',          marca: 'Zulka',       tamano: '1 kg',           precio: 27.0, precioCompra: 20.5, numProducts: 8,  totalPrice: 216.0 }, { productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, precioCompra: 10.5, numProducts: 3,  totalPrice: 45.0  }] },
+  { id: 'seed-18', fecha: diasAtras(45, 16), tipoPago: 'Contado', cliente: null,                total: 142.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, precioCompra: 13.0, numProducts: 4,  totalPrice: 74.0  }, { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, precioCompra: 26.0, numProducts: 2,  totalPrice: 68.0  }] },
+  { id: 'seed-19', fecha: diasAtras(30, 9),  tipoPago: 'Credito', cliente: 'Roberto Díaz',      total: 128.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '2',  presentacionId: '2-1',  nombre: 'Frijol',          marca: 'La Costeña',  tamano: '1 kg',           precio: 32.0, precioCompra: 25.0, numProducts: 4,  totalPrice: 128.0 }] },
+  { id: 'seed-20', fecha: diasAtras(45, 10), tipoPago: 'Credito', cliente: 'Lupita Torres',     total: 165.7,  totalAbonado: 50.0,  condonado: 0, productos: [{ productId: '4',  presentacionId: '4-1',  nombre: 'Aceite vegetal',  marca: '1-2-3',       tamano: '1 L',            precio: 38.9, precioCompra: 30.0, numProducts: 3,  totalPrice: 116.7 }, { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 2,  totalPrice: 49.0  }] },
 ];
 
 // ─── Abonos semilla ───────────────────────────────────────────────────────────
@@ -136,8 +136,8 @@ const initialCompras = [
     id: 'seed-c3',
     fecha: diasAtras(7, 8),
     proveedor: 'Distribuidora García',
-    tipoPago: 'Credito',
-    notas: 'Pago a 15 días',
+    tipoPago: 'Contado',
+    notas: '',
     total: 575.0,
     items: [
       { productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',   tamano: '140 g',         cantidad: 20, costoUnitario: 13.0, subtotal: 260.0 },
@@ -238,6 +238,7 @@ export const LOG_TIPOS = {
   DEVOLUCION:             'devolucion',
   VENTA_ELIMINADA:        'venta_eliminada',
   COMPRA:                 'compra',
+  COMPRA_EDITADA:         'compra_editada',
   COMPRA_ELIMINADA:       'compra_eliminada',
   PRECIO_EDITADO:         'precio_editado',
   STOCK_AGREGADO:         'stock_agregado',
@@ -261,6 +262,7 @@ export const LOG_META = {
   devolucion:             { icono: '↩️', filtro: 'ventas',     label: 'Devolución' },
   venta_eliminada:        { icono: '🗑️', filtro: 'ventas',     label: 'Venta eliminada' },
   compra:                 { icono: '🛍️', filtro: 'compras',    label: 'Compra' },
+  compra_editada:         { icono: '✏️', filtro: 'compras',    label: 'Compra editada' },
   compra_eliminada:       { icono: '🗑️', filtro: 'compras',    label: 'Compra eliminada' },
   precio_editado:         { icono: '🏷️', filtro: 'inventario', label: 'Precio editado' },
   stock_agregado:         { icono: '📦', filtro: 'inventario', label: 'Stock agregado' },
@@ -440,46 +442,67 @@ export class StoreProvider extends Component {
    *   tipoPago: 'Contado' | 'Credito',
    *   notas: string,
    *   total: number,
-   *   items: [{ productId, presentacionId, nombre, tamano, cantidad, costoUnitario, subtotal }]
+   *   items: [{ productId, presentacionId, nombre, tamano, cantidad, costoUnitario, subtotal,
+   *              piezasPaquete?, precioPaquete? }]
    * }
    *
+   * `precioCompraAnterior` se agrega internamente a cada ítem guardado (no se
+   * espera en el `compra` de entrada) para que `editarCompra` pueda restaurar
+   * el precio de compra previo si esta compra se corrige más adelante.
+   *
    * Efectos colaterales:
-   *   1. Suma stock a cada presentación involucrada (agregarStock).
+   *   1. Suma stock a cada presentación involucrada.
    *   2. Actualiza precioCompra de cada presentación con el costoUnitario de esta compra.
    *   3. Registra logEvent 'compra'.
+   *
+   * Todo lo anterior ocurre en un solo setState (todo o nada): si algún ítem
+   * referencia un producto/presentación que ya no existe, la función no
+   * cambia nada y devuelve null, en vez de guardar la compra a medias con el
+   * inventario desincronizado.
    */
   addCompra = compra => {
+    // Validar ANTES de tocar cualquier estado.
+    const sinPresentacion = compra.items.find(item => {
+      const producto = this.state.products.find(p => p.id === item.productId);
+      return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
+    });
+    if (sinPresentacion) {
+      console.warn('addCompra: presentación no encontrada, compra cancelada', sinPresentacion);
+      return null;
+    }
+
     const fecha = new Date().toISOString();
-    const nuevaCompra = { id: nuevoIdCompra(), fecha, ...compra };
 
-    // 1. Guardar la compra
-    this.setState(prev => ({ compras: [nuevaCompra, ...prev.compras] }));
-
-    // 2. Por cada ítem: sumar stock + actualizar precioCompra
-    compra.items.forEach(item => {
-      // Sumar stock (usa agregarStock para que se logee individualmente si se desea)
-      this.setState(prev => ({
-        products: prev.products.map(p =>
-          p.id === item.productId
-            ? {
-                ...p,
-                presentaciones: p.presentaciones.map(pres =>
-                  pres.id === item.presentacionId
-                    ? normalizarPresentacion({
-                        ...pres,
-                        stock: pres.stock + item.cantidad,
-                        precioCompra: item.costoUnitario, // actualiza al precio de esta compra
-                      })
-                    : pres,
-                ),
-              }
-            : p,
-        ),
-      }));
+    // Antes de tocar el stock, guardamos el precioCompra vigente de cada
+    // presentación en el propio ítem (precioCompraAnterior). Así, si esta
+    // compra se edita o elimina más adelante, se puede restaurar el precio
+    // previo en vez de dejarlo pegado al de esta compra.
+    const items = compra.items.map(item => {
+      const producto = this.state.products.find(p => p.id === item.productId);
+      const pres = producto.presentaciones.find(pr => pr.id === item.presentacionId);
+      return { ...item, precioCompraAnterior: pres.precioCompra ?? null };
     });
 
-    // 3. Log de la compra completa
-    const nProd = compra.items.length;
+    const nuevaCompra = { id: nuevoIdCompra(), fecha, ...compra, items };
+
+    this.setState(prev => ({
+      compras: [nuevaCompra, ...prev.compras],
+      products: prev.products.map(p => {
+        const itemsDelProducto = items.filter(i => i.productId === p.id);
+        if (itemsDelProducto.length === 0) return p;
+        return {
+          ...p,
+          presentaciones: p.presentaciones.map(pres => {
+            const item = itemsDelProducto.find(i => i.presentacionId === pres.id);
+            return item
+              ? normalizarPresentacion({ ...pres, stock: pres.stock + item.cantidad, precioCompra: item.costoUnitario })
+              : pres;
+          }),
+        };
+      }),
+    }));
+
+    const nProd = items.length;
     const moneda = this.state.config?.moneda ?? '$';
     this.logEvent(
       LOG_TIPOS.COMPRA,
@@ -490,28 +513,122 @@ export class StoreProvider extends Component {
   };
 
   /**
+   * Edita una compra ya registrada: revierte el efecto en stock/precioCompra
+   * de los ítems anteriores y vuelve a aplicar los ítems nuevos, en un solo
+   * setState atómico para que ambos pasos vean siempre el mismo estado base.
+   *
+   * El precioCompra solo se restaura al valor anterior si nadie más lo
+   * cambió después de esta compra (si ya no coincide con el costoUnitario
+   * que esta compra fijó, lo dejamos como está para no pisar un dato más
+   * reciente).
+   */
+  editarCompra = (compraId, cambios) => {
+    const compraAnterior = this.state.compras.find(c => c.id === compraId);
+    if (!compraAnterior) return false;
+
+    const itemsAnteriores = compraAnterior.items ?? [];
+    const itemsNuevos = cambios.items ?? [];
+
+    // Validar ANTES de tocar cualquier estado — mismo criterio que addCompra:
+    // si un ítem nuevo ya no tiene producto/presentación, no se aplica nada.
+    const itemInvalido = itemsNuevos.find(item => {
+      const producto = this.state.products.find(p => p.id === item.productId);
+      return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
+    });
+    if (itemInvalido) {
+      console.warn('editarCompra: presentación no encontrada, edición cancelada', itemInvalido);
+      return false;
+    }
+
+    this.setState(prev => {
+      // 1. Revertir stock y precioCompra de los ítems anteriores
+      let products = prev.products.map(p => ({
+        ...p,
+        presentaciones: p.presentaciones.map(pres => {
+          const match = itemsAnteriores.find(i => i.productId === p.id && i.presentacionId === pres.id);
+          if (!match) return pres;
+          const stockRevertido = Math.max(0, pres.stock - match.cantidad);
+          const precioCompra = pres.precioCompra === match.costoUnitario
+            ? (match.precioCompraAnterior ?? pres.precioCompra)
+            : pres.precioCompra;
+          return normalizarPresentacion({ ...pres, stock: stockRevertido, precioCompra });
+        }),
+      }));
+
+      // 2. Capturar precioCompraAnterior (post-reversión) y aplicar los ítems nuevos
+      const itemsNuevosConAnterior = itemsNuevos.map(item => {
+        const producto = products.find(p => p.id === item.productId);
+        const pres = producto?.presentaciones.find(pr => pr.id === item.presentacionId);
+        return { ...item, precioCompraAnterior: pres?.precioCompra ?? null };
+      });
+
+      products = products.map(p => ({
+        ...p,
+        presentaciones: p.presentaciones.map(pres => {
+          const match = itemsNuevosConAnterior.find(i => i.productId === p.id && i.presentacionId === pres.id);
+          if (!match) return pres;
+          return normalizarPresentacion({ ...pres, stock: pres.stock + match.cantidad, precioCompra: match.costoUnitario });
+        }),
+      }));
+
+      const compraActualizada = { ...compraAnterior, ...cambios, items: itemsNuevosConAnterior };
+
+      return {
+        products,
+        compras: prev.compras.map(c => (c.id === compraId ? compraActualizada : c)),
+      };
+    });
+
+    const moneda = this.state.config?.moneda ?? '$';
+    const total = cambios.total ?? compraAnterior.total;
+    const proveedor = cambios.proveedor ?? compraAnterior.proveedor;
+    this.logEvent(
+      LOG_TIPOS.COMPRA_EDITADA,
+      `Compra editada · ${moneda}${total.toFixed(2)} · ${proveedor}`,
+    );
+    return true;
+  };
+
+  /**
    * Elimina una compra del historial.
-   * Si revertirStock es true, descuenta del inventario las cantidades que entró la compra.
+   * Si revertirStock es true, descuenta del inventario las cantidades que entró la compra
+   * y, cuando es seguro (nadie cambió el precio desde entonces), restaura el
+   * precioCompra que tenía la presentación antes de esta compra — misma lógica que
+   * usa editarCompra.
    */
   eliminarCompra = (compraId, revertirStock) => {
     const compra = this.state.compras.find(c => c.id === compraId);
-    if (!compra) return;
+    if (!compra) return null;
 
-    if (revertirStock && Array.isArray(compra.items)) {
-      this.setState(prev => ({
-        products: prev.products.map(p => ({
-          ...p,
-          presentaciones: p.presentaciones.map(pres => {
-            const match = compra.items.find(i => i.productId === p.id && i.presentacionId === pres.id);
-            return match
-              ? { ...pres, stock: Math.max(0, pres.stock - match.cantidad) }
-              : pres;
-          }),
-        })),
-      }));
-    }
+    const debeRevertir = revertirStock && Array.isArray(compra.items);
 
-    this.setState(prev => ({ compras: prev.compras.filter(c => c.id !== compraId) }));
+    // Detectar (sin bloquear el borrado) ítems cuya presentación ya no
+    // existe — para esos no hay nada que revertir; se avisa en vez de
+    // fallar en silencio.
+    const itemsNoEncontrados = debeRevertir
+      ? compra.items.filter(item => {
+          const producto = this.state.products.find(p => p.id === item.productId);
+          return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
+        })
+      : [];
+
+    this.setState(prev => ({
+      compras: prev.compras.filter(c => c.id !== compraId),
+      products: debeRevertir
+        ? prev.products.map(p => ({
+            ...p,
+            presentaciones: p.presentaciones.map(pres => {
+              const match = compra.items.find(i => i.productId === p.id && i.presentacionId === pres.id);
+              if (!match) return pres;
+              const stockRevertido = Math.max(0, pres.stock - match.cantidad);
+              const precioCompra = pres.precioCompra === match.costoUnitario
+                ? (match.precioCompraAnterior ?? pres.precioCompra)
+                : pres.precioCompra;
+              return normalizarPresentacion({ ...pres, stock: stockRevertido, precioCompra });
+            }),
+          }))
+        : prev.products,
+    }));
 
     const moneda = this.state.config?.moneda ?? '$';
     const stock = revertirStock ? ' · stock revertido' : '';
@@ -519,6 +636,7 @@ export class StoreProvider extends Component {
       LOG_TIPOS.COMPRA_ELIMINADA,
       `Compra ${moneda}${compra.total.toFixed(2)} eliminada · ${compra.proveedor}${stock}`,
     );
+    return { itemsNoEncontrados };
   };
 
   // ─── Categorías ───────────────────────────────────────────────────────────
@@ -537,10 +655,19 @@ export class StoreProvider extends Component {
     this.logEvent(LOG_TIPOS.CATEGORIA_RENOMBRADA, `Categoría renombrada: "${cat?.nombre ?? id}" → "${nuevoNombre.trim()}"`);
   };
 
+  // Protegida aquí (no solo en CategoriasModal): si algún producto sigue
+  // asignado a esta categoría, no se borra — dejaría productos con
+  // categoriaId huérfana sin forma de repararlo desde la UI.
   deleteCategory = id => {
+    const enUso = this.state.products.some(p => String(p.categoriaId) === String(id));
+    if (enUso) {
+      console.warn('deleteCategory: categoría en uso, no se elimina', id);
+      return false;
+    }
     const cat = this.state.categories.find(c => String(c.id) === String(id));
     this.setState(prev => ({ categories: prev.categories.filter(c => String(c.id) !== String(id)) }));
     this.logEvent(LOG_TIPOS.CATEGORIA_ELIMINADA, `Categoría eliminada: ${cat?.nombre ?? id}`);
+    return true;
   };
 
   // ─── Ventas ───────────────────────────────────────────────────────────────
@@ -574,15 +701,26 @@ export class StoreProvider extends Component {
     this.setState(prev => {
       let restante = monto;
       const eventos = [];
-      const sales = prev.sales.map(sale => {
-        if (sale.tipoPago !== 'Credito' || (sale.cliente || '').trim() !== clienteNombre.trim() || restante <= 0) return sale;
+      const aplicados = {}; // saleId -> nuevo totalAbonado
+
+      // Liquidar primero las ventas más antiguas (orden de aging real de la
+      // deuda), no el orden en que aparecen en el arreglo (que es más
+      // reciente primero, porque addSale inserta al inicio).
+      const ventasOrdenadas = prev.sales
+        .filter(sale => sale.tipoPago === 'Credito' && (sale.cliente || '').trim() === clienteNombre.trim())
+        .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
+
+      for (const sale of ventasOrdenadas) {
+        if (restante <= 0) break;
         const pendiente = sale.total - (sale.totalAbonado ?? 0) - (sale.condonado ?? 0);
-        if (pendiente <= 0) return sale;
+        if (pendiente <= 0) continue;
         const aplicar = Math.min(pendiente, restante);
         restante -= aplicar;
         eventos.push({ id: nuevoIdAbono(), fecha, cliente: (sale.cliente || '').trim(), ventaId: sale.id, monto: aplicar, tipo: 'abono' });
-        return { ...sale, totalAbonado: (sale.totalAbonado ?? 0) + aplicar };
-      });
+        aplicados[sale.id] = (sale.totalAbonado ?? 0) + aplicar;
+      }
+
+      const sales = prev.sales.map(sale => aplicados[sale.id] !== undefined ? { ...sale, totalAbonado: aplicados[sale.id] } : sale);
       return { sales, abonos: [...prev.abonos, ...eventos] };
     });
     this.logEvent(LOG_TIPOS.ABONO, `Abono $${monto.toFixed(2)} · ${clienteNombre}`);
@@ -612,7 +750,10 @@ export class StoreProvider extends Component {
         pendiente -= cambio;
       }
       if (eventosDeVenta.length === 0 && nuevo > 0.0005) {
-        abonos.push({ id: nuevoIdAbono(), fecha: saleLocal.fecha || new Date().toISOString(), cliente: (saleLocal.cliente || '').trim(), ventaId: saleLocal.id, monto: nuevo, tipo: 'abono' });
+        // Fecha de HOY, no la de la venta: este evento representa dinero que
+        // se está registrando ahora (vía "Editar abono"), y así lo cuenta
+        // el corte de caja del día en que realmente se captura.
+        abonos.push({ id: nuevoIdAbono(), fecha: new Date().toISOString(), cliente: (saleLocal.cliente || '').trim(), ventaId: saleLocal.id, monto: nuevo, tipo: 'abono' });
       }
       const sumaEventos = abonos.filter(a => String(a.ventaId) === String(saleId) && a.tipo === 'abono').reduce((s, a) => s + a.monto, 0);
       const totalFinal  = sumaEventos >= nuevo - 0.0005 ? nuevo : sumaEventos;
@@ -641,6 +782,18 @@ export class StoreProvider extends Component {
 
   eliminarVenta = (saleId, devolverStock) => {
     const sale = this.state.sales.find(s => String(s.id) === String(saleId));
+    if (!sale) return null;
+
+    // Si algún producto de la venta ya no existe en el inventario (se borró
+    // la presentación), no hay dónde devolverle el stock — se detecta para
+    // avisar en vez de fallar en silencio, igual que en eliminarCompra.
+    const itemsNoEncontrados = (devolverStock && Array.isArray(sale.productos))
+      ? sale.productos.filter(item => {
+          const producto = this.state.products.find(p => p.id === item.productId);
+          return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
+        })
+      : [];
+
     this.setState(prev => {
       const saleLocal = prev.sales.find(s => String(s.id) === String(saleId));
       if (!saleLocal) return null;
@@ -660,21 +813,38 @@ export class StoreProvider extends Component {
         abonos: prev.abonos.filter(a => String(a.ventaId) !== String(saleId)),
       };
     });
-    if (sale) {
-      const tipo  = sale.tipoPago === 'Credito' ? 'crédito' : 'contado';
-      const stock = devolverStock ? ' · stock devuelto' : '';
-      this.logEvent(LOG_TIPOS.VENTA_ELIMINADA, `Venta $${sale.total.toFixed(2)} eliminada (${tipo})${stock}`);
-    }
+
+    const tipo  = sale.tipoPago === 'Credito' ? 'crédito' : 'contado';
+    const stock = devolverStock ? ' · stock devuelto' : '';
+    this.logEvent(LOG_TIPOS.VENTA_ELIMINADA, `Venta $${sale.total.toFixed(2)} eliminada (${tipo})${stock}`);
+
+    return { itemsNoEncontrados };
   };
 
   registrarDevolucion = (saleId, items, devolverStock) => {
     const sale = this.state.sales.find(s => String(s.id) === String(saleId));
-    if (!sale || !items.length) return;
+    if (!sale || !items.length) return null;
 
     const valorDevuelto = items.reduce((sum, item) => {
       const prod = (sale.productos ?? []).find(p => p.productId === item.productId && p.presentacionId === item.presentacionId);
       return sum + (prod ? prod.precio * item.cantidad : 0);
     }, 0);
+
+    // Si el cliente ya había pagado más de lo que debe después de esta
+    // devolución, ese excedente no se puede "guardar" en la venta (su deuda
+    // ya no puede ser negativa) — hay que devolverle ese dinero en efectivo.
+    // No hay módulo de nota de crédito todavía, así que al menos avisamos.
+    const nuevoTotalPrevisto = Math.max(0, sale.total - valorDevuelto);
+    const excedente = Math.max(0, (sale.totalAbonado ?? 0) - nuevoTotalPrevisto);
+
+    // Mismo chequeo que en eliminarCompra/eliminarVenta: ítems cuya
+    // presentación ya no existe no tienen dónde devolver el stock.
+    const itemsNoEncontrados = devolverStock
+      ? items.filter(item => {
+          const producto = this.state.products.find(p => p.id === item.productId);
+          return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
+        })
+      : [];
 
     this.setState(prev => {
       const sales = prev.sales.map(s => {
@@ -710,16 +880,38 @@ export class StoreProvider extends Component {
     const resumen = items.map(i => `${i.cantidad} × ${i.nombre} ${i.tamano}`).join(', ');
     const stock   = devolverStock ? ' · stock devuelto' : '';
     this.logEvent(LOG_TIPOS.DEVOLUCION, `Devolución $${valorDevuelto.toFixed(2)} · ${resumen}${stock}`);
+
+    return { valorDevuelto, excedente, itemsNoEncontrados };
   };
 
+  // Como los clientes no tienen un id propio (solo se agrupan por nombre),
+  // renombrar sin control podría fusionar sin querer el historial de dos
+  // personas distintas. Se bloquea si el nombre nuevo ya pertenece a otro
+  // cliente con ventas propias (corregir mayúsculas/espacios del mismo
+  // cliente sí se permite).
   renombrarCliente = (nombreActual, nombreNuevo) => {
     const nuevo  = nombreNuevo.trim();
-    if (!nuevo) return;
+    if (!nuevo) return false;
     const actual = (nombreActual || '').trim();
+
+    const perteneceAOtroCliente = this.state.sales.some(sale => {
+      const nombreVenta = (sale.cliente || '').trim();
+      return nombreVenta.toLowerCase() === nuevo.toLowerCase() && nombreVenta.toLowerCase() !== actual.toLowerCase();
+    });
+    if (perteneceAOtroCliente) {
+      console.warn('renombrarCliente: el nombre ya pertenece a otro cliente, renombrado bloqueado');
+      return false;
+    }
+
     this.setState(prev => ({
-      sales: prev.sales.map(sale => (sale.cliente || '').trim() === actual ? { ...sale, cliente: nuevo } : sale),
+      sales:  prev.sales.map(sale => (sale.cliente || '').trim() === actual ? { ...sale, cliente: nuevo } : sale),
+      // Los abonos guardan su propio snapshot del nombre del cliente — si no
+      // se actualizan aquí también, el Corte de caja (que lee abonos[].cliente)
+      // queda desincronizado del nombre nuevo que ya muestran Créditos/deuda.
+      abonos: prev.abonos.map(a => (a.cliente || '').trim() === actual ? { ...a, cliente: nuevo } : a),
     }));
     this.logEvent(LOG_TIPOS.CLIENTE_RENOMBRADO, `Cliente renombrado: "${actual}" → "${nuevo}"`);
+    return true;
   };
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -808,6 +1000,7 @@ export class StoreProvider extends Component {
           decreaseStock:         this.decreaseStock,
           // Compras
           addCompra:             this.addCompra,
+          editarCompra:          this.editarCompra,
           eliminarCompra:        this.eliminarCompra,
           // Categorías
           addCategory:           this.addCategory,

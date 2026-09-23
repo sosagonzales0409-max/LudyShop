@@ -64,6 +64,11 @@ export default class TiendaView extends Component {
       return;
     }
 
+    if (umbral < 0) {
+      this.setState({ error: 'El umbral de stock bajo no puede ser negativo.', guardado: false });
+      return;
+    }
+
     this.context.updateConfig({
       nombreTienda: f.nombreTienda.trim(),
       nombreDueno: f.nombreDueno.trim(),

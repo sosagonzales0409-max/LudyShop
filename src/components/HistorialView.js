@@ -80,6 +80,9 @@ export default class HistorialView extends Component {
 
   getAbonosPeriodo() {
     const { abonos } = this.context;
+    // Los abonos solo existen para ventas a crédito: si el filtro de tipo de
+    // pago está en "Contado", no deben sumar al resumen de ingresos.
+    if (this.state.pago === 'Contado') return [];
     const inicio = this.inicioPeriodo(this.state.periodo);
     return (abonos ?? [])
       .filter(a => a.tipo === 'abono' && (!inicio || a.fecha >= inicio.toISOString()))
@@ -90,9 +93,13 @@ export default class HistorialView extends Component {
 
   confirmarEliminar(venta) {
     const esCredito = venta.tipoPago === 'Credito';
+    const abonado = venta.totalAbonado ?? 0;
+    const advertencia = abonado > 0.009
+      ? `\n\n⚠️ Esta venta ya tiene $${abonado.toFixed(2)} abonados. Al eliminarla, ese registro de pago también desaparece del historial.`
+      : '';
     Alert.alert(
       'Eliminar venta',
-      `¿Seguro que quieres eliminar esta venta de $${venta.total.toFixed(2)} del ${this.formatFecha(venta.fecha)}?\n\nEsta acción no se puede deshacer.`,
+      `¿Seguro que quieres eliminar esta venta de $${venta.total.toFixed(2)} del ${this.formatFecha(venta.fecha)}?${advertencia}\n\nEsta acción no se puede deshacer.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -102,10 +109,23 @@ export default class HistorialView extends Component {
         {
           text: 'Eliminar y devolver al inventario',
           style: 'destructive',
-          onPress: () => this.context.eliminarVenta(venta.id, true),
+          onPress: () => this.eliminarVentaYAvisarSiFalta(venta),
         },
       ],
     );
+  }
+
+  // Elimina la venta y, si algún producto ya no existe en el inventario,
+  // avisa que ese stock no se pudo devolver (en vez de fallar en silencio).
+  eliminarVentaYAvisarSiFalta(venta) {
+    const resultado = this.context.eliminarVenta(venta.id, true);
+    if (resultado?.itemsNoEncontrados?.length > 0) {
+      const detalle = resultado.itemsNoEncontrados.map(i => `• ${i.nombre} ${i.tamano}`).join('\n');
+      Alert.alert(
+        'Stock no devuelto para algunos productos',
+        `Estos productos ya no existen en el inventario, así que su stock no se pudo devolver:\n\n${detalle}`,
+      );
+    }
   }
 
   // ─── Chips de filtro ──────────────────────────────────────────────────────
@@ -336,8 +356,21 @@ export default class HistorialView extends Component {
           venta={this.state.ventaDevolucion}
           onCancel={() => this.setState({ showDevolucionModal: false, ventaDevolucion: null })}
           onConfirmar={({ items, devolverStock }) => {
-            this.context.registrarDevolucion(this.state.ventaDevolucion.id, items, devolverStock);
+            const resultado = this.context.registrarDevolucion(this.state.ventaDevolucion.id, items, devolverStock);
             this.setState({ showDevolucionModal: false, ventaDevolucion: null });
+            if (resultado?.excedente > 0.009) {
+              Alert.alert(
+                'Hay que devolver dinero',
+                `El cliente ya había pagado $${resultado.excedente.toFixed(2)} más de lo que ahora debe por esta venta. Recuerda devolvérselo en efectivo — la app todavía no lleva notas de crédito.`,
+              );
+            }
+            if (resultado?.itemsNoEncontrados?.length > 0) {
+              const detalle = resultado.itemsNoEncontrados.map(i => `• ${i.nombre} ${i.tamano}`).join('\n');
+              Alert.alert(
+                'Stock no devuelto para algunos productos',
+                `Estos productos ya no existen en el inventario, así que su stock no se pudo devolver:\n\n${detalle}`,
+              );
+            }
           }}
         />
 
