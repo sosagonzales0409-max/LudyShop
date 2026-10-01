@@ -59,6 +59,16 @@ export default class CategoriasModal extends Component {
       Alert.alert('Falta información', 'El nombre no puede estar vacío.');
       return;
     }
+    // Misma regla que al crear: dos categorías con el mismo nombre no se
+    // distinguirían en los filtros. Se excluye la propia (cambiar solo
+    // mayúsculas, "bebidas" → "Bebidas", sí se permite). Incluye "Todos".
+    const existe = (this.props.categories || []).some(
+      c => String(c.id) !== String(this.state.editandoId) && c.nombre.toLowerCase() === nombre.toLowerCase(),
+    );
+    if (existe) {
+      Alert.alert('Ya existe', `La categoría "${nombre}" ya está en la lista.`);
+      return;
+    }
     this.props.onRename(this.state.editandoId, nombre);
     this.setState({ editandoId: null, editandoNombre: '' });
   };
@@ -67,7 +77,7 @@ export default class CategoriasModal extends Component {
     if (this.categoriaEnUso(cat.id)) {
       Alert.alert(
         'Categoría en uso',
-        `"${cat.nombre}" tiene productos asignados. Reasigna o elimina esos productos antes de borrar la categoría.`,
+        `"${cat.nombre}" tiene productos asignados. Cámbiales la categoría desde el detalle de cada producto (botón ✏️ junto al nombre) antes de borrarla.`,
       );
       return;
     }

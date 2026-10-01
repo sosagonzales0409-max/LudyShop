@@ -1,15 +1,22 @@
 import React, { Component } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList,
-  SafeAreaView, Dimensions, Alert,
+  SafeAreaView, Dimensions, Alert, ActivityIndicator,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
+import { cargarComprasPagina } from '../data/repositories/compras';
+import { resumenCompras, vendidasDespuesDe } from '../data/consultas/compras';
+import { crearConsultaViva } from '../data/consultaViva';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { nombreProducto, formatoCantidad } from '../config/formato';
 import { IconBack, IconTrash, IconEdit } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+// Compras por página (se piden más al llegar al final de la lista).
+const PAGINA = 30;
 
 function fmtFecha(iso) {
   if (!iso) return '—';
@@ -29,33 +36,72 @@ function fmtFecha(iso) {
 export default class HistorialComprasView extends Component {
   static contextType = StoreContext;
 
-  state = { expandidaId: null };
+  state = {
+    expandidaId: null,
+    // Datos consultados (bajo demanda)
+    compras: [],
+    resumen: null,     // { count, total }
+    cargando: true,
+    cargandoMas: false,
+    hayMas: true,
+    error: null,
+  };
+
+  versionLista = 0; // descarta páginas que lleguen tarde tras una recarga
+
+  componentDidMount() {
+    // Se refresca sola al registrar, editar o eliminar una compra.
+    this.consulta = crearConsultaViva({
+      tablas: ['compras', 'compra_items'],
+      cargar: async () => {
+        this.versionLista++;
+        const limite = Math.max(PAGINA, this.state.compras.length);
+        const [compras, resumen] = await Promise.all([cargarComprasPagina({ limite }), resumenCompras()]);
+        return { compras, resumen };
+      },
+      alCargar: ({ compras, resumen }) => this.setState({ compras, resumen, cargando: false, error: null, hayMas: compras.length < resumen.count }),
+      alFallar: error => this.setState({ error: error?.message ?? String(error), cargando: false }),
+    });
+  }
+
+  componentWillUnmount() {
+    this.consulta?.detener();
+  }
+
+  cargarMas = async () => {
+    const { compras, hayMas, cargandoMas, cargando } = this.state;
+    if (!hayMas || cargandoMas || cargando || !compras.length) return;
+    const version = this.versionLista;
+    this.setState({ cargandoMas: true });
+    try {
+      const ultima = compras[compras.length - 1];
+      const pagina = await cargarComprasPagina({ limite: PAGINA, antesDe: { fecha: ultima.fecha, id: ultima.id } });
+      if (version !== this.versionLista) return;
+      this.setState(prev => ({
+        compras: [...prev.compras, ...pagina],
+        hayMas: pagina.length === PAGINA && prev.compras.length + pagina.length < (prev.resumen?.count ?? 0),
+      }));
+    } catch (error) {
+      console.error('HistorialComprasView.cargarMas', error);
+    } finally {
+      this.setState({ cargandoMas: false });
+    }
+  };
 
   getResumen() {
-    const { compras = [] } = this.context;
-    const total = compras.reduce((s, c) => s + (c.total ?? 0), 0);
-    return { count: compras.length, total };
+    return this.state.resumen ?? { count: 0, total: 0 };
   }
 
   // Unidades vendidas de cada producto de la compra, después de la fecha de
   // la compra. Sirve para advertir antes de revertir stock: si ya se vendió
   // parte de esa mercancía, restarla del stock actual puede dejarlo mal.
-  getVentasPosteriores(compra) {
-    const { sales = [] } = this.context;
-    const posteriores = sales.filter(s => s.fecha > compra.fecha);
+  // (Lo calcula SQLite; antes se recorrían todas las ventas por cada producto.)
+  async getVentasPosteriores(compra) {
+    const porPresentacion = await vendidasDespuesDe(compra);
     const resumen = {};
     (compra.items ?? []).forEach(item => {
-      let vendidas = 0;
-      posteriores.forEach(sale => {
-        (sale.productos ?? []).forEach(p => {
-          if (p.productId === item.productId && p.presentacionId === item.presentacionId) {
-            vendidas += p.numProducts || 0;
-          }
-        });
-      });
-      if (vendidas > 0) {
-        resumen[`${item.nombre} ${item.tamano}`] = vendidas;
-      }
+      const vendidas = porPresentacion[item.presentacionId];
+      if (vendidas > 0) resumen[nombreProducto(item.nombre, item.tamano)] = vendidas;
     });
     return resumen;
   }
@@ -64,7 +110,7 @@ export default class HistorialComprasView extends Component {
     const moneda = this.context.config?.moneda ?? '$';
     Alert.alert(
       'Eliminar compra',
-      `¿Eliminar la compra de ${compra.proveedor} del ${fmtFecha(compra.fecha)} por ${moneda}${compra.total?.toFixed(2)}?`,
+      `¿Eliminar la compra ${compra.proveedor ? `de ${compra.proveedor}` : 'sin proveedor'} del ${fmtFecha(compra.fecha)} por ${moneda}${compra.total?.toFixed(2)}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -82,8 +128,14 @@ export default class HistorialComprasView extends Component {
 
   // Si hubo ventas de estos productos después de la compra, avisa antes de
   // revertir el stock — restar a ciegas puede dejarlo incorrecto.
-  confirmarRevertirStock(compra) {
-    const ventasPosteriores = this.getVentasPosteriores(compra);
+  async confirmarRevertirStock(compra) {
+    let ventasPosteriores;
+    try {
+      ventasPosteriores = await this.getVentasPosteriores(compra);
+    } catch (error) {
+      Alert.alert('No se pudo revisar', `No se pudieron consultar las ventas posteriores: ${error?.message ?? error}`);
+      return;
+    }
     const entradas = Object.entries(ventasPosteriores);
 
     if (entradas.length === 0) {
@@ -108,16 +160,24 @@ export default class HistorialComprasView extends Component {
 
   // Elimina la compra y, si algún ítem ya no tiene producto/presentación en
   // el inventario, avisa que ese stock no se pudo revertir (en vez de
-  // fallar en silencio).
-  eliminarYAvisarSiFalta(compra) {
-    const resultado = this.context.eliminarCompra(compra.id, true);
+  // fallar en silencio). eliminarCompra es asíncrona: lee la compra de la BD
+  // dentro de su transacción.
+  async eliminarYAvisarSiFalta(compra) {
+    const resultado = await this.context.eliminarCompra(compra.id, true);
     if (resultado?.itemsNoEncontrados?.length > 0) {
-      const detalle = resultado.itemsNoEncontrados.map(i => `• ${i.nombre} ${i.tamano}`).join('\n');
+      const detalle = resultado.itemsNoEncontrados.map(i => `• ${nombreProducto(i.nombre, i.tamano)}`).join('\n');
       Alert.alert(
         'Stock no revertido para algunos productos',
         `Estos productos ya no existen en el inventario, así que su stock no se pudo revertir:\n\n${detalle}`,
       );
     }
+  }
+
+  // ¿Esta línea de compra es de un producto a granel? (la compra no lo guarda:
+  // se mira el catálogo; si la presentación ya no existe, se trata como piezas)
+  granelDe(item) {
+    const pres = this.context.products?.find(p => p.id === item.productId)?.presentaciones.find(pr => pr.id === item.presentacionId);
+    return pres?.esGranel ? (pres.unidadGranel || 'kg') : null;
   }
 
   renderCompra({ item: compra }) {
@@ -141,8 +201,8 @@ export default class HistorialComprasView extends Component {
         {/* Fila principal */}
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
-              {compra.proveedor}
+            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: compra.proveedor ? colors.textPrimary : colors.textMuted, fontStyle: compra.proveedor ? 'normal' : 'italic' }}>
+              {compra.proveedor || 'Sin proveedor'}
             </Text>
             <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 }}>
               {fmtFecha(compra.fecha)} · {compra.tipoPago === 'Credito' ? 'Crédito' : 'Contado'}
@@ -180,15 +240,23 @@ export default class HistorialComprasView extends Component {
               <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: idx < compra.items.length - 1 ? spacing.sm : 0 }}>
                 <View style={{ flex: 1, marginRight: spacing.sm }}>
                   <Text style={{ fontSize: fontSize.body, color: colors.textPrimary }}>{it.nombre}</Text>
-                  {it.piezasPaquete != null && it.precioPaquete != null ? (
-                    <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>
-                      Paquete de {it.piezasPaquete} × {moneda}{it.precioPaquete.toFixed(2)} · {it.cantidad} × {moneda}{it.costoUnitario?.toFixed(2)} c/u
-                    </Text>
-                  ) : (
-                    <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>
-                      {it.cantidad} × {moneda}{it.costoUnitario?.toFixed(2)}
-                    </Text>
-                  )}
+                  {(() => {
+                    const u = this.granelDe(it);
+                    if (it.piezasPaquete != null && it.precioPaquete != null) {
+                      return (
+                        <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>
+                          {u
+                            ? `Bulto de ${formatoCantidad(it.piezasPaquete)} ${u} × ${moneda}${it.precioPaquete.toFixed(2)} · ${formatoCantidad(it.cantidad)} ${u} × ${moneda}${it.costoUnitario?.toFixed(2)} por ${u}`
+                            : `Paquete de ${formatoCantidad(it.piezasPaquete)} × ${moneda}${it.precioPaquete.toFixed(2)} · ${formatoCantidad(it.cantidad)} × ${moneda}${it.costoUnitario?.toFixed(2)} c/u`}
+                        </Text>
+                      );
+                    }
+                    return (
+                      <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>
+                        {formatoCantidad(it.cantidad)}{u ? ` ${u}` : ''} × {moneda}{it.costoUnitario?.toFixed(2)}{u ? ` por ${u}` : ''}
+                      </Text>
+                    );
+                  })()}
                 </View>
                 <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>
                   {moneda}{it.subtotal?.toFixed(2)}
@@ -206,11 +274,15 @@ export default class HistorialComprasView extends Component {
     );
   }
 
+  renderPie = () => {
+    if (this.state.cargandoMas) return <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />;
+    return null;
+  };
+
   render() {
-    const { compras = [] } = this.context;
     const moneda = this.context.config?.moneda ?? '$';
     const { count, total } = this.getResumen();
-    const ordenadas = [...compras].sort((a, b) => (b.fecha ?? '') > (a.fecha ?? '') ? 1 : -1);
+    const { compras, cargando, error } = this.state; // ya vienen ordenadas (más recientes primero)
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -245,19 +317,28 @@ export default class HistorialComprasView extends Component {
         )}
 
         <FlatList
-          data={ordenadas}
+          data={compras}
           keyExtractor={item => item.id}
           renderItem={item => this.renderCompra(item)}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={() => (
+          onEndReached={this.cargarMas}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={this.renderPie}
+          ListEmptyComponent={() => (cargando ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
+          ) : error ? (
+            <Text style={{ fontSize: fontSize.body, color: colors.danger, textAlign: 'center', marginTop: 60 }}>
+              No se pudieron cargar las compras: {error}
+            </Text>
+          ) : (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
               <Text style={{ fontSize: 48 }}>🛒</Text>
               <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.md }}>
                 Sin compras registradas
               </Text>
               <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>
-                Toca "Nueva" para registrar tu primera compra.
+                Toca "Registrar compra" para registrar tu primera compra.
               </Text>
               <TouchableOpacity
                 onPress={() => this.props.navigation.navigate('RegistrarCompra')}
@@ -266,7 +347,7 @@ export default class HistorialComprasView extends Component {
                 <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>Registrar compra</Text>
               </TouchableOpacity>
             </View>
-          )}
+          ))}
         />
       </SafeAreaView>
     );

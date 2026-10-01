@@ -6,13 +6,23 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
-import { StoreContext, LOG_META } from '../context/StoreContext';
+import { LOG_META } from '../context/StoreContext';
+import { cargarLog, contarLog } from '../data/repositories/log';
+import { crearConsultaViva } from '../data/consultaViva';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 import { IconBack } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
+
+// Eventos por página (se piden más al llegar al final de la lista).
+const PAGINA = 50;
+
+// Tipos de evento de cada filtro (el filtro se aplica en SQL, no en memoria).
+const tiposDelFiltro = filtro =>
+  filtro === 'todos' ? null : Object.keys(LOG_META).filter(t => LOG_META[t].filtro === filtro);
 
 const FILTROS = [
   { key: 'todos',      label: 'Todos' },
@@ -27,14 +37,76 @@ const FILTROS = [
  * ActivityLogView — historial cronológico de todos los cambios en la app.
  *
  * Acceso: fila "🗒️ Historial de actividad" en ConfigView.
- * Los eventos se registran automáticamente en StoreContext mediante logEvent().
+ * Los eventos se registran en StoreContext (misma transacción que cada acción).
  *
- * Filtros: Todos · Ventas · Créditos · Inventario · Otros
+ * Datos BAJO DEMANDA (no viven en memoria): consulta la BD por páginas de
+ * PAGINA eventos y pide la siguiente al llegar al final. Se refresca sola
+ * cuando cualquier acción escribe en activity_log (consultaViva).
+ *
+ * Filtros: Todos · Ventas · Créditos · Compras · Inventario · Otros
  */
 export default class ActivityLogView extends Component {
-  static contextType = StoreContext;
+  state = {
+    filtro: 'todos',
+    eventos: [],
+    total: 0,          // total con el filtro actual (para el contador)
+    cargando: true,    // primera carga o cambio de filtro
+    cargandoMas: false,
+    hayMas: true,
+    error: null,
+  };
 
-  state = { filtro: 'todos' };
+  // Cambia cada vez que la lista se recarga desde arriba: una página que
+  // llegue tarde de una carga anterior se descarta (no se mezcla).
+  versionLista = 0;
+
+  componentDidMount() {
+    this.consulta = crearConsultaViva({
+      tablas: ['activity_log'],
+      cargar: this.cargarDesdeArriba,
+      alCargar: ({ eventos, total }) => this.setState({ eventos, total, hayMas: eventos.length < total, cargando: false, error: null }),
+      alFallar: error => this.setState({ error: error?.message ?? String(error), cargando: false }),
+    });
+  }
+
+  componentWillUnmount() {
+    this.consulta?.detener();
+  }
+
+  // Primera página (o, si ya se habían cargado más, la misma cantidad, para
+  // que un refresco no "encoja" la lista mientras se lee).
+  cargarDesdeArriba = async () => {
+    this.versionLista++;
+    const tipos = tiposDelFiltro(this.state.filtro);
+    const limite = Math.max(PAGINA, this.state.eventos.length);
+    const [eventos, total] = await Promise.all([cargarLog({ limite, tipos }), contarLog({ tipos })]);
+    return { eventos, total };
+  };
+
+  cargarMas = async () => {
+    const { eventos, hayMas, cargandoMas, cargando, filtro } = this.state;
+    if (!hayMas || cargandoMas || cargando || !eventos.length) return;
+    const version = this.versionLista;
+    this.setState({ cargandoMas: true });
+    try {
+      const ultimo = eventos[eventos.length - 1];
+      const pagina = await cargarLog({ limite: PAGINA, antesDe: { fecha: ultimo.fecha, id: ultimo.id }, tipos: tiposDelFiltro(filtro) });
+      if (version !== this.versionLista) return; // la lista se recargó mientras tanto
+      this.setState(prev => ({
+        eventos: [...prev.eventos, ...pagina],
+        hayMas: pagina.length === PAGINA && prev.eventos.length + pagina.length < prev.total,
+      }));
+    } catch (error) {
+      console.error('ActivityLogView.cargarMas', error);
+    } finally {
+      this.setState({ cargandoMas: false });
+    }
+  };
+
+  cambiarFiltro = filtro => {
+    if (filtro === this.state.filtro) return;
+    this.setState({ filtro, eventos: [], cargando: true, hayMas: true }, () => this.consulta?.recargar());
+  };
 
   formatFecha(iso) {
     if (!iso) return '—';
@@ -52,13 +124,6 @@ export default class ActivityLogView extends Component {
     if (mismodia(d, hoy)) return `Hoy ${hora}`;
     if (mismodia(d, ayer)) return `Ayer ${hora}`;
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${hora}`;
-  }
-
-  getEventosFiltrados() {
-    const { activityLog } = this.context;
-    const { filtro } = this.state;
-    if (filtro === 'todos') return activityLog;
-    return activityLog.filter(e => LOG_META[e.tipo]?.filtro === filtro);
   }
 
   renderEvento(evento) {
@@ -124,8 +189,17 @@ export default class ActivityLogView extends Component {
     );
   }
 
+  renderPie = () => {
+    const { cargandoMas, hayMas, eventos } = this.state;
+    if (cargandoMas) return <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />;
+    if (!hayMas && eventos.length > 0) {
+      return <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, textAlign: 'center', marginVertical: spacing.lg }}>Inicio del historial</Text>;
+    }
+    return null;
+  };
+
   render() {
-    const eventos = this.getEventosFiltrados();
+    const { eventos, total, cargando, error } = this.state;
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -162,7 +236,7 @@ export default class ActivityLogView extends Component {
             }}
           >
             <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textSecondary }}>
-              {eventos.length} eventos
+              {total} eventos
             </Text>
           </View>
         </View>
@@ -186,7 +260,7 @@ export default class ActivityLogView extends Component {
               const activo = this.state.filtro === f.key;
               return (
                 <TouchableOpacity
-                  onPress={() => this.setState({ filtro: f.key })}
+                  onPress={() => this.cambiarFiltro(f.key)}
                   style={{
                     height: buttonHeight.chip,
                     paddingHorizontal: spacing.lg,
@@ -206,7 +280,14 @@ export default class ActivityLogView extends Component {
           />
         </View>
 
-        {/* Lista de eventos */}
+        {/* Lista de eventos (por páginas) */}
+        {cargando ? (
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
+        ) : error ? (
+          <Text style={{ fontSize: fontSize.body, color: colors.danger, textAlign: 'center', margin: spacing.xl }}>
+            No se pudo cargar el historial: {error}
+          </Text>
+        ) : (
         <FlatList
           data={eventos}
           keyExtractor={item => item.id}
@@ -220,6 +301,9 @@ export default class ActivityLogView extends Component {
           maxToRenderPerBatch={10}
           windowSize={5}
           showsVerticalScrollIndicator={false}
+          onEndReached={this.cargarMas}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={this.renderPie}
           ListEmptyComponent={() => (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
               <Text style={{ fontSize: 40 }}>🗒️</Text>
@@ -234,6 +318,7 @@ export default class ActivityLogView extends Component {
             </View>
           )}
         />
+        )}
       </SafeAreaView>
     );
   }

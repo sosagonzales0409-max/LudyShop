@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { formatoDinero } from '../config/formato';
 import { IconClose } from './Icon';
 import { StoreContext } from '../context/StoreContext';
 
@@ -124,7 +125,7 @@ export default class PagoModal extends Component {
                 Saldo pendiente
               </Text>
               <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.danger }}>
-                ${deudaTotal.toFixed(2)}
+                {formatoDinero(deudaTotal, this.moneda)}
               </Text>
             </View>
 
@@ -158,7 +159,7 @@ export default class PagoModal extends Component {
               <Text style={{ fontSize: fontSize.caption, color: colors.primary, textAlign: 'center', marginBottom: spacing.md }}>
                 Nuevo saldo:{' '}
                 <Text style={{ fontWeight: 'bold' }}>
-                  ${nuevoSaldo.toFixed(2)}
+                  {formatoDinero(nuevoSaldo, this.moneda)}
                   {nuevoSaldo === 0 ? ' — ¡Deuda saldada! 🎉' : ''}
                 </Text>
               </Text>
@@ -178,7 +179,7 @@ export default class PagoModal extends Component {
               }}
             >
               <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.success }}>
-                Pagar todo (${deudaTotal.toFixed(2)})
+                Pagar todo ({formatoDinero(deudaTotal, this.moneda)})
               </Text>
             </TouchableOpacity>
 

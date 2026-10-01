@@ -6,11 +6,23 @@ import {
   TouchableOpacity,
   TextInput,
   FlatList,
+  Dimensions,
 } from 'react-native';
 import { colors, spacing, radius, fontSize } from '../config/theme';
+import { formatoDinero } from '../config/formato';
+import { StoreContext } from '../context/StoreContext';
 import { IconClose } from './Icon';
 
 const CATEGORY_CHIP_HEIGHT = 32;
+
+// Tamaño FIJO de la tarjeta, calculado con la pantalla al cargar. Con
+// porcentajes (o flex) se calculaba contra la ventana del Modal, que en
+// Android se encoge al abrir el teclado: la tarjeta se achicaba. Con un alto
+// fijo no cambia de tamaño ni de lugar; el teclado queda encima de la parte
+// baja de la lista, que se puede desplazar.
+const ALTO_PANTALLA = Dimensions.get('window').height;
+const ALTO_TARJETA = Math.round(ALTO_PANTALLA * 0.8);
+const MARGEN_SUPERIOR = Math.round(ALTO_PANTALLA * 0.06);
 
 /**
  * Modal (bottom sheet) para seleccionar un producto (presentación específica)
@@ -25,6 +37,8 @@ const CATEGORY_CHIP_HEIGHT = 32;
  * @param {function} onSelectProduct
  */
 export default class ProductsModal extends Component {
+  static contextType = StoreContext;
+
   state = {
     searchText: '',
     selectedCategory: 0,
@@ -88,6 +102,7 @@ export default class ProductsModal extends Component {
   }
 
   renderProductItem(item) {
+    const moneda = this.context.config?.moneda ?? '$';
     const chip = this.stockChip(item);
     return (
       <TouchableOpacity
@@ -109,19 +124,21 @@ export default class ProductsModal extends Component {
               {item.nombre} {item.tamano}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs, gap: spacing.xs }}>
-              <Text
-                style={{
-                  fontSize: fontSize.small,
-                  color: colors.textSecondary,
-                  backgroundColor: colors.chipInactive,
-                  paddingVertical: 2,
-                  paddingHorizontal: spacing.sm,
-                  borderRadius: radius.sm,
-                  alignSelf: 'flex-start',
-                }}
-              >
-                {item.marca}
-              </Text>
+              {!!item.marca && (
+                <Text
+                  style={{
+                    fontSize: fontSize.small,
+                    color: colors.textSecondary,
+                    backgroundColor: colors.chipInactive,
+                    paddingVertical: 2,
+                    paddingHorizontal: spacing.sm,
+                    borderRadius: radius.sm,
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  {item.marca}
+                </Text>
+              )}
               {item.esGranel && (
                 <Text
                   style={{
@@ -157,7 +174,7 @@ export default class ProductsModal extends Component {
           </Text>
         </View>
         <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.sm }}>
-          ${item.precio.toFixed(2)}
+          {formatoDinero(item.precio, moneda)}
         </Text>
       </TouchableOpacity>
     );
@@ -168,17 +185,17 @@ export default class ProductsModal extends Component {
     const items = this.getFilteredProducts();
 
     return (
-      <Modal animationType="slide" transparent visible={visible}>
+      <Modal animationType="slide" transparent visible={visible} onRequestClose={onCancel}>
         <View style={{ flex: 1, backgroundColor: colors.overlay, alignItems: 'center' }}>
           <View
             style={{
               backgroundColor: colors.card,
               borderRadius: radius.xl,
               width: '90%',
-              marginTop: '8%',
+              marginTop: MARGEN_SUPERIOR,
+              height: ALTO_TARJETA, // fijo: no se encoge con el teclado (ver arriba)
               paddingTop: spacing.lg,
               paddingBottom: spacing.xxl,
-              height: '80%',
               elevation: 8,
               shadowOpacity: 0.2,
               shadowOffset: { width: 0, height: 4 },

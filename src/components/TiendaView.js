@@ -4,11 +4,12 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   SafeAreaView,
   Dimensions,
+  Keyboard,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
+import ScrollViewTeclado from './ScrollViewTeclado';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 import { IconBack } from './Icon';
 
@@ -56,6 +57,9 @@ export default class TiendaView extends Component {
   }
 
   guardar() {
+    // El error y el "✓ Cambios guardados" se muestran DEBAJO del último campo:
+    // con el teclado abierto quedarían tapados y parecería que no pasó nada.
+    Keyboard.dismiss();
     const f = this.state.form;
     const umbral = this.parseEntero(f.umbralStock);
 
@@ -141,7 +145,9 @@ export default class TiendaView extends Component {
           </Text>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }}>
+        {/* ScrollViewTeclado: con la app de borde a borde (Android 16) el
+            teclado tapaba el campo del umbral, que es el último de la pantalla. */}
+        <ScrollViewTeclado contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
 
           {this.renderSeccion('Tienda', (
             <View>
@@ -218,7 +224,7 @@ export default class TiendaView extends Component {
                 returnKeyType="done"
               />
               <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.sm }}>
-                Los productos con menos de esta cantidad unidades aparecen en "Stock bajo".
+                Los productos con menos de esta cantidad aparecen en "Stock bajo".
               </Text>
             </View>
           ))}
@@ -273,7 +279,7 @@ export default class TiendaView extends Component {
               Restablecer valores
             </Text>
           </TouchableOpacity>
-        </ScrollView>
+        </ScrollViewTeclado>
       </SafeAreaView>
     );
   }

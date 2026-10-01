@@ -8,11 +8,16 @@ import {
   SafeAreaView,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
+import { detalleCliente } from '../data/consultas/creditos';
+import { crearConsultaViva } from '../data/consultaViva';
+import { normalizarNombre } from '../data/nombres';
 import EditAbonoModal from './EditAbonoModal';
 import DevolucionModal from './DevolucionModal';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { formatoDinero, nombreProducto } from '../config/formato';
 import { IconEdit, IconBack, IconClose, IconTrash } from './Icon';
 
 const _window = Dimensions.get('window');
@@ -31,29 +36,40 @@ export default class ClientDebtDetailView extends Component {
       ventaEditando: null,
       showDevolucionModal: false,
       ventaDevolucion: null,
+      // Datos consultados (bajo demanda): totales y ventas a crédito del cliente.
+      detalle: null,
+      cargando: true,
+      error: null,
     };
   }
 
+  componentDidMount() {
+    // Se refresca sola al abonar, corregir un abono, condonar, devolver,
+    // eliminar una venta o renombrar al cliente.
+    this.consulta = crearConsultaViva({
+      tablas: ['ventas', 'venta_items', 'abonos', 'clientes'],
+      cargar: () => detalleCliente({ clienteId: this.clienteId() }),
+      alCargar: detalle => this.setState({ detalle, cargando: false, error: null }),
+      alFallar: error => this.setState({ error: error?.message ?? String(error), cargando: false }),
+    });
+  }
+
+  componentWillUnmount() {
+    this.consulta?.detener();
+  }
+
+  // El cliente se busca por ID (no cambia al renombrarlo). Si no llegó en los
+  // params, se resuelve por nombre en el catálogo de clientes; "Sin nombre"
+  // (ventas a crédito sin cliente) = null.
+  clienteId() {
+    const datos = this.props.route?.params?.clienteData;
+    if (datos?.clienteId !== undefined) return datos.clienteId;
+    const nombre = normalizarNombre(datos?.cliente ?? '');
+    return (this.context.clientes ?? []).find(c => normalizarNombre(c.nombre) === nombre)?.id ?? null;
+  }
+
   getClienteActualizado() {
-    const { sales } = this.context;
-    const clienteOriginal = this.props.route?.params?.clienteData;
-    if (!clienteOriginal) return null;
-    const nombreBuscar = clienteOriginal.cliente;
-    const mapa = {};
-    sales
-      .filter(s => s.tipoPago === 'Credito' && (s.cliente || '').trim() === nombreBuscar.trim())
-      .forEach(sale => {
-        const key = (sale.cliente || 'Sin nombre').trim();
-        if (!mapa[key]) mapa[key] = { cliente: key, totalDeuda: 0, totalAbonado: 0, totalCondonado: 0, ventas: [], fechaUltima: sale.fecha };
-        mapa[key].totalDeuda    += sale.total;
-        mapa[key].totalAbonado  += sale.totalAbonado ?? 0;
-        mapa[key].totalCondonado += sale.condonado ?? 0;
-        mapa[key].ventas.push(sale);
-        if (sale.fecha > mapa[key].fechaUltima) mapa[key].fechaUltima = sale.fecha;
-      });
-    const entry = Object.values(mapa)[0];
-    if (!entry) return null;
-    return { ...entry, saldo: entry.totalDeuda - entry.totalAbonado - entry.totalCondonado };
+    return this.state.detalle;
   }
 
   formatFecha(iso) {
@@ -69,7 +85,10 @@ export default class ClientDebtDetailView extends Component {
   // ─── Acciones ─────────────────────────────────────────────────────────────
 
   guardarNombre = () => {
-    const nuevo = this.state.nombreInput.trim();
+    // Misma limpieza que renombrarCliente (limpiarNombre): sin esto, con
+    // espacios repetidos el nombre de los params no coincidiría con el de las
+    // ventas y el detalle se quedaría vacío tras renombrar.
+    const nuevo = this.state.nombreInput.trim().replace(/\s+/g, ' ');
     if (!nuevo) { Alert.alert('Nombre inválido', 'El nombre no puede quedar vacío.'); return; }
     const clienteData = this.props.route?.params?.clienteData;
     const ok = this.context.renombrarCliente(clienteData.cliente, nuevo);
@@ -82,13 +101,14 @@ export default class ClientDebtDetailView extends Component {
   };
 
   confirmarEliminar(venta) {
+    const moneda = this.context.config?.moneda ?? '$';
     const abonado = venta.totalAbonado ?? 0;
     const advertencia = abonado > 0.009
-      ? `\n\n⚠️ Esta venta ya tiene $${abonado.toFixed(2)} abonados. Al eliminarla, ese registro de pago también desaparece del historial.`
+      ? `\n\n⚠️ Esta venta ya tiene ${formatoDinero(abonado, moneda)} abonados. Al eliminarla, ese registro de pago también desaparece del historial.`
       : '';
     Alert.alert(
       'Eliminar venta de la deuda',
-      `¿Qué ocurrió con esta venta de $${venta.total.toFixed(2)} del ${this.formatFecha(venta.fecha)}?${advertencia}`,
+      `¿Qué ocurrió con esta venta de ${formatoDinero(venta.total, moneda)} del ${this.formatFecha(venta.fecha)}?${advertencia}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Condonar (no devolver mercancía)', onPress: () => this.context.condonarVenta(venta.id) },
@@ -99,10 +119,11 @@ export default class ClientDebtDetailView extends Component {
 
   // Elimina la venta y, si algún producto ya no existe en el inventario,
   // avisa que ese stock no se pudo devolver (en vez de fallar en silencio).
-  eliminarVentaYAvisarSiFalta(venta) {
-    const resultado = this.context.eliminarVenta(venta.id, true);
+  // eliminarVenta es asíncrona: lee la venta de la BD dentro de su transacción.
+  async eliminarVentaYAvisarSiFalta(venta) {
+    const resultado = await this.context.eliminarVenta(venta.id, true);
     if (resultado?.itemsNoEncontrados?.length > 0) {
-      const detalle = resultado.itemsNoEncontrados.map(i => `• ${i.nombre} ${i.tamano}`).join('\n');
+      const detalle = resultado.itemsNoEncontrados.map(i => `• ${nombreProducto(i.nombre, i.tamano)}`).join('\n');
       Alert.alert(
         'Stock no devuelto para algunos productos',
         `Estos productos ya no existen en el inventario, así que su stock no se pudo devolver:\n\n${detalle}`,
@@ -113,6 +134,7 @@ export default class ClientDebtDetailView extends Component {
   // ─── Render de cada venta ─────────────────────────────────────────────────
 
   renderVenta({ item: venta }) {
+    const moneda = this.context.config?.moneda ?? '$';
     const pendiente = this.pendienteDe(venta);
     const saldada   = pendiente <= 0.009;
 
@@ -126,7 +148,7 @@ export default class ClientDebtDetailView extends Component {
               {this.formatFecha(venta.fecha)}
             </Text>
             <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginTop: 2 }}>
-              Total: ${venta.total.toFixed(2)}
+              Total: {formatoDinero(venta.total, moneda)}
             </Text>
           </View>
 
@@ -137,7 +159,7 @@ export default class ClientDebtDetailView extends Component {
           ) : (
             <View style={{ alignItems: 'flex-end', marginRight: spacing.sm }}>
               <Text style={{ fontSize: fontSize.small, color: colors.textMuted }}>Pendiente</Text>
-              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.danger }}>${pendiente.toFixed(2)}</Text>
+              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.danger }}>{formatoDinero(pendiente, moneda)}</Text>
             </View>
           )}
 
@@ -164,7 +186,7 @@ export default class ClientDebtDetailView extends Component {
         {!saldada && (
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs }}>
             <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, flex: 1 }}>
-              Abonado: ${(venta.totalAbonado ?? 0).toFixed(2)}
+              Abonado: {formatoDinero(venta.totalAbonado ?? 0, moneda)}
             </Text>
             <TouchableOpacity
               onPress={() => this.setState({ showEditAbonoModal: true, ventaEditando: venta })}
@@ -195,7 +217,7 @@ export default class ClientDebtDetailView extends Component {
 
         {(venta.condonado ?? 0) > 0.009 && (
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs }}>
-            Condonado: ${(venta.condonado ?? 0).toFixed(2)} — deuda perdonada
+            Condonado: {formatoDinero(venta.condonado ?? 0, moneda)} — deuda perdonada
           </Text>
         )}
       </View>
@@ -205,6 +227,7 @@ export default class ClientDebtDetailView extends Component {
   // ─── Render principal ─────────────────────────────────────────────────────
 
   render() {
+    const moneda = this.context.config?.moneda ?? '$';
     const cliente = this.getClienteActualizado();
     const { editandoNombre, nombreInput } = this.state;
 
@@ -225,17 +248,20 @@ export default class ClientDebtDetailView extends Component {
           visible={this.state.showDevolucionModal}
           venta={this.state.ventaDevolucion}
           onCancel={() => this.setState({ showDevolucionModal: false, ventaDevolucion: null })}
-          onConfirmar={({ items, devolverStock }) => {
-            const resultado = this.context.registrarDevolucion(this.state.ventaDevolucion.id, items, devolverStock);
+          onConfirmar={async ({ items, devolverStock }) => {
+            // El modal se cierra al momento; los avisos llegan cuando la
+            // devolución (asíncrona) termina de guardarse.
+            const ventaId = this.state.ventaDevolucion.id;
             this.setState({ showDevolucionModal: false, ventaDevolucion: null });
+            const resultado = await this.context.registrarDevolucion(ventaId, items, devolverStock);
             if (resultado?.excedente > 0.009) {
               Alert.alert(
                 'Hay que devolver dinero',
-                `El cliente ya había pagado $${resultado.excedente.toFixed(2)} más de lo que ahora debe por esta venta. Recuerda devolvérselo en efectivo — la app todavía no lleva notas de crédito.`,
+                `El cliente ya había pagado ${formatoDinero(resultado.excedente, moneda)} más de lo que ahora debe por esta venta. Recuerda devolvérselo en efectivo — la app todavía no lleva notas de crédito.`,
               );
             }
             if (resultado?.itemsNoEncontrados?.length > 0) {
-              const detalle = resultado.itemsNoEncontrados.map(i => `• ${i.nombre} ${i.tamano}`).join('\n');
+              const detalle = resultado.itemsNoEncontrados.map(i => `• ${nombreProducto(i.nombre, i.tamano)}`).join('\n');
               Alert.alert(
                 'Stock no devuelto para algunos productos',
                 `Estos productos ya no existen en el inventario, así que su stock no se pudo devolver:\n\n${detalle}`,
@@ -276,7 +302,13 @@ export default class ClientDebtDetailView extends Component {
           )}
         </View>
 
-        {!cliente ? (
+        {this.state.cargando ? (
+          <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
+        ) : this.state.error ? (
+          <Text style={{ fontSize: fontSize.body, color: colors.danger, textAlign: 'center', margin: spacing.xl }}>
+            No se pudo cargar el detalle: {this.state.error}
+          </Text>
+        ) : !cliente ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{ fontSize: 48 }}>✅</Text>
             <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.lg }}>¡Deuda saldada!</Text>
@@ -299,21 +331,21 @@ export default class ClientDebtDetailView extends Component {
                 <View style={{ backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.lg, elevation: 3, shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 } }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
                     <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Deuda total</Text>
-                    <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>${cliente.totalDeuda.toFixed(2)}</Text>
+                    <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>{formatoDinero(cliente.totalDeuda, moneda)}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
                     <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Total abonado</Text>
-                    <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.success }}>${cliente.totalAbonado.toFixed(2)}</Text>
+                    <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.success }}>{formatoDinero(cliente.totalAbonado, moneda)}</Text>
                   </View>
                   {cliente.totalCondonado > 0.009 && (
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
                       <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Condonado</Text>
-                      <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.warning }}>${cliente.totalCondonado.toFixed(2)}</Text>
+                      <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.warning }}>{formatoDinero(cliente.totalCondonado, moneda)}</Text>
                     </View>
                   )}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm }}>
                     <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>Saldo pendiente</Text>
-                    <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.danger }}>${cliente.saldo.toFixed(2)}</Text>
+                    <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.danger }}>{formatoDinero(cliente.saldo, moneda)}</Text>
                   </View>
                 </View>
                 <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.sm }}>

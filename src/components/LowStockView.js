@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import { colors, spacing, radius, fontSize, iconButton } from '../config/theme';
+import { formatoDinero, formatoCantidad } from '../config/formato';
 import { IconBack, IconShoppingBag } from './Icon';
 
 const _window = Dimensions.get('window');
@@ -44,14 +45,18 @@ export default class LowStockView extends Component {
     return items.sort((a, b) => a.presentacion.stock - b.presentacion.stock);
   }
 
-  stockChip(stock) {
+  stockChip(pres) {
+    const { stock } = pres;
+    // A granel lleva su unidad ("2.5 kg"); si no, piezas ("3 uds").
+    const label = pres.esGranel ? formatoCantidad(stock, true, pres.unidadGranel || 'kg') : `${formatoCantidad(stock)} uds`;
     if (stock === 0) return { bg: colors.danger, label: 'Sin stock' };
-    if (stock <= 2) return { bg: colors.danger, label: `${stock} uds` };
-    return { bg: colors.warning, label: `${stock} uds` };
+    if (stock <= 2) return { bg: colors.danger, label };
+    return { bg: colors.warning, label };
   }
 
   renderItem({ product, presentacion }) {
-    const chip = this.stockChip(presentacion.stock);
+    const moneda = this.context.config?.moneda ?? '$';
+    const chip = this.stockChip(presentacion);
 
     return (
       <TouchableOpacity
@@ -92,11 +97,13 @@ export default class LowStockView extends Component {
           <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
             {product.nombre} {presentacion.tamano}
           </Text>
-          <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic' }}>
-            {product.marca}
-          </Text>
+          {!!product.marca && (
+            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic' }}>
+              {product.marca}
+            </Text>
+          )}
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs }}>
-            ${presentacion.precio.toFixed(2)} c/u
+            {formatoDinero(presentacion.precio, moneda)} c/u
           </Text>
         </View>
 

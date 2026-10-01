@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 import { IconClose } from './Icon';
+import { formatoCantidad } from '../config/formato';
 
 /**
  * Mini-modal para sumar unidades a una presentación existente.
@@ -85,7 +86,7 @@ export default class AgregarUnidadesModal extends Component {
             </TouchableOpacity>
             </View>
           <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: spacing.xs, marginBottom: spacing.lg }}>
-              {product.nombre} {presentacion.tamano} · {product.marca}
+              {[product.nombre, presentacion.tamano].filter(Boolean).join(' ')}{product.marca ? ` · ${product.marca}` : ''}
             </Text>
 
             <View
@@ -101,7 +102,7 @@ export default class AgregarUnidadesModal extends Component {
             >
               <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Stock actual</Text>
               <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>
-                {presentacion.stock} {unidad}
+                {formatoCantidad(presentacion.stock)} {unidad}
               </Text>
             </View>
 
@@ -142,7 +143,7 @@ export default class AgregarUnidadesModal extends Component {
               <Text style={{ fontSize: fontSize.caption, color: colors.primary, textAlign: 'center', marginBottom: spacing.lg }}>
                 Nuevo stock:{' '}
                 <Text style={{ fontWeight: 'bold' }}>
-                  {presentacion.stock + cantidadNum} {unidad}
+                  {formatoCantidad(presentacion.stock + cantidadNum)} {unidad}
                 </Text>
               </Text>
             )}

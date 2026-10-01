@@ -11,7 +11,7 @@ import {
 import { StoreContext } from '../context/StoreContext';
 import CategoriasModal from './CategoriasModal';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { IconTag, IconSettings, IconPlus, IconChevron, IconShoppingBag, IconWarning } from './Icon';
+import { IconSettings, IconPlus, IconChevron, IconShoppingBag, IconWarning } from './Icon';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
@@ -109,9 +109,11 @@ class Inventory extends Component {
             {product.nombre}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic', marginRight: spacing.xs }}>
-              {product.marca}
-            </Text>
+            {!!product.marca && (
+              <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic', marginRight: spacing.xs }}>
+                {product.marca}
+              </Text>
+            )}
             <IconChevron size={fontSize.itemTitle} color={colors.textMuted} />
           </View>
         </View>
@@ -126,8 +128,8 @@ class Inventory extends Component {
             }}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: fontSize.body, fontWeight: '600', color: colors.textPrimary }}>
-                {pres.tamano}
+              <Text style={{ fontSize: fontSize.body, fontWeight: '600', color: pres.tamano ? colors.textPrimary : colors.textMuted }}>
+                {pres.tamano || 'Presentación única'}
               </Text>
               <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 }}>
                 {this.moneda}{pres.precio.toFixed(2)}
@@ -194,9 +196,6 @@ class Inventory extends Component {
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => this.setState({ showCategoriasModal: true })} hitSlop={8} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
-              <IconTag size={28} color={colors.textPrimary} />
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => this.props.navigation.navigate('LowStock', { threshold: this.threshold })} hitSlop={8} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
               <IconWarning size={28} color={colors.textPrimary} />
               {lowStockCount > 0 && (
@@ -222,7 +221,20 @@ class Inventory extends Component {
         <View style={{ flex: 1, paddingHorizontal: spacing.lg }}>
           <TextInput style={{ color: colors.textPrimary, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, marginTop: spacing.md, borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm }} placeholder="Buscar por nombre o marca" placeholderTextColor={colors.textMuted} value={this.state.searchText} onChangeText={text => this.updateSearchText(text)} />
 
-          <FlatList style={{ marginTop: spacing.md, flexGrow: 0 }} horizontal showsHorizontalScrollIndicator={false} data={sortedCategories} keyExtractor={(item, index) => index.toString()} renderItem={({ item }) => this.renderCategories(item)} />
+          {/* Chips de categoría + botón "+" fijo a la derecha (abre la gestión
+              de categorías). Antes era un ícono 🏷️ suelto en el encabezado,
+              poco intuitivo: ahora está donde se miran las categorías. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md }}>
+            <FlatList style={{ flex: 1, flexGrow: 1 }} horizontal showsHorizontalScrollIndicator={false} data={sortedCategories} keyExtractor={(item, index) => index.toString()} renderItem={({ item }) => this.renderCategories(item)} />
+            <TouchableOpacity
+              onPress={() => this.setState({ showCategoriasModal: true })}
+              accessibilityLabel="Categorías: agregar, renombrar o eliminar"
+              hitSlop={6}
+              style={{ height: CATEGORY_CHIP_HEIGHT, minWidth: CATEGORY_CHIP_HEIGHT, paddingHorizontal: spacing.md, marginLeft: spacing.xs, backgroundColor: colors.chipInactive, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}
+            >
+              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>+</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Botón + Agregar Producto → AgregarProductoView (pantalla completa) */}
           <TouchableOpacity

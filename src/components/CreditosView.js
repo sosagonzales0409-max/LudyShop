@@ -6,10 +6,15 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
+import { clientesConSaldo } from '../data/consultas/creditos';
+import { crearConsultaViva } from '../data/consultaViva';
 import PagoModal from './PagoModal';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { formatoDinero } from '../config/formato';
 import { IconBack, IconChevron } from './Icon';
 
 const _window = Dimensions.get('window');
@@ -33,10 +38,30 @@ export default class CreditosView extends Component {
     clienteSeleccionado: null,
     deudaSeleccionada: 0,
     orden: 'antiguedad',
+    // Datos consultados (bajo demanda): clientes con saldo, agrupados en SQLite.
+    clientes: [],
+    cargando: true,
+    error: null,
   };
+
+  componentDidMount() {
+    // Se refresca sola al registrar un pago, vender a crédito, condonar,
+    // eliminar una venta o renombrar un cliente.
+    this.consulta = crearConsultaViva({
+      tablas: ['ventas', 'abonos', 'clientes'],
+      cargar: clientesConSaldo,
+      alCargar: clientes => this.setState({ clientes, cargando: false, error: null }),
+      alFallar: error => this.setState({ error: error?.message ?? String(error), cargando: false }),
+    });
+  }
+
+  componentWillUnmount() {
+    this.consulta?.detener();
+  }
 
   // Ordena los clientes según el criterio activo:
   //   'antiguedad' → deuda más antigua primero (inicio de la deuda), desempate por saldo.
+  //   'reciente'   → venta a crédito más reciente primero, desempate por saldo.
   //   'saldo'      → mayor deuda primero.
   ordenarClientes = (a, b) => {
     if (this.state.orden === 'alfabetico') {
@@ -45,58 +70,30 @@ export default class CreditosView extends Component {
     if (this.state.orden === 'saldo') {
       return b.saldo - a.saldo;
     }
+    if (this.state.orden === 'reciente') {
+      if (a.fechaUltima !== b.fechaUltima) return a.fechaUltima > b.fechaUltima ? -1 : 1;
+      return b.saldo - a.saldo;
+    }
     if (a.fechaDeuda !== b.fechaDeuda) {
       return a.fechaDeuda < b.fechaDeuda ? -1 : 1;
     }
     return b.saldo - a.saldo;
   };
 
+  // Clientes con saldo (ya agrupados por SQLite: saldo, nº de ventas, fecha de
+  // la última venta y del inicio de la deuda), en el orden elegido.
   getClientesConDeuda() {
-    const { sales } = this.context;
-    const mapa = {};
-
-    sales
-      .filter(s => s.tipoPago === 'Credito')
-      .forEach(sale => {
-        const key = (sale.cliente || 'Sin nombre').trim();
-        if (!mapa[key]) {
-          mapa[key] = {
-            cliente: key,
-            totalDeuda: 0,
-            totalAbonado: 0,
-            totalCondonado: 0,
-            ventas: [],
-            fechaUltima: sale.fecha,
-          };
-        }
-        mapa[key].totalDeuda += sale.total;
-        mapa[key].totalAbonado += sale.totalAbonado ?? 0;
-        mapa[key].totalCondonado += sale.condonado ?? 0;
-        mapa[key].ventas.push(sale);
-        if (sale.fecha > mapa[key].fechaUltima) mapa[key].fechaUltima = sale.fecha;
-      });
-
-    return Object.values(mapa)
-      .map(c => {
-        const saldo = c.totalDeuda - c.totalAbonado - c.totalCondonado;
-        // Inicio de la deuda: fecha de la venta pendiente más antigua.
-        // (campo calculado en memoria, no se almacena ni se pide al usuario)
-        const pendientes = c.ventas.filter(
-          v => v.total - (v.totalAbonado ?? 0) - (v.condonado ?? 0) > 0.009,
-        );
-        const fechaDeuda =
-          pendientes.length > 0
-            ? pendientes.map(v => v.fecha).sort()[0]
-            : c.fechaUltima;
-        return { ...c, saldo, fechaDeuda };
-      })
-      .filter(c => c.saldo > 0.009)
-      .sort(this.ordenarClientes);
+    return [...this.state.clientes].sort(this.ordenarClientes);
   }
 
+  // Días de CALENDARIO (medianoche local vs medianoche local), no periodos de
+  // 24 h: una venta de anoche a las 23:00 vista hoy a la 1:00 es "1 día", no
+  // "Hoy". Math.round absorbe los días de 23/25 h del horario de verano, y el
+  // tope en 0 evita "-1 días" si la fecha quedara unos minutos en el futuro.
   diasDesde(fechaISO) {
-    const diff = Date.now() - new Date(fechaISO).getTime();
-    return Math.floor(diff / (1000 * 60 * 60 * 24));
+    const inicioDelDia = fecha => { const d = new Date(fecha); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const dias = Math.round((inicioDelDia(Date.now()) - inicioDelDia(fechaISO)) / (1000 * 60 * 60 * 24));
+    return Math.max(0, dias);
   }
 
   chipAntiguedad(dias) {
@@ -107,6 +104,7 @@ export default class CreditosView extends Component {
   }
 
   renderCliente(item) {
+    const moneda = this.context.config?.moneda ?? '$';
     const dias = this.diasDesde(item.fechaUltima);
     const chip = this.chipAntiguedad(dias);
 
@@ -126,7 +124,7 @@ export default class CreditosView extends Component {
         {/* Fila tocable → detalle */}
         <TouchableOpacity
           activeOpacity={0.7}
-          onPress={() => this.props.navigation.navigate('ClientDebtDetail', { clienteData: item })}
+          onPress={() => this.props.navigation.navigate('ClientDebtDetail', { clienteData: { cliente: item.cliente, clienteId: item.clienteId } })}
           style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}
         >
           <View style={{ flex: 1 }}>
@@ -134,7 +132,7 @@ export default class CreditosView extends Component {
               {item.cliente}
             </Text>
             <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs }}>
-              {item.ventas.length} {item.ventas.length === 1 ? 'venta' : 'ventas'} a crédito
+              {item.numVentas} {item.numVentas === 1 ? 'venta' : 'ventas'} a crédito
             </Text>
           </View>
 
@@ -153,7 +151,7 @@ export default class CreditosView extends Component {
           </View>
 
           <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.danger }}>
-            ${item.saldo.toFixed(2)}
+            {formatoDinero(item.saldo, moneda)}
           </Text>
           <IconChevron size={fontSize.itemTitle} color={colors.textMuted} style={{ marginLeft: spacing.xs }} />
         </TouchableOpacity>
@@ -182,6 +180,7 @@ export default class CreditosView extends Component {
   }
 
   render() {
+    const moneda = this.context.config?.moneda ?? '$';
     const clientes = this.getClientesConDeuda();
     const totalGeneral = clientes.reduce((s, c) => s + c.saldo, 0);
 
@@ -234,7 +233,7 @@ export default class CreditosView extends Component {
               }}
             >
               <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>
-                ${totalGeneral.toFixed(2)} total
+                {formatoDinero(totalGeneral, moneda)} total
               </Text>
             </View>
           )}
@@ -244,15 +243,20 @@ export default class CreditosView extends Component {
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.md }}>
             {this.state.orden === 'antiguedad'
               ? 'Clientes con saldo pendiente, de la deuda más antigua a la más reciente.'
+              : this.state.orden === 'reciente'
+                ? 'Clientes con saldo pendiente, de la venta a crédito más reciente a la más antigua.'
               : this.state.orden === 'saldo'
                 ? 'Clientes con saldo pendiente, ordenados de mayor a menor deuda.'
                 : 'Clientes con saldo pendiente, en orden alfabético.'}
           </Text>
 
-          {/* Selector de orden */}
-          <View style={{ flexDirection: 'row' }}>
+          {/* Selector de orden: chips de ANCHO NATURAL (antes flex:1 con texto
+              de 16 px: "Mayor deuda" se partía en 2 líneas). Si en una
+              pantalla angosta no caben, la fila se desliza en vez de cortar. */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
             {[
               { key: 'antiguedad', label: 'Más antiguo' },
+              { key: 'reciente', label: 'Más reciente' },
               { key: 'saldo', label: 'Mayor deuda' },
               { key: 'alfabetico', label: 'A-Z' },
             ].map(op => (
@@ -260,23 +264,22 @@ export default class CreditosView extends Component {
                 key={op.key}
                 onPress={() => this.setState({ orden: op.key })}
                 style={{
-                  flex: 1,
-                  height: buttonHeight.chip,
+                  height: 36,
+                  paddingHorizontal: spacing.md,
                   backgroundColor: this.state.orden === op.key ? colors.primary : colors.chipInactive,
                   borderRadius: radius.lg,
-                  marginHorizontal: spacing.xs,
                   justifyContent: 'center', alignItems: 'center',
                 }}
               >
-                <Text style={{
-                  fontSize: fontSize.label, fontWeight: 'bold',
+                <Text numberOfLines={1} style={{
+                  fontSize: fontSize.caption, fontWeight: 'bold',
                   color: this.state.orden === op.key ? colors.white : colors.textPrimary,
                 }}>
                   {op.label}
                 </Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         <FlatList
@@ -284,7 +287,13 @@ export default class CreditosView extends Component {
           keyExtractor={item => item.cliente}
           renderItem={({ item }) => this.renderCliente(item)}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
-          ListEmptyComponent={() => (
+          ListEmptyComponent={() => (this.state.cargando ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
+          ) : this.state.error ? (
+            <Text style={{ fontSize: fontSize.body, color: colors.danger, textAlign: 'center', marginTop: 60 }}>
+              No se pudieron cargar los créditos: {this.state.error}
+            </Text>
+          ) : (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
               <Text style={{ fontSize: 48 }}>✅</Text>
               <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', marginTop: spacing.md, color: colors.textPrimary }}>
@@ -294,7 +303,7 @@ export default class CreditosView extends Component {
                 Todos los clientes están al corriente.
               </Text>
             </View>
-          )}
+          ))}
         />
       </SafeAreaView>
     );

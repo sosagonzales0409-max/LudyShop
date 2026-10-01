@@ -1,10 +1,15 @@
 import React, { Component } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  SafeAreaView, Dimensions, Alert, ScrollView,
+  SafeAreaView, Dimensions, Alert, Keyboard,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
+import { obtenerCompra } from '../data/repositories/compras';
+import { proveedoresRecientes } from '../data/consultas/compras';
+import { crearConsultaViva } from '../data/consultaViva';
+import ScrollViewTeclado from './ScrollViewTeclado';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { nombreProducto, formatoDinero, formatoCantidad } from '../config/formato';
 import { IconBack, IconPlus, IconClose } from './Icon';
 
 const _window = Dimensions.get('window');
@@ -36,10 +41,30 @@ export default class RegistrarCompraView extends Component {
       busqueda: '',
       items: [],             // [{ productId, presentacionId, nombre, tamano, esGranel, unidadGranel, cantidad, costoUnitario, esPaquete, piezasPaquete, precioPaquete }]
       paqueteStates: {},     // { [key]: { esPaquete, piezas, precio } }
+      tecladoVisible: false, // oculta la barra de total mientras se escribe
+      sinProveedor: false,   // compra sin proveedor (otra tienda, mercado…): se guarda proveedor ''
+      proveedoresUsados: [], // de SQLite, del más reciente al más antiguo (sugerencias)
     };
   }
 
   componentDidMount() {
+    // La barra de total se oculta con el teclado abierto: si no, queda encima
+    // del teclado y tapa los campos de cantidad/costo. Va ANTES del return
+    // del modo edición para que también se registre ahí.
+    this.subsTeclado = [
+      Keyboard.addListener('keyboardDidShow', () => this.setState({ tecladoVisible: true })),
+      Keyboard.addListener('keyboardDidHide', () => this.setState({ tecladoVisible: false })),
+    ];
+    this.montado = true;
+    // Proveedores para las sugerencias (bajo demanda; antes StoreContext los
+    // recalculaba recorriendo todas las compras en cada dibujado).
+    this.consultaProveedores = crearConsultaViva({
+      tablas: ['compras'],
+      cargar: proveedoresRecientes,
+      alCargar: proveedoresUsados => this.setState({ proveedoresUsados }),
+      alFallar: error => console.error('RegistrarCompraView.proveedoresRecientes', error),
+    });
+
     const { productId, presentacionId, compraId } = this.props.route?.params ?? {};
     if (compraId) {
       this.cargarCompraParaEditar(compraId);
@@ -50,11 +75,26 @@ export default class RegistrarCompraView extends Component {
     }
   }
 
+  componentWillUnmount() {
+    // Sin esto, los listeners seguirían vivos al salir de la pantalla y
+    // llamarían setState sobre un componente desmontado.
+    this.subsTeclado?.forEach(s => s.remove());
+    this.consultaProveedores?.detener();
+    this.montado = false;
+  }
+
   // Precarga los campos con una compra existente para poder corregirla sin
   // tener que eliminarla y volver a capturarla desde cero.
-  cargarCompraParaEditar(compraId) {
-    const compra = (this.context.compras ?? []).find(c => c.id === compraId);
-    if (!compra) return;
+  // La compra se consulta por id (bajo demanda). `montado` evita un setState
+  // si se sale de la pantalla antes de que llegue.
+  async cargarCompraParaEditar(compraId) {
+    let compra = null;
+    try {
+      compra = await obtenerCompra(compraId);
+    } catch (error) {
+      console.error('RegistrarCompraView.obtenerCompra', error);
+    }
+    if (!compra || !this.montado) return;
     const sellable = this.context.sellableItems ?? [];
     const items = [];
     const paqueteStates = {};
@@ -85,6 +125,7 @@ export default class RegistrarCompraView extends Component {
     this.setState({
       editandoId: compra.id,
       proveedor: compra.proveedor,
+      sinProveedor: !compra.proveedor,
       notas: compra.notas ?? '',
       items,
       paqueteStates,
@@ -99,7 +140,7 @@ export default class RegistrarCompraView extends Component {
   // coincidan parcialmente mientras se escribe (para notar si ya existe uno
   // parecido, ej. "Coca Cola" vs "Coca-Cola FEMSA", antes de crear otro).
   getSugerenciasProveedor() {
-    const proveedores = this.context.proveedores ?? [];
+    const proveedores = this.state.proveedoresUsados;
     const texto = this.state.proveedor.trim().toLowerCase();
     if (!texto) return proveedores.slice(0, 5);
     if (proveedores.some(p => p.toLowerCase() === texto)) return [];
@@ -111,9 +152,26 @@ export default class RegistrarCompraView extends Component {
   // fragmentar el historial con variantes de escritura del mismo proveedor.
   normalizarProveedor(nombre) {
     const limpio = nombre.trim().replace(/\s+/g, ' ');
-    const proveedores = this.context.proveedores ?? [];
+    const proveedores = this.state.proveedoresUsados;
     const existente = proveedores.find(p => p.toLowerCase() === limpio.toLowerCase());
     return existente ?? limpio;
+  }
+
+  // Chip "Sin proveedor": borde punteado y cursiva para distinguirlo de los
+  // proveedores reales. Al tocarlo se marca (o desmarca) y se vacía el campo.
+  renderChipSinProveedor() {
+    const activo = this.state.sinProveedor;
+    return (
+      <TouchableOpacity
+        key="__sin_proveedor__"
+        onPress={() => this.setState({ sinProveedor: !activo, proveedor: '' })}
+        style={{ backgroundColor: activo ? colors.primary : colors.card, borderWidth: 1, borderStyle: 'dashed', borderColor: activo ? colors.primary : colors.textMuted, borderRadius: radius.lg, paddingVertical: spacing.xs, paddingHorizontal: spacing.md }}
+      >
+        <Text style={{ fontSize: fontSize.caption, fontStyle: 'italic', color: activo ? colors.white : colors.textSecondary }}>
+          {activo ? '✓ ' : ''}Sin proveedor
+        </Text>
+      </TouchableOpacity>
+    );
   }
 
   itemKey = (productId, presentacionId) => `${productId}::${presentacionId}`;
@@ -176,11 +234,11 @@ export default class RegistrarCompraView extends Component {
     }));
   }
 
-  // "Comprar por paquete/reja" es para conteos discretos (latas, botellas) —
-  // no aplica a granel, donde no hay "piezas" que contar, solo peso/volumen.
-  // Si el ítem es a granel, se ignora cualquier estado de paquete guardado.
+  // "Comprar por paquete/reja" (latas, botellas) o, a granel, "por
+  // bulto/costal": kilos por bulto × número de bultos. Mismo cálculo y mismas
+  // columnas en la BD (piezas_paquete = kilos por bulto).
   aplicaPaquete(item, paq) {
-    return paq.esPaquete && !item.esGranel;
+    return paq.esPaquete;
   }
 
   getCostoCalculado(item, idx) {
@@ -225,12 +283,14 @@ export default class RegistrarCompraView extends Component {
   // ─── Confirmar compra ──────────────────────────────────────────────────────
 
   handleConfirmar = () => {
-    const { proveedor, notas, items, editandoId } = this.state;
+    const { proveedor, notas, items, editandoId, sinProveedor } = this.state;
 
-    if (!proveedor.trim()) { Alert.alert('Falta el proveedor', 'Ingresa el nombre del proveedor.'); return; }
+    if (!proveedor.trim() && !sinProveedor) { Alert.alert('Falta el proveedor', 'Escribe el proveedor o toca "Sin proveedor" (compras en otra tienda, mercado…).'); return; }
     if (items.length === 0) { Alert.alert('Sin productos', 'Agrega al menos un producto a la compra.'); return; }
 
-    const proveedorFinal = this.normalizarProveedor(proveedor);
+    // "Sin proveedor" se guarda VACÍO (no el texto), para que nunca se mezcle
+    // con nombres reales en sugerencias o búsquedas.
+    const proveedorFinal = sinProveedor ? '' : this.normalizarProveedor(proveedor);
 
     const itemsValidos = [];
     for (let i = 0; i < items.length; i++) {
@@ -241,12 +301,12 @@ export default class RegistrarCompraView extends Component {
       const cant  = this.getCantidadCalculada(item, i);
       if (cant == null || cant <= 0) {
         const msg = esPaquete
-          ? `Completa piezas por paquete y número de paquetes para "${item.nombre} ${item.tamano}".`
-          : `Ingresa la cantidad para "${item.nombre} ${item.tamano}".`;
+          ? `Completa piezas por paquete y número de paquetes para "${nombreProducto(item.nombre, item.tamano)}".`
+          : `Ingresa la cantidad para "${nombreProducto(item.nombre, item.tamano)}".`;
         Alert.alert('Cantidad inválida', msg);
         return;
       }
-      if (costo == null || costo <= 0) { Alert.alert('Costo inválido', `Ingresa el costo unitario para "${item.nombre} ${item.tamano}".`); return; }
+      if (costo == null || costo <= 0) { Alert.alert('Costo inválido', `Ingresa el costo unitario para "${nombreProducto(item.nombre, item.tamano)}".`); return; }
 
       // Si se compró por paquete/reja, guardamos el desglose (piezas + precio
       // del paquete + número de paquetes) además del costoUnitario ya
@@ -260,24 +320,32 @@ export default class RegistrarCompraView extends Component {
     }
 
     const total = parseFloat(this.calcTotal().toFixed(2));
-    const resumen = itemsValidos.map(i => `• ${i.nombre} ${i.tamano} × ${i.cantidad} · ${this.moneda}${i.costoUnitario.toFixed(2)} c/u`).join('\n');
+    const resumen = itemsValidos.map(i => `• ${nombreProducto(i.nombre, i.tamano)} × ${i.cantidad} · ${this.moneda}${i.costoUnitario.toFixed(2)} c/u`).join('\n');
     const esEdicion = !!editandoId;
 
     Alert.alert(
       esEdicion ? 'Guardar cambios' : 'Confirmar compra',
-      `Proveedor: ${proveedorFinal}\nTotal: ${this.moneda}${total.toFixed(2)}\n\n${resumen}`,
+      `Proveedor: ${proveedorFinal || 'Sin proveedor'}\nTotal: ${this.moneda}${total.toFixed(2)}\n\n${resumen}`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: esEdicion ? 'Guardar cambios' : 'Registrar compra',
-          onPress: () => {
+          onPress: async () => {
             const datos = { proveedor: proveedorFinal, tipoPago: 'Contado', notas: notas.trim(), total, items: itemsValidos };
             if (esEdicion) {
-              const ok = this.context.editarCompra(editandoId, datos);
-              if (!ok) {
-                Alert.alert('No se pudo guardar la edición', 'Alguno de los productos ya no existe en el inventario. Quita ese ítem e inténtalo de nuevo.');
+              // editarCompra es asíncrona (lee la compra y el stock de la BD
+              // en su transacción). `guardando` evita guardar dos veces si se
+              // vuelve a tocar mientras tanto.
+              if (this.guardando) return;
+              this.guardando = true;
+              const ok = await this.context.editarCompra(editandoId, datos);
+              this.guardando = false;
+              if (ok === false) {
+                Alert.alert('No se pudo guardar la edición', 'La compra o alguno de sus productos ya no existe en el inventario. Quita ese ítem e inténtalo de nuevo.');
                 return;
               }
+              if (!ok) return; // falló la escritura: ya se avisó y se recargan los datos
+              if (!this.montado) return;
             } else {
               const resultado = this.context.addCompra(datos);
               if (!resultado) {
@@ -317,18 +385,18 @@ export default class RegistrarCompraView extends Component {
 
         {/* Toggle paquete — decide si se pide "Cantidad" directa o el
             desglose de paquete/reja (son excluyentes, no se piden juntos).
-            No aplica a granel: ahí no hay "piezas" que contar, solo peso/volumen. */}
-        {!item.esGranel && (
-          <TouchableOpacity
-            onPress={() => this.updatePaquete(key, { esPaquete: !paq.esPaquete })}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs, marginBottom: spacing.sm }}
-          >
-            <View style={{ width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: esPaquete ? colors.primary : colors.chipInactive, backgroundColor: esPaquete ? colors.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm }}>
-              {esPaquete && <Text style={{ fontSize: 12, color: colors.white, fontWeight: 'bold' }}>✓</Text>}
-            </View>
-            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>¿Compraste por paquete/reja? (calcula costo y cantidad totales)</Text>
-          </TouchableOpacity>
-        )}
+            A granel el paquete es un bulto/costal (kilos por bulto). */}
+        <TouchableOpacity
+          onPress={() => this.updatePaquete(key, { esPaquete: !paq.esPaquete })}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs, marginBottom: spacing.sm }}
+        >
+          <View style={{ width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: esPaquete ? colors.primary : colors.chipInactive, backgroundColor: esPaquete ? colors.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm }}>
+            {esPaquete && <Text style={{ fontSize: 12, color: colors.white, fontWeight: 'bold' }}>✓</Text>}
+          </View>
+          <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>
+            {item.esGranel ? `¿Compraste por bulto/costal? (calcula costo por ${unidad} y cantidad total)` : '¿Compraste por paquete/reja? (calcula costo y cantidad totales)'}
+          </Text>
+        </TouchableOpacity>
 
         {/* Cantidad + costo unitario directos — solo si NO es por paquete */}
         {!esPaquete && (
@@ -363,26 +431,26 @@ export default class RegistrarCompraView extends Component {
           <View style={{ backgroundColor: colors.background, borderRadius: radius.sm, padding: spacing.md, marginTop: spacing.sm }}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>Piezas en el paquete</Text>
-                <TextInput style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }} placeholder="Ej. 24" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={paq.piezas} onChangeText={t => this.updatePaquete(key, { piezas: t })} />
+                <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>{item.esGranel ? `${unidad} por bulto` : 'Piezas en el paquete'}</Text>
+                <TextInput style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }} placeholder={item.esGranel ? 'Ej. 25' : 'Ej. 24'} placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={paq.piezas} onChangeText={t => this.updatePaquete(key, { piezas: t })} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>Precio del paquete</Text>
+                <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>{item.esGranel ? 'Precio del bulto' : 'Precio del paquete'}</Text>
                 <TextInput style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }} placeholder="0.00" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={paq.precio} onChangeText={t => this.updatePaquete(key, { precio: t })} />
               </View>
             </View>
             <View style={{ marginTop: spacing.sm }}>
-              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>¿Cuántos paquetes/rejas compraste?</Text>
+              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>{item.esGranel ? '¿Cuántos bultos compraste?' : '¿Cuántos paquetes/rejas compraste?'}</Text>
               <TextInput style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }} placeholder="Ej. 2" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={paq.numPaquetes} onChangeText={t => this.updatePaquete(key, { numPaquetes: t })} />
             </View>
             {costoCalc != null && (
               <Text style={{ fontSize: fontSize.caption, color: colors.primary, marginTop: spacing.sm, fontWeight: 'bold' }}>
-                → Costo unitario calculado: {this.moneda}{costoCalc.toFixed(4)} c/u
+                → Costo unitario calculado: {formatoDinero(costoCalc, this.moneda)} {item.esGranel ? `por ${unidad}` : 'c/u'}
               </Text>
             )}
             {cantidadCalc != null && (
               <Text style={{ fontSize: fontSize.caption, color: colors.primary, marginTop: spacing.xs, fontWeight: 'bold' }}>
-                → Cantidad total: {cantidadCalc} {unidad}
+                → Cantidad total: {formatoCantidad(cantidadCalc)} {unidad}
               </Text>
             )}
           </View>
@@ -402,7 +470,7 @@ export default class RegistrarCompraView extends Component {
   // ─── Render principal ────────────────────────────────────────────────────────
 
   render() {
-    const { proveedor, notas, busqueda, items, editandoId } = this.state;
+    const { proveedor, notas, busqueda, items, editandoId, tecladoVisible } = this.state;
     const sugerencias = this.getSellableItems();
     const total = this.calcTotal();
     const hayItems = items.length > 0;
@@ -420,28 +488,30 @@ export default class RegistrarCompraView extends Component {
           <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>{esEdicion ? 'Editar compra' : 'Registrar compra'}</Text>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: hayItems ? 120 : 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollViewTeclado contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           {/* ── PROVEEDOR ── */}
           <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.md }}>Proveedor</Text>
 
           <TextInput
             style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary, marginBottom: spacing.sm }}
-            placeholder="Nombre del proveedor"
+            placeholder={this.state.sinProveedor ? 'Sin proveedor' : 'Nombre del proveedor'}
             placeholderTextColor={colors.textMuted}
             value={proveedor}
-            onChangeText={t => this.setState({ proveedor: t })}
+            onChangeText={t => this.setState({ proveedor: t, sinProveedor: false })}
           />
 
-          {/* Historial / sugerencias de proveedores */}
-          {this.getSugerenciasProveedor().length > 0 && (
+          {/* Sugerencias: "Sin proveedor" siempre primero (con el campo vacío),
+              luego los proveedores usados o parecidos. */}
+          {(proveedor.trim().length === 0 || this.getSugerenciasProveedor().length > 0) && (
             <View style={{ marginBottom: spacing.md }}>
               <Text style={{ fontSize: fontSize.small, color: colors.textMuted, marginBottom: spacing.xs }}>
                 {proveedor.trim().length === 0 ? 'Usados anteriormente:' : 'Proveedores parecidos ya registrados:'}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {proveedor.trim().length === 0 && this.renderChipSinProveedor()}
                 {this.getSugerenciasProveedor().map(p => (
-                  <TouchableOpacity key={p} onPress={() => this.setState({ proveedor: p })} style={{ backgroundColor: colors.chipInactive, borderRadius: radius.lg, paddingVertical: spacing.xs, paddingHorizontal: spacing.md }}>
+                  <TouchableOpacity key={p} onPress={() => this.setState({ proveedor: p, sinProveedor: false })} style={{ backgroundColor: colors.chipInactive, borderRadius: radius.lg, paddingVertical: spacing.xs, paddingHorizontal: spacing.md }}>
                     <Text style={{ fontSize: fontSize.caption, color: colors.textPrimary }}>{p}</Text>
                   </TouchableOpacity>
                 ))}
@@ -478,7 +548,7 @@ export default class RegistrarCompraView extends Component {
                   style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderBottomWidth: idx < sugerencias.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: fontSize.body, fontWeight: '600', color: colors.textPrimary }}>{item.nombre} {item.tamano}</Text>
-                    <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>{item.marca}</Text>
+                    {!!item.marca && <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>{item.marca}</Text>}
                   </View>
                   <IconPlus size={fontSize.label} color={colors.primary} />
                 </TouchableOpacity>
@@ -505,11 +575,14 @@ export default class RegistrarCompraView extends Component {
               <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>Usa el buscador para agregar productos a esta compra.</Text>
             </View>
           )}
-        </ScrollView>
+        </ScrollViewTeclado>
 
-        {/* Barra de total + confirmar */}
-        {hayItems && (
-          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xl, elevation: 8 }}>
+        {/* Barra de total + confirmar. Ocupa su lugar debajo del ScrollView
+            (antes era absolute: subía con el teclado, tapaba los campos y el
+            ScrollView no sabía que debía desplazarse). Se oculta mientras el
+            teclado está abierto para dejar espacio al campo que se edita. */}
+        {hayItems && !tecladoVisible && (
+          <View style={{ backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xl, elevation: 8 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
               <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>Total de la compra</Text>
               <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.primary }}>{this.moneda}{total.toFixed(2)}</Text>

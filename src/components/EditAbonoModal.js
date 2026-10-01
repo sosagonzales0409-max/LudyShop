@@ -8,6 +8,8 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { formatoDinero } from '../config/formato';
+import { StoreContext } from '../context/StoreContext';
 import { IconClose } from './Icon';
 
 /**
@@ -19,6 +21,8 @@ import { IconClose } from './Icon';
  * @param {function} onSave       — recibe (saleId, nuevoAbonado)
  */
 export default class EditAbonoModal extends Component {
+  static contextType = StoreContext;
+
   state = { montoInput: '' };
 
   componentDidUpdate(prevProps) {
@@ -36,6 +40,7 @@ export default class EditAbonoModal extends Component {
   }
 
   handleSave = () => {
+    const moneda = this.context.config?.moneda ?? '$';
     const { venta, onSave } = this.props;
     const monto = parseFloat(this.state.montoInput.replace(',', '.'));
     const maxAbono = Math.max(0, venta.total - (venta.condonado ?? 0));
@@ -45,7 +50,7 @@ export default class EditAbonoModal extends Component {
       return;
     }
     if (monto > maxAbono + 0.009) {
-      Alert.alert('Monto excede la venta', `El total cobrable de esta venta es $${maxAbono.toFixed(2)}.`);
+      Alert.alert('Monto excede la venta', `El total cobrable de esta venta es ${formatoDinero(maxAbono, moneda)}.`);
       return;
     }
 
@@ -53,6 +58,7 @@ export default class EditAbonoModal extends Component {
   };
 
   render() {
+    const moneda = this.context.config?.moneda ?? '$';
     const { visible, onCancel, venta } = this.props;
     if (!venta) return null;
 
@@ -94,7 +100,7 @@ export default class EditAbonoModal extends Component {
               </TouchableOpacity>
             </View>
             <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs, marginBottom: spacing.lg }}>
-              Venta del {this.formatFecha(venta.fecha)} · Total ${venta.total.toFixed(2)}
+              Venta del {this.formatFecha(venta.fecha)} · Total {formatoDinero(venta.total, moneda)}
             </Text>
 
             {/* Resumen actual */}
@@ -110,7 +116,7 @@ export default class EditAbonoModal extends Component {
             >
               <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Abonado actual</Text>
               <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>
-                ${(venta.totalAbonado ?? 0).toFixed(2)}
+                {formatoDinero(venta.totalAbonado ?? 0, moneda)}
               </Text>
             </View>
             {condonado > 0.009 && (
@@ -126,14 +132,14 @@ export default class EditAbonoModal extends Component {
               >
                 <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Condonado</Text>
                 <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.warning }}>
-                  ${condonado.toFixed(2)}
+                  {formatoDinero(condonado, moneda)}
                 </Text>
               </View>
             )}
 
             {/* Label */}
             <Text style={{ fontSize: fontSize.label, color: colors.textPrimary, marginBottom: spacing.sm }}>
-              Nuevo monto abonado (0 – ${maxAbono.toFixed(2)})
+              Nuevo monto abonado (0 – {formatoDinero(maxAbono, moneda)})
             </Text>
 
             {/* Input */}
@@ -163,7 +169,7 @@ export default class EditAbonoModal extends Component {
               <Text style={{ fontSize: fontSize.caption, color: colors.primary, textAlign: 'center', marginBottom: spacing.lg }}>
                 Pendiente resultante:{' '}
                 <Text style={{ fontWeight: 'bold' }}>
-                  ${nuevoPendiente.toFixed(2)}
+                  {formatoDinero(nuevoPendiente, moneda)}
                   {nuevoPendiente === 0 ? ' — Venta saldada 🎉' : ''}
                 </Text>
               </Text>

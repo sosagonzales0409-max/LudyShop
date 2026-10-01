@@ -54,6 +54,7 @@ export const fontSize = {
   label: 16,
   itemTitle: 18,
   heading: 20,
+  splash: 24,
 };
 
 export const buttonHeight = {

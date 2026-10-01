@@ -43,6 +43,7 @@ function MainStack() {
       <MainViews.Screen name="ActivityLogView" component={ActivityLogView} />
       <MainViews.Screen name="HistorialCompras" component={HistorialComprasView} />
       <MainViews.Screen name="RegistrarCompra" component={RegistrarCompraView} />
+      <MainViews.Screen name="AgregarProducto" component={AgregarProductoView} />
     </MainViews.Navigator>
   );
 }

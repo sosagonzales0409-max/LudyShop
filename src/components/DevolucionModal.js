@@ -3,12 +3,15 @@ import {
   Modal,
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   FlatList,
   Alert,
 } from 'react-native';
 import NumericStepper from './NumericStepper';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formato';
+import { StoreContext } from '../context/StoreContext';
 import { IconClose } from './Icon';
 
 /**
@@ -28,14 +31,37 @@ import { IconClose } from './Icon';
  *                                              nombre, tamano, cantidad }]
  */
 export default class DevolucionModal extends Component {
+  static contextType = StoreContext;
+
   state = {
-    cantidades: {}, // { [productId::presentacionId]: number }
+    cantidades: {},  // { [productId::presentacionId]: number }
+    textos: {},      // a granel: texto tal cual se escribe ("0.5")
   };
 
   componentDidUpdate(prevProps) {
     if (this.props.visible && !prevProps.visible) {
-      this.setState({ cantidades: {} });
+      this.setState({ cantidades: {}, textos: {} });
     }
+  }
+
+  // A granel se devuelve con decimales (0.5 kg de 1.5 kg vendidos). Se guarda
+  // el texto tal cual y el número; que no pase de lo vendido se valida al
+  // confirmar.
+  setCantidadGranel(productId, presentacionId, texto) {
+    const key = `${productId}::${presentacionId}`;
+    let limpio = texto.replace(/[^0-9.]/g, '');
+    const punto = limpio.indexOf('.');
+    if (punto !== -1) limpio = limpio.slice(0, punto + 1) + limpio.slice(punto + 1).replace(/\./g, '');
+    const valor = parseFloat(limpio);
+    this.setState(prev => ({
+      textos: { ...prev.textos, [key]: limpio },
+      cantidades: { ...prev.cantidades, [key]: isNaN(valor) ? 0 : valor },
+    }));
+  }
+
+  // "2" piezas o "0.5 kg"
+  cantidadConUnidad(p, n) {
+    return p.esGranel ? formatoCantidad(n, true, p.unidadGranel || 'kg') : formatoCantidad(n);
   }
 
   getCantidad(productId, presentacionId) {
@@ -57,6 +83,8 @@ export default class DevolucionModal extends Component {
         presentacionId: p.presentacionId,
         nombre: p.nombre,
         tamano: p.tamano,
+        esGranel: !!p.esGranel,
+        unidadGranel: p.unidadGranel ?? null,
         cantidad: this.getCantidad(p.productId, p.presentacionId),
         max: p.numProducts,
       }))
@@ -70,7 +98,13 @@ export default class DevolucionModal extends Component {
       return;
     }
 
-    const resumen = items.map(i => `• ${i.nombre} ${i.tamano} × ${i.cantidad}`).join('\n');
+    const excedido = items.find(i => i.cantidad > i.max + 0.0005);
+    if (excedido) {
+      Alert.alert('Cantidad inválida', `"${nombreProducto(excedido.nombre, excedido.tamano)}": solo se vendieron ${this.cantidadConUnidad(excedido, excedido.max)}.`);
+      return;
+    }
+
+    const resumen = items.map(i => `• ${nombreProducto(i.nombre, i.tamano)} × ${this.cantidadConUnidad(i, i.cantidad)}`).join('\n');
 
     Alert.alert(
       '¿Devolver al inventario?',
@@ -96,6 +130,7 @@ export default class DevolucionModal extends Component {
   }
 
   render() {
+    const moneda = this.context.config?.moneda ?? '$';
     const { visible, onCancel, venta } = this.props;
     if (!venta) return null;
 
@@ -126,7 +161,7 @@ export default class DevolucionModal extends Component {
                   Registrar devolución
                 </Text>
                 <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.xs }}>
-                  Venta del {this.formatFecha(venta.fecha)} · ${venta.total.toFixed(2)}
+                  Venta del {this.formatFecha(venta.fecha)} · {formatoDinero(venta.total, moneda)}
                 </Text>
               </View>
               <TouchableOpacity
@@ -167,15 +202,31 @@ export default class DevolucionModal extends Component {
                         {p.nombre} {p.tamano}
                       </Text>
                       <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 }}>
-                        {p.numProducts} vendidas · ${p.precio.toFixed(2)} c/u
+                        {p.esGranel
+                          ? `${this.cantidadConUnidad(p, p.numProducts)} vendidos · ${formatoDinero(p.precio, moneda)} por ${p.unidadGranel || 'kg'}`
+                          : `${p.numProducts} vendidas · ${formatoDinero(p.precio, moneda)} c/u`}
                       </Text>
                     </View>
-                    <NumericStepper
-                      value={cantidad}
-                      onChange={v => this.setCantidad(p.productId, p.presentacionId, v, p.numProducts)}
-                      min={0}
-                      max={p.numProducts}
-                    />
+                    {p.esGranel ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <TextInput
+                          style={{ width: 76, height: 40, borderRadius: radius.sm, borderWidth: 1, borderColor: cantidad > 0 ? colors.primary : colors.chipInactive, backgroundColor: colors.card, textAlign: 'center', fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, paddingHorizontal: spacing.sm }}
+                          keyboardType="decimal-pad"
+                          placeholder="0.000"
+                          placeholderTextColor={colors.textMuted}
+                          value={this.state.textos[`${p.productId}::${p.presentacionId}`] ?? ''}
+                          onChangeText={t => this.setCantidadGranel(p.productId, p.presentacionId, t)}
+                        />
+                        <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginLeft: spacing.xs }}>{p.unidadGranel || 'kg'}</Text>
+                      </View>
+                    ) : (
+                      <NumericStepper
+                        value={cantidad}
+                        onChange={v => this.setCantidad(p.productId, p.presentacionId, v, p.numProducts)}
+                        min={0}
+                        max={p.numProducts}
+                      />
+                    )}
                   </View>
                 );
               }}
@@ -190,7 +241,7 @@ export default class DevolucionModal extends Component {
             <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg, borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.sm }}>
               {haySeleccion && (
                 <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginBottom: spacing.md }}>
-                  {itemsDevueltos.length} {itemsDevueltos.length === 1 ? 'producto' : 'productos'} · {itemsDevueltos.reduce((s, i) => s + i.cantidad, 0)} unidades totales
+                  {itemsDevueltos.length} {itemsDevueltos.length === 1 ? 'producto' : 'productos'} a devolver
                 </Text>
               )}
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>

@@ -6,10 +6,14 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 import { StoreContext } from '../context/StoreContext';
+import { cargarReportes, armarBarras, ordenarTop, verificarZonaHoraria } from '../data/consultas/reportes';
+import { crearConsultaViva } from '../data/consultaViva';
 import { colors, spacing, radius, fontSize } from '../config/theme';
+import { formatoDinero, formatoCantidad } from '../config/formato';
 import { IconBack } from './Icon';
 
 const _window = Dimensions.get('window');
@@ -38,13 +42,13 @@ const PERIODOS = [
   { key: 'año', label: 'Este año' },
 ];
 
-const NOMBRES_DIA = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+// (Los nombres de día/mes de las barras viven en consultas/reportes.js.)
+const MESES =['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const COLORES_PUESTO = [colors.success, colors.primary, colors.warning, colors.textSecondary, colors.textMuted];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmt      = (moneda, v) => `${moneda}${v.toFixed(2)}`;
+const fmt      = (moneda, v) => formatoDinero(v, moneda); // formato único (config/formato.js)
 
 /**
  * Calcula maxValue y stepValue para el eje Y de gifted-charts.
@@ -94,10 +98,62 @@ function horaActual() {
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
+/**
+ * ReportesView — KPIs, gráfica, top productos y flujo de dinero del período.
+ *
+ * Datos BAJO DEMANDA: al entrar y al cambiar de período se consulta todo a
+ * SQLite de una vez (consultas/reportes.js, incluye los dos modos de la
+ * gráfica y los dos criterios del top). Tocar barras, cambiar de modo o de
+ * criterio ya no calcula nada (antes: ~7 s por toque con "año").
+ * Se refresca sola si cambian ventas, abonos o compras.
+ */
 export default class ReportesView extends Component {
   static contextType = StoreContext;
 
-  state = { periodo: '7d', tooltipIdx: null, modoVentas: 'ingresoReal', ordenTop: 'unidades' };
+  state = {
+    periodo: '7d', tooltipIdx: null, modoVentas: 'ingresoReal', ordenTop: 'unidades',
+    datos: null,   // resultado de cargarReportes para el período actual
+    error: null,
+  };
+
+  componentDidMount() {
+    this.reportarRender();
+    if (__DEV__) verificarZonaHoraria().catch(() => {});
+    this.consulta = crearConsultaViva({
+      tablas: ['ventas', 'venta_items', 'abonos', 'compras'],
+      cargar: () => {
+        const t0 = global.performance?.now?.() ?? Date.now();
+        return cargarReportes(this.rangos()).then(datos => {
+          if (__DEV__) console.log(`[rendimiento] Reportes (${this.state.periodo}): consulta ${Math.round((global.performance?.now?.() ?? Date.now()) - t0)} ms`);
+          return datos;
+        });
+      },
+      alCargar: datos => this.setState({ datos, error: null }),
+      alFallar: error => this.setState({ error: error?.message ?? String(error) }),
+    });
+  }
+
+  componentWillUnmount() {
+    this.consulta?.detener();
+  }
+
+  cambiarPeriodo = periodo => {
+    if (periodo === this.state.periodo) return;
+    this.setState({ periodo, tooltipIdx: null, datos: null, error: null }, () => this.consulta?.recargar());
+  };
+
+  // Fechas del período actual (medianoches locales) para la consulta.
+  rangos() {
+    const inicio = this.inicioPeriodo(this.state.periodo);
+    const dias = this.diasEnRango(inicio);
+    const fin = new Date(); fin.setHours(23, 59, 59, 999);
+    const inicioAnterior = new Date(inicio); inicioAnterior.setDate(inicioAnterior.getDate() - dias.length);
+    const finAnterior = new Date(inicio.getTime() - 1);
+    return {
+      inicio: inicio.toISOString(), fin: fin.toISOString(),
+      inicioAnterior: inicioAnterior.toISOString(), finAnterior: finAnterior.toISOString(),
+    };
+  }
 
   // ─── Fechas ────────────────────────────────────────────────────────────────
 
@@ -116,70 +172,25 @@ export default class ReportesView extends Component {
     return dias;
   }
 
-  // ─── Cálculos ──────────────────────────────────────────────────────────────
-
-  // modo: 'ingresoReal' (contado cobrado + abonos recibidos, dinero que de
-  // verdad entró) o 'todas' (valor de venta de contado + crédito, se haya
-  // cobrado o no).
-  totalVentasEnRango(ini, fin, modo) {
-    const ventas = this.context.sales
-      .filter(s => (modo === 'todas' || s.tipoPago !== 'Credito') && new Date(s.fecha).getTime() >= ini && new Date(s.fecha).getTime() <= fin)
-      .reduce((sum, s) => sum + s.total, 0);
-    if (modo === 'todas') return ventas;
-    const abonos = (this.context.abonos ?? [])
-      .filter(a => a.tipo === 'abono' && new Date(a.fecha).getTime() >= ini && new Date(a.fecha).getTime() <= fin)
-      .reduce((sum, a) => sum + a.monto, 0);
-    return ventas + abonos;
-  }
+  // ─── Datos para las secciones (desde lo consultado, sin recorrer ventas) ──
+  // Devuelven la MISMA forma que cuando se calculaban en memoria, así las
+  // secciones de dibujo no cambian. Las fórmulas viven en consultas/reportes.js.
 
   getDatosGrafica() {
-    const { sales } = this.context;
-    const inicio = this.inicioPeriodo(this.state.periodo);
+    const { datos, periodo, modoVentas: modo } = this.state;
+    const inicio = this.inicioPeriodo(periodo);
     const dias   = this.diasEnRango(inicio);
-    const modo   = this.state.modoVentas;
-
-    const totalDelDia = dia => {
-      const ini = new Date(dia).setHours(0,0,0,0);
-      const fin = new Date(dia).setHours(23,59,59,999);
-      return this.totalVentasEnRango(ini, fin, modo);
-    };
-
-    let buckets;
-    if (this.state.periodo === '30d') {
-      buckets = [];
-      for (let i = 0; i < dias.length; i += 7) {
-        const chunk = dias.slice(i, i+7);
-        buckets.push({
-          label: `Sem ${buckets.length+1}`,
-          valor: chunk.reduce((s,d) => s + totalDelDia(d), 0),
-          tieneVentas: chunk.some(d => totalDelDia(d) > 0),
-        });
-      }
-    } else if (this.state.periodo === 'año') {
-      buckets = MESES.map((_,idx) => {
-        const valor = dias.filter(d => d.getMonth()===idx).reduce((s,d) => s+totalDelDia(d), 0);
-        return { label: MESES[idx], valor, tieneVentas: valor > 0 };
-      });
-    } else {
-      buckets = dias.map(dia => {
-        const valor = totalDelDia(dia);
-        return { label: NOMBRES_DIA[dia.getDay()], valor, tieneVentas: valor > 0 };
-      });
-    }
+    const buckets = armarBarras({ porDia: datos.porDia, dias, periodo, modo });
 
     const total     = buckets.reduce((s,b) => s+b.valor, 0);
     const maxValor  = Math.max(...buckets.map(b => b.valor), 1);
     const sinVentas = total === 0;
-
-    // Período anterior para comparativa
-    const largoDias   = dias.length;
-    const iniAnt      = new Date(inicio); iniAnt.setDate(iniAnt.getDate()-largoDias);
-    const finAnt      = new Date(inicio); finAnt.setMilliseconds(-1);
-    const totalAnt    = this.totalVentasEnRango(iniAnt.getTime(), finAnt.getTime(), modo);
+    const totalAnt  = datos.totalAnterior[modo];
 
     return {
       data: buckets.map(b => ({
-        value:      Math.round(b.valor),
+        value:      Math.round(b.valor),  // altura de la barra
+        valorExacto: b.valor,             // lo que muestra el tooltip (con centavos)
         label:      b.label,
         // Bug fix: se quitó topLabelComponent porque "$360.00" no cabía en
         // el ancho de la barra y gifted-charts lo partía en 2 líneas.
@@ -192,89 +203,31 @@ export default class ReportesView extends Component {
       desde: inicio, hasta: new Date(),
       totalAnt,
       variacion: variacion(total, totalAnt),
-      agrupado: this.state.periodo === '30d' ? 'semana' : this.state.periodo === 'año' ? 'mes' : null,
+      agrupado: periodo === '30d' ? 'semana' : periodo === 'año' ? 'mes' : null,
     };
   }
 
-  // Ventas totales del período (contado + crédito): número de ventas y
-  // ticket promedio, dos métricas básicas de retail que faltaban del todo.
+  // Número de ventas y ticket promedio del período (contado + crédito).
   getVentasStats() {
-    const { sales } = this.context;
-    const inicioISO = this.inicioPeriodo(this.state.periodo).toISOString();
-    const ventasPeriodo = sales.filter(s => s.fecha >= inicioISO);
-    const numVentas = ventasPeriodo.length;
-    const totalVentas = ventasPeriodo.reduce((s,v) => s+v.total, 0);
-    return { numVentas, ticketPromedio: numVentas > 0 ? totalVentas / numVentas : 0 };
+    const { numVentas, ticketPromedio } = this.state.datos;
+    return { numVentas, ticketPromedio };
   }
 
-  // Top productos: por unidades vendidas (todas las ventas) o por margen
-  // generado (solo productos con precioCompra registrado en la venta —
-  // ventas viejas o productos sin costo capturado no entran en ese conteo).
+  // Top productos por unidades o por margen (solo con costo registrado).
   getTopProductos() {
-    const { sales } = this.context;
-    const inicio = this.inicioPeriodo(this.state.periodo);
-    const mapa = {};
-    let totalUnidades = 0;
-    let totalMargen = 0;
-
-    sales.filter(s => new Date(s.fecha) >= inicio).forEach(s => {
-      (s.productos || []).forEach(p => {
-        const key = `${p.nombre} ${p.tamano}`;
-        const prev = mapa[key] || { nombre: p.nombre, tamano: p.tamano, unidades: 0, monto: 0, margen: 0, tieneCosto: false };
-        const u = p.numProducts || 1;
-        const tieneCosto = p.precioCompra != null;
-        const margenLinea = tieneCosto ? (p.precio - p.precioCompra) * u : 0;
-        mapa[key] = {
-          nombre: p.nombre, tamano: p.tamano,
-          unidades: prev.unidades + u,
-          monto: prev.monto + u * (p.precio || 0),
-          margen: prev.margen + margenLinea,
-          tieneCosto: prev.tieneCosto || tieneCosto,
-        };
-        totalUnidades += u;
-        if (tieneCosto) totalMargen += margenLinea;
-      });
-    });
-
-    const criterio = this.state.ordenTop; // 'unidades' | 'margen'
-    const lista = Object.values(mapa);
-    const base = criterio === 'margen' ? lista.filter(p => p.tieneCosto) : lista;
-
-    return [...base]
-      .sort((a,b) => criterio === 'margen' ? b.margen - a.margen : b.unidades - a.unidades)
-      .slice(0, 5)
-      .map(p => ({
-        ...p,
-        porcentaje: criterio === 'margen'
-          ? (totalMargen > 0 ? (p.margen/totalMargen)*100 : 0)
-          : (totalUnidades > 0 ? (p.unidades/totalUnidades)*100 : 0),
-      }));
+    return ordenarTop(this.state.datos.top, this.state.ordenTop);
   }
 
   getFlujoDinero() {
-    const { sales, abonos, compras } = this.context;
-    const inicio    = this.inicioPeriodo(this.state.periodo);
-    const inicioISO = inicio.toISOString();
-    const vp        = sales.filter(s => s.fecha >= inicioISO);
-    const cp        = (compras ?? []).filter(c => c.fecha >= inicioISO);
-    const invertidoCompras = cp.reduce((s,c) => s+c.total, 0);
-
-    // Período anterior (misma duración) para saber si se está comprando
-    // más o menos que antes — mismo criterio que usa la gráfica de ventas.
-    const largoDias = this.diasEnRango(inicio).length;
-    const iniAnt = new Date(inicio); iniAnt.setDate(iniAnt.getDate()-largoDias);
-    const finAntISO = new Date(new Date(inicio).getTime()-1).toISOString();
-    const invertidoComprasAnt = (compras ?? [])
-      .filter(c => c.fecha >= iniAnt.toISOString() && c.fecha <= finAntISO)
-      .reduce((s,c) => s+c.total, 0);
-
+    const f = this.state.datos.flujo;
     return {
-      contado:          vp.filter(s => s.tipoPago !== 'Credito').reduce((s,v) => s+v.total, 0),
-      creditoGenerado:  vp.filter(s => s.tipoPago === 'Credito').reduce((s,v) => s+v.total, 0),
-      abonosRecibidos:  (abonos??[]).filter(a => a.tipo==='abono' && a.fecha>=inicioISO).reduce((s,a) => s+a.monto, 0),
-      pendienteGlobal:  sales.filter(s => s.tipoPago==='Credito').reduce((s,v) => s+Math.max(0,v.total-(v.totalAbonado??0)-(v.condonado??0)), 0),
-      invertidoCompras,
-      variacionCompras: variacion(invertidoCompras, invertidoComprasAnt),
+      contado:          f.contado,
+      creditoGenerado:  f.creditoGenerado,
+      abonosRecibidos:  f.abonosRecibidos,
+      pendienteGlobal:  f.pendienteGlobal,
+      invertidoCompras: f.invertidoCompras,
+      // Período anterior (misma duración): ¿se compra más o menos que antes?
+      variacionCompras: variacion(f.invertidoCompras, f.invertidoComprasAnterior),
     };
   }
 
@@ -298,7 +251,7 @@ export default class ReportesView extends Component {
         {PERIODOS.map(p => {
           const activo = this.state.periodo === p.key;
           return (
-            <TouchableOpacity key={p.key} onPress={() => this.setState({ periodo: p.key, tooltipIdx: null })}
+            <TouchableOpacity key={p.key} onPress={() => this.cambiarPeriodo(p.key)}
               style={{ flex:1, height:40, backgroundColor: activo?colors.primary:colors.chipInactive, borderRadius:radius.lg, marginHorizontal:spacing.xs, justifyContent:'center', alignItems:'center' }}>
               <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color: activo?colors.white:colors.textPrimary }}>{p.label}</Text>
             </TouchableOpacity>
@@ -395,7 +348,7 @@ export default class ReportesView extends Component {
         {tooltipIdx !== null && datos.data[tooltipIdx] && (
           <View style={{ backgroundColor:colors.textPrimary, borderRadius:radius.sm, paddingVertical:spacing.xs, paddingHorizontal:spacing.md, alignSelf:'center', marginBottom:spacing.sm }}>
             <Text style={{ fontSize:fontSize.caption, color:colors.white, fontWeight:'bold' }}>
-              {datos.data[tooltipIdx].label} · {fmt(moneda, datos.data[tooltipIdx].value)}
+              {datos.data[tooltipIdx].label} · {fmt(moneda, datos.data[tooltipIdx].valorExacto)}
             </Text>
           </View>
         )}
@@ -440,6 +393,8 @@ export default class ReportesView extends Component {
     const moneda   = this.context.config?.moneda ?? '$';
     const criterio = this.state.ordenTop;
     const top      = this.getTopProductos();
+    // "2.5 kg" a granel; "6 uds" en piezas
+    const cantidadTop = item => (item.esGranel ? formatoCantidad(item.unidades, true, item.unidadGranel || 'kg') : `${formatoCantidad(item.unidades)} uds`);
 
     return this.renderCard(
       <View>
@@ -465,7 +420,7 @@ export default class ReportesView extends Component {
             </Text>
           </View>
         ) : top.map((item, idx) => (
-          <View key={`${item.nombre}${item.tamano}`} style={{ marginBottom: idx < top.length-1 ? spacing.lg : 0 }}>
+          <View key={item.key} style={{ marginBottom: idx < top.length-1 ? spacing.lg : 0 }}>
             <View style={{ flexDirection:'row', alignItems:'center', marginBottom:spacing.xs }}>
               <View style={{ width:26, height:26, borderRadius:13, backgroundColor:COLORES_PUESTO[idx], justifyContent:'center', alignItems:'center', marginRight:spacing.sm }}>
                 <Text style={{ color:colors.white, fontSize:fontSize.small, fontWeight:'bold' }}>{idx+1}</Text>
@@ -473,17 +428,21 @@ export default class ReportesView extends Component {
               <View style={{ flex:1, flexDirection:'row', alignItems:'center', flexWrap:'wrap' }}>
                 <Text style={{ fontSize:fontSize.body, fontWeight:'bold', color:colors.textPrimary, marginRight:spacing.xs }} numberOfLines={1}>{item.nombre}</Text>
                 {!!item.tamano && (
-                  <View style={{ backgroundColor:colors.chipInactive, borderRadius:6, paddingHorizontal:spacing.sm, paddingVertical:2 }}>
+                  <View style={{ backgroundColor:colors.chipInactive, borderRadius:6, paddingHorizontal:spacing.sm, paddingVertical:2, marginRight:spacing.xs }}>
                     <Text style={{ fontSize:fontSize.small, color:colors.textSecondary }}>{item.tamano}</Text>
                   </View>
+                )}
+                {/* La marca distingue productos iguales de marcas distintas */}
+                {!!item.marca && (
+                  <Text style={{ fontSize:fontSize.small, color:colors.textMuted, fontStyle:'italic' }} numberOfLines={1}>{item.marca}</Text>
                 )}
               </View>
               <View style={{ alignItems:'flex-end', marginLeft:spacing.sm }}>
                 <Text style={{ fontSize:fontSize.body, fontWeight:'bold', color:colors.textPrimary }}>
-                  {criterio === 'margen' ? fmt(moneda, item.margen) : `${item.unidades} uds`}
+                  {criterio === 'margen' ? fmt(moneda, item.margen) : cantidadTop(item)}
                 </Text>
                 <Text style={{ fontSize:fontSize.small, color:colors.textSecondary }}>
-                  {criterio === 'margen' ? `${item.unidades} uds` : fmt(moneda, item.monto)}
+                  {criterio === 'margen' ? cantidadTop(item) : fmt(moneda, item.monto)}
                 </Text>
               </View>
             </View>
@@ -497,7 +456,7 @@ export default class ReportesView extends Component {
             </View>
             {idx === 0 && (
               <Text style={{ fontSize:fontSize.small, color:colors.textMuted, marginTop:2 }}>
-                {criterio === 'margen' ? '% del margen total generado en el período' : '% del total de unidades vendidas en el período'}
+                {criterio === 'margen' ? '% del margen total generado en el período' : '% del total vendido (en dinero) en el período'}
               </Text>
             )}
           </View>
@@ -568,7 +527,7 @@ export default class ReportesView extends Component {
             <View style={{ flexDirection:'row' }}>
               {[
                 { icono:'🛍️', label:'Invertido en compras',  sub:subCompras,                              valor:invertidoCompras, color:colors.warning, bg:'#fff8ed' },
-                { icono:'📊', label:'Margen bruto estimado',  sub:'Ingreso real − inversión en compras',  valor:margenBruto,      color: margenBruto >= 0 ? colors.success : colors.danger, bg: margenBruto >= 0 ? '#edfaf3' : '#fdf0f0' },
+                { icono:'📊', label:'Balance del período',    sub:'Cobrado − gastado en compras',         valor:margenBruto,      color: margenBruto >= 0 ? colors.success : colors.danger, bg: margenBruto >= 0 ? '#edfaf3' : '#fdf0f0' },
               ].map(t => (
                 <View key={t.label} style={{ flex:1, backgroundColor:t.bg, borderRadius:radius.md, padding:spacing.md, marginHorizontal:spacing.xs/2 }}>
                   <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.icono} {t.label}</Text>
@@ -594,9 +553,12 @@ export default class ReportesView extends Component {
 
     const kpis = [
       { icono:'💰', label:'Ingreso real',    sub:'Dinero que ya cobraste',        valor: fmt(moneda, ingresoReal) },
-      { icono:'🧾', label:'Venta promedio',  sub:'Lo que deja cada venta',        valor: fmt(moneda, ticketPromedio) },
+      { icono:'🧾', label:'Venta promedio',  sub:'Monto promedio por venta',      valor: fmt(moneda, ticketPromedio) },
       { icono:'🛒', label:'Ventas',          sub:'Número de ventas del período',  valor: `${numVentas}` },
-      { icono:'📊', label:'Margen bruto',    sub:'Ingreso real − compras',        valor: fmt(moneda, margenBruto) },
+      // No es "margen bruto" (precio − costo de lo vendido): es flujo de caja,
+      // lo cobrado menos lo gastado en compras. Puede ser negativo si se compró
+      // mercancía que aún no se vende. El margen real está en "Más rentables".
+      { icono:'📊', label:'Balance',         sub:'Cobrado − gastado en compras',  valor: fmt(moneda, margenBruto) },
     ];
 
     return (
@@ -612,9 +574,23 @@ export default class ReportesView extends Component {
     );
   }
 
+  // ─── Medición de rendimiento (solo desarrollo) ─────────────────────────────
+  // Tiempo de cada dibujado (ya sin cálculos sobre ventas: vienen de SQLite).
+  // El tiempo de la consulta se reporta aparte al cargar.
+
+  componentDidUpdate() { this.reportarRender(); }
+  reportarRender() {
+    if (!__DEV__ || this.tRender == null || !this.state.datos) return;
+    const ms = Math.round(global.performance.now() - this.tRender);
+    console.log(`[rendimiento] Reportes (${this.state.periodo}): ${ms} ms por dibujado`);
+    this.tRender = null;
+  }
+
   // ─── Render principal ──────────────────────────────────────────────────────
 
   render() {
+    if (__DEV__) this.tRender = global.performance.now();
+    const { datos, error } = this.state;
     return (
       <SafeAreaView style={{ flex:1, backgroundColor:colors.background }}>
         <View style={{ width:_window.width, height:GREEN_BAR_HEIGHT, backgroundColor:'green' }} />
@@ -629,10 +605,23 @@ export default class ReportesView extends Component {
 
         <ScrollView contentContainerStyle={{ padding:spacing.lg, paddingBottom:spacing.xxl }} showsVerticalScrollIndicator={false}>
           {this.renderSelectorPeriodo()}
-          {this.renderResumenKPIs()}
-          {this.renderGraficaVentas()}
-          {this.renderTopProductos()}
-          {this.renderFlujoDinero()}
+          {error ? (
+            <Text style={{ fontSize:fontSize.body, color:colors.danger, textAlign:'center', marginTop:spacing.xl }}>
+              No se pudieron calcular los reportes: {error}
+            </Text>
+          ) : !datos ? (
+            <View style={{ alignItems:'center', marginTop:spacing.xxl }}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{ fontSize:fontSize.caption, color:colors.textMuted, marginTop:spacing.sm }}>Calculando…</Text>
+            </View>
+          ) : (
+            <>
+              {this.renderResumenKPIs()}
+              {this.renderGraficaVentas()}
+              {this.renderTopProductos()}
+              {this.renderFlujoDinero()}
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     );

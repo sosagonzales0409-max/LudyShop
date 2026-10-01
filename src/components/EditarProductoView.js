@@ -1,11 +1,12 @@
 import React, { Component } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
-  SafeAreaView, Dimensions, Switch, Alert,
+  View, Text, TextInput, TouchableOpacity, SafeAreaView, Dimensions, Switch, Alert,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
+import ScrollViewTeclado from './ScrollViewTeclado';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 import { IconBack } from './Icon';
+import { formatoDinero } from '../config/formato';
 
 const _window = Dimensions.get('window');
 const GREEN_BAR_HEIGHT = 50;
@@ -30,10 +31,12 @@ function normalizarTamano(texto) {
   return `${num} ${unidadNorm}`;
 }
 
-function calcMargen(precioCompra, precioVenta) {
+// Ganancia = venta − costo y su % sobre el PRECIO DE VENTA: misma fórmula que
+// el detalle del producto (antes aquí era sobre el costo y no coincidían).
+function calcGanancia(precioCompra, precioVenta) {
   const c = parseFloat(precioCompra); const v = parseFloat(precioVenta);
-  if (isNaN(c) || isNaN(v) || c <= 0) return null;
-  return Math.round(((v - c) / c) * 100);
+  if (isNaN(c) || isNaN(v) || c <= 0 || v <= 0) return null;
+  return { ganancia: v - c, pct: Math.round(((v - c) / v) * 100) };
 }
 
 const UNIDADES_GRANEL = ['kg', 'g', 'L', 'ml'];
@@ -90,24 +93,29 @@ export default class EditarProductoView extends Component {
   };
 
   handleGuardar = () => {
+    const moneda = this.context.config?.moneda ?? '$';
     const { tamano, tamanoNormalizado, esGranel, unidadGranel, precioCompra, precioVenta, stock, razonAjuste } = this.state;
     const { productId, presentacionId } = this.props.route.params;
 
     const tamanoFinal = tamanoNormalizado || tamano.trim();
     const precioVentaNum = parseFloat(String(precioVenta).replace(',', '.'));
     const precioCompraNum = precioCompra.trim() ? parseFloat(String(precioCompra).replace(',', '.')) : null;
-    const pres = this.getPresentacion();
     const stockNum = esGranel
       ? parseFloat(String(stock).replace(',', '.'))
       : Math.floor(parseFloat(String(stock).replace(',', '.')) || 0);
 
-    if (!tamanoFinal)   { Alert.alert('Falta el tamaño', 'El tamaño no puede quedar vacío.'); return; }
+    // Vacía solo si es la ÚNICA presentación del producto (p. ej. "Gansito"):
+    // con varias, cada una necesita nombre para distinguirlas.
+    const esUnica = (this.getProduct()?.presentaciones.length ?? 0) <= 1;
+    if (!tamanoFinal && !esUnica) {
+      Alert.alert('Falta el tamaño', 'Este producto tiene varias presentaciones: cada una necesita un nombre para distinguirlas (ej. 1 kg, 600 ml, Individual).');
+      return;
+    }
     if (esGranel && !unidadGranel) { Alert.alert('Falta la unidad', 'Selecciona la unidad de granel.'); return; }
-    if (isNaN(precioVentaNum) || precioVentaNum <= 0) { Alert.alert('Precio inválido', 'Ingresa un precio de venta mayor a $0.'); return; }
+    if (isNaN(precioVentaNum) || precioVentaNum <= 0) { Alert.alert('Precio inválido', `Ingresa un precio de venta mayor a ${moneda}0.`); return; }
     if (precioCompraNum !== null && (isNaN(precioCompraNum) || precioCompraNum < 0)) { Alert.alert('Precio de compra inválido', 'El precio de compra no puede ser negativo.'); return; }
     if (isNaN(stockNum) || stockNum < 0) { Alert.alert('Stock inválido', 'El stock no puede ser negativo.'); return; }
 
-    // Si el stock cambió y hay razón de ajuste, logearla
     const cambios = {
       tamano: tamanoFinal,
       precio: precioVentaNum,
@@ -117,12 +125,9 @@ export default class EditarProductoView extends Component {
       unidadGranel: esGranel ? unidadGranel : null,
     };
 
-    this.context.updatePresentacion(productId, presentacionId, cambios);
-
-    // Si el stock cambió y tiene razón, registrar un log manual
-    if (razonAjuste.trim() && pres && stockNum !== pres.stock) {
-      this.context.logEvent('stock_ajustado', `${razonAjuste.trim()} · ${pres.tamano}: ${pres.stock} → ${stockNum}`);
-    }
+    // La razón del ajuste (si la hay) va dentro del evento de stock ajustado
+    // que registra updatePresentacion — antes se registraba un segundo evento.
+    this.context.updatePresentacion(productId, presentacionId, cambios, razonAjuste);
 
     this.props.navigation.goBack();
   };
@@ -140,15 +145,17 @@ export default class EditarProductoView extends Component {
   }
 
   renderBadgeMargen() {
-    const margen = calcMargen(this.state.precioCompra, this.state.precioVenta);
-    if (margen === null) return null;
-    const color = margen > 15 ? colors.success : margen > 0 ? colors.warning : colors.danger;
-    const icono = margen > 15 ? '✅' : margen > 0 ? '⚠️' : '🔴';
+    const g = calcGanancia(this.state.precioCompra, this.state.precioVenta);
+    if (g === null) return null;
+    const moneda = this.context.config?.moneda ?? '$';
+    const unidad = this.state.esGranel ? this.state.unidadGranel : 'unidad';
+    const color = g.pct > 15 ? colors.success : g.pct > 0 ? colors.warning : colors.danger;
+    const icono = g.pct > 15 ? '✅' : g.pct > 0 ? '⚠️' : '🔴';
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
         <View style={{ backgroundColor: color + '22', borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ fontSize: fontSize.caption }}>{icono} </Text>
-          <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color }}>Margen estimado: {margen}%</Text>
+          <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color }}>Ganancia: {formatoDinero(g.ganancia, moneda)} por {unidad} ({g.pct}% del precio)</Text>
         </View>
       </View>
     );
@@ -183,17 +190,22 @@ export default class EditarProductoView extends Component {
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>Editar presentación</Text>
-            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic' }}>{product.nombre} · {product.marca}</Text>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic' }}>{product.nombre}{product.marca ? ` · ${product.marca}` : ''}</Text>
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollViewTeclado contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           {/* ── PRESENTACIÓN ── */}
           {this.renderSeccion('Presentación')}
           {this.renderLabel('Tamaño / Presentación')}
           {this.renderInput({ placeholder: 'Ej. 1 kg, 600 ml, Chico', value: tamano, onChangeText: this.onTamanoChange, returnKeyType: 'next' })}
           {!!tamanoNormalizado && <Text style={{ fontSize: fontSize.small, color: colors.primary, marginTop: 4 }}>Se guardará como: <Text style={{ fontWeight: 'bold' }}>{tamanoNormalizado}</Text></Text>}
+          {(this.getProduct()?.presentaciones.length ?? 0) <= 1 && (
+            <Text style={{ fontSize: fontSize.small, color: colors.textMuted, marginTop: 4 }}>
+              Es la única presentación: puedes dejarlo vacío y se mostrará solo el nombre del producto.
+            </Text>
+          )}
 
           {this.renderToggle('¿Es producto a granel?', esGranel, v => this.setState({ esGranel: v }), 'Se vende y stockea por peso o volumen')}
 
@@ -233,7 +245,7 @@ export default class EditarProductoView extends Component {
           <TouchableOpacity onPress={this.handleGuardar} style={{ height: buttonHeight.action, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginTop: spacing.xl }}>
             <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>Guardar cambios</Text>
           </TouchableOpacity>
-        </ScrollView>
+        </ScrollViewTeclado>
       </SafeAreaView>
     );
   }

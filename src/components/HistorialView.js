@@ -7,11 +7,16 @@ import {
   SafeAreaView,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
+import { cargarVentasPagina } from '../data/repositories/ventas';
+import { resumenPeriodo } from '../data/consultas/historial';
+import { crearConsultaViva } from '../data/consultaViva';
 import CorteModal from './CorteModal';
 import DevolucionModal from './DevolucionModal';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { formatoDinero, nombreProducto } from '../config/formato';
 import { IconBack, IconReceipt, IconTrendingUp, IconTrash } from './Icon';
 
 const _window = Dimensions.get('window');
@@ -25,6 +30,17 @@ const PERIODOS = [
   { key: 'todo',   label: 'Todo' },
 ];
 
+// Ventas por página (se piden más al llegar al final de la lista).
+const PAGINA = 30;
+
+/**
+ * HistorialView — ventas del período con filtros y resumen.
+ *
+ * Datos BAJO DEMANDA: la lista se consulta por páginas y el resumen lo
+ * calcula SQLite (antes se filtraban todas las ventas en memoria en cada
+ * dibujado). Se refresca sola cuando cambian ventas, sus ítems, abonos o
+ * clientes (p. ej. al eliminar una venta o registrar una devolución aquí).
+ */
 export default class HistorialView extends Component {
   static contextType = StoreContext;
 
@@ -35,6 +51,76 @@ export default class HistorialView extends Component {
     showCorteModal: false,
     showDevolucionModal: false,
     ventaDevolucion: null,
+    // Datos consultados
+    ventas: [],
+    resumen: null,     // { contado, credito, pendiente, numVentas, abonos }
+    cargando: true,
+    cargandoMas: false,
+    hayMas: true,
+    error: null,
+  };
+
+  // Cambia en cada recarga desde arriba: una página que llegue tarde de una
+  // carga anterior se descarta.
+  versionLista = 0;
+
+  componentDidMount() {
+    this.reportarRender();
+    this.consulta = crearConsultaViva({
+      tablas: ['ventas', 'venta_items', 'abonos', 'clientes'],
+      cargar: this.cargarDesdeArriba,
+      alCargar: ({ ventas, resumen }) => this.setState({
+        ventas, resumen, cargando: false, error: null,
+        hayMas: ventas.length < resumen.numVentas,
+      }),
+      alFallar: error => this.setState({ error: error?.message ?? String(error), cargando: false }),
+    });
+  }
+
+  componentWillUnmount() {
+    this.consulta?.detener();
+  }
+
+  filtroActual() {
+    const inicio = this.inicioPeriodo(this.state.periodo);
+    return { desde: inicio ? inicio.toISOString() : null, tipoPago: this.state.pago === 'Todos' ? null : this.state.pago };
+  }
+
+  // Primera página (o la misma cantidad ya cargada, para que un refresco no
+  // "encoja" la lista mientras se lee) + resumen del período.
+  cargarDesdeArriba = async () => {
+    this.versionLista++;
+    const filtro = this.filtroActual();
+    const limite = Math.max(PAGINA, this.state.ventas.length);
+    const [ventas, resumen] = await Promise.all([
+      cargarVentasPagina({ ...filtro, limite }),
+      resumenPeriodo(filtro),
+    ]);
+    return { ventas, resumen };
+  };
+
+  cargarMas = async () => {
+    const { ventas, hayMas, cargandoMas, cargando } = this.state;
+    if (!hayMas || cargandoMas || cargando || !ventas.length) return;
+    const version = this.versionLista;
+    this.setState({ cargandoMas: true });
+    try {
+      const ultima = ventas[ventas.length - 1];
+      const pagina = await cargarVentasPagina({ ...this.filtroActual(), limite: PAGINA, antesDe: { fecha: ultima.fecha, id: ultima.id } });
+      if (version !== this.versionLista) return; // la lista se recargó mientras tanto
+      this.setState(prev => ({
+        ventas: [...prev.ventas, ...pagina],
+        hayMas: pagina.length === PAGINA && prev.ventas.length + pagina.length < (prev.resumen?.numVentas ?? 0),
+      }));
+    } catch (error) {
+      console.error('HistorialView.cargarMas', error);
+    } finally {
+      this.setState({ cargandoMas: false });
+    }
+  };
+
+  cambiarFiltro = cambios => {
+    this.setState({ ...cambios, ventas: [], cargando: true, hayMas: true, expandidoId: null }, () => this.consulta?.recargar());
   };
 
   inicioPeriodo(key) {
@@ -52,18 +138,6 @@ export default class HistorialView extends Component {
     return null;
   }
 
-  getVentasFiltradas() {
-    const { sales } = this.context;
-    const inicio = this.inicioPeriodo(this.state.periodo);
-    return sales
-      .filter(s => {
-        if (this.state.pago !== 'Todos' && s.tipoPago !== this.state.pago) return false;
-        if (inicio && s.fecha < inicio.toISOString()) return false;
-        return true;
-      })
-      .sort((a, b) => (a.fecha > b.fecha ? -1 : 1));
-  }
-
   formatFecha(iso) {
     const d = new Date(iso);
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
@@ -78,28 +152,18 @@ export default class HistorialView extends Component {
     return Math.max(0, venta.total - (venta.totalAbonado ?? 0) - (venta.condonado ?? 0));
   }
 
-  getAbonosPeriodo() {
-    const { abonos } = this.context;
-    // Los abonos solo existen para ventas a crédito: si el filtro de tipo de
-    // pago está en "Contado", no deben sumar al resumen de ingresos.
-    if (this.state.pago === 'Contado') return [];
-    const inicio = this.inicioPeriodo(this.state.periodo);
-    return (abonos ?? [])
-      .filter(a => a.tipo === 'abono' && (!inicio || a.fecha >= inicio.toISOString()))
-      .sort((a, b) => (a.fecha > b.fecha ? -1 : 1));
-  }
-
   // ─── Acciones ─────────────────────────────────────────────────────────────
 
   confirmarEliminar(venta) {
+    const moneda = this.context.config?.moneda ?? '$';
     const esCredito = venta.tipoPago === 'Credito';
     const abonado = venta.totalAbonado ?? 0;
     const advertencia = abonado > 0.009
-      ? `\n\n⚠️ Esta venta ya tiene $${abonado.toFixed(2)} abonados. Al eliminarla, ese registro de pago también desaparece del historial.`
+      ? `\n\n⚠️ Esta venta ya tiene ${formatoDinero(abonado, moneda)} abonados. Al eliminarla, ese registro de pago también desaparece del historial.`
       : '';
     Alert.alert(
       'Eliminar venta',
-      `¿Seguro que quieres eliminar esta venta de $${venta.total.toFixed(2)} del ${this.formatFecha(venta.fecha)}?${advertencia}\n\nEsta acción no se puede deshacer.`,
+      `¿Seguro que quieres eliminar esta venta de ${formatoDinero(venta.total, moneda)} del ${this.formatFecha(venta.fecha)}?${advertencia}\n\nEsta acción no se puede deshacer.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -117,10 +181,11 @@ export default class HistorialView extends Component {
 
   // Elimina la venta y, si algún producto ya no existe en el inventario,
   // avisa que ese stock no se pudo devolver (en vez de fallar en silencio).
-  eliminarVentaYAvisarSiFalta(venta) {
-    const resultado = this.context.eliminarVenta(venta.id, true);
+  // eliminarVenta es asíncrona: lee la venta de la BD dentro de su transacción.
+  async eliminarVentaYAvisarSiFalta(venta) {
+    const resultado = await this.context.eliminarVenta(venta.id, true);
     if (resultado?.itemsNoEncontrados?.length > 0) {
-      const detalle = resultado.itemsNoEncontrados.map(i => `• ${i.nombre} ${i.tamano}`).join('\n');
+      const detalle = resultado.itemsNoEncontrados.map(i => `• ${nombreProducto(i.nombre, i.tamano)}`).join('\n');
       Alert.alert(
         'Stock no devuelto para algunos productos',
         `Estos productos ya no existen en el inventario, así que su stock no se pudo devolver:\n\n${detalle}`,
@@ -161,6 +226,7 @@ export default class HistorialView extends Component {
   // ─── Tarjeta de venta ─────────────────────────────────────────────────────
 
   renderVenta({ item: venta }) {
+    const moneda = this.context.config?.moneda ?? '$';
     const expandido  = this.state.expandidoId === venta.id;
     const pendiente  = this.pendienteDe(venta);
     const esCredito  = venta.tipoPago === 'Credito';
@@ -194,7 +260,7 @@ export default class HistorialView extends Component {
               </View>
             </View>
             <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>
-              ${venta.total.toFixed(2)}
+              {formatoDinero(venta.total, moneda)}
             </Text>
             <Text style={{ fontSize: fontSize.itemTitle, color: colors.textMuted, marginLeft: spacing.sm }}>
               {expandido ? '▴' : '▾'}
@@ -215,7 +281,7 @@ export default class HistorialView extends Component {
                       {p.numProducts} × {p.nombre} {p.tamano}
                     </Text>
                     <Text style={{ fontSize: fontSize.caption, color: colors.textPrimary, fontWeight: 'bold' }}>
-                      ${(p.precio * p.numProducts).toFixed(2)}
+                      {formatoDinero(p.precio * p.numProducts, moneda)}
                     </Text>
                   </View>
                 ))}
@@ -235,14 +301,14 @@ export default class HistorialView extends Component {
                   </Text>
                 )}
                 <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: 2 }}>
-                  Abonado: ${(venta.totalAbonado ?? 0).toFixed(2)} · Pendiente:{' '}
+                  Abonado: {formatoDinero(venta.totalAbonado ?? 0, moneda)} · Pendiente:{' '}
                   <Text style={{ fontWeight: 'bold', color: pendiente > 0.009 ? colors.danger : colors.success }}>
-                    ${pendiente.toFixed(2)}
+                    {formatoDinero(pendiente, moneda)}
                   </Text>
                 </Text>
                 {(venta.condonado ?? 0) > 0.009 && (
                   <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: 2 }}>
-                    Condonado: ${(venta.condonado ?? 0).toFixed(2)}
+                    Condonado: {formatoDinero(venta.condonado ?? 0, moneda)}
                   </Text>
                 )}
               </View>
@@ -294,54 +360,92 @@ export default class HistorialView extends Component {
   // ─── Header de la FlatList ────────────────────────────────────────────────
 
   renderListHeader = () => {
-    const ventas = this.getVentasFiltradas();
-    const abonos = this.getAbonosPeriodo();
-    const totalContado  = ventas.filter(v => v.tipoPago !== 'Credito').reduce((s, v) => s + v.total, 0);
-    const totalCredito  = ventas.filter(v => v.tipoPago === 'Credito').reduce((s, v) => s + v.total, 0);
-    const totalAbonos   = abonos.reduce((s, a) => s + a.monto, 0);
-    const totalIngresos = totalContado + totalAbonos;
+    const moneda = this.context.config?.moneda ?? '$';
+    // Totales calculados en SQLite (consultas/historial.js). "POR COBRAR" es
+    // lo que falta cobrar de las ventas a crédito de ESTE período (antes se
+    // mostraba el crédito otorgado con esa etiqueta, que no es lo mismo).
+    const r = this.state.resumen;
+    const totalContado   = r?.contado ?? 0;
+    const totalCredito   = r?.credito ?? 0;
+    const totalPendiente = r?.pendiente ?? 0;
+    const totalAbonos    = r?.abonos ?? 0;
+    const totalIngresos  = totalContado + totalAbonos;
 
     return (
       <View>
         {/* Filtros */}
         <View style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.sm }}>Tipo de pago</Text>
-          {this.renderChips(TIPOS_PAGO, this.state.pago, op => this.setState({ pago: op }))}
+          {this.renderChips(TIPOS_PAGO, this.state.pago, op => op !== this.state.pago && this.cambiarFiltro({ pago: op }))}
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.md, marginBottom: spacing.sm }}>Período</Text>
-          {this.renderChips(PERIODOS, this.state.periodo, op => this.setState({ periodo: op }))}
+          {this.renderChips(PERIODOS, this.state.periodo, op => op !== this.state.periodo && this.cambiarFiltro({ periodo: op }))}
         </View>
+
+        {this.state.error && (
+          <Text style={{ fontSize: fontSize.body, color: colors.danger, textAlign: 'center', marginHorizontal: spacing.lg, marginBottom: spacing.md }}>
+            No se pudo cargar el historial: {this.state.error}
+          </Text>
+        )}
 
         {/* Resumen del período */}
         <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.lg, backgroundColor: colors.card, borderRadius: radius.md, elevation: 3, shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 } }}>
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, textAlign: 'center' }}>INGRESOS DEL PERÍODO (contado + abonos)</Text>
-          <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.success, textAlign: 'center', marginVertical: spacing.xs }}>${totalIngresos.toFixed(2)}</Text>
+          <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.success, textAlign: 'center', marginVertical: spacing.xs }}>{formatoDinero(totalIngresos, moneda)}</Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs }}>
             <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>Contado</Text>
-            <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>${totalContado.toFixed(2)}</Text>
+            <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>{formatoDinero(totalContado, moneda)}</Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs }}>
             <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>Abonos recibidos</Text>
-            <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.success }}>${totalAbonos.toFixed(2)}</Text>
+            <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.success }}>{formatoDinero(totalAbonos, moneda)}</Text>
           </View>
           {totalCredito > 0.009 && (
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.sm, paddingTop: spacing.sm }}>
-              <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>POR COBRAR (deudas)</Text>
-              <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.warning }}>${totalCredito.toFixed(2)}</Text>
-            </View>
+            <>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.sm, paddingTop: spacing.sm }}>
+                <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>Vendido a crédito</Text>
+                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>{formatoDinero(totalCredito, moneda)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs }}>
+                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>POR COBRAR (de esas ventas)</Text>
+                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.warning }}>{formatoDinero(totalPendiente, moneda)}</Text>
+              </View>
+            </>
           )}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs }}>
             <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>Ventas</Text>
-            <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>{ventas.length}</Text>
+            <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>{r?.numVentas ?? 0}</Text>
           </View>
         </View>
       </View>
     );
   };
 
+  renderPie = () => {
+    const { cargandoMas, hayMas, ventas } = this.state;
+    if (cargandoMas) return <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />;
+    if (!hayMas && ventas.length > PAGINA) {
+      return <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, textAlign: 'center', marginVertical: spacing.lg }}>Fin del período</Text>;
+    }
+    return null;
+  };
+
+  // ─── Medición de rendimiento (solo desarrollo) ────────────────────────────
+  // Tiempo de cada dibujado (ya sin cálculos: los totales vienen de SQLite).
+
+  componentDidUpdate() { this.reportarRender(); }
+  reportarRender() {
+    if (!__DEV__ || this.tRender == null) return;
+    const ms = Math.round(global.performance.now() - this.tRender);
+    console.log(`[rendimiento] Historial (${this.state.periodo}/${this.state.pago}, ${this.state.ventas.length} ventas cargadas de ${this.state.resumen?.numVentas ?? '?'}): ${ms} ms por dibujado`);
+    this.tRender = null;
+  }
+
   // ─── Render principal ─────────────────────────────────────────────────────
 
   render() {
-    const ventas = this.getVentasFiltradas();
+    if (__DEV__) this.tRender = global.performance.now();
+    const moneda = this.context.config?.moneda ?? '$';
+    const { ventas, cargando } = this.state;
 
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -355,17 +459,20 @@ export default class HistorialView extends Component {
           visible={this.state.showDevolucionModal}
           venta={this.state.ventaDevolucion}
           onCancel={() => this.setState({ showDevolucionModal: false, ventaDevolucion: null })}
-          onConfirmar={({ items, devolverStock }) => {
-            const resultado = this.context.registrarDevolucion(this.state.ventaDevolucion.id, items, devolverStock);
+          onConfirmar={async ({ items, devolverStock }) => {
+            // El modal se cierra al momento; los avisos llegan cuando la
+            // devolución (asíncrona) termina de guardarse.
+            const ventaId = this.state.ventaDevolucion.id;
             this.setState({ showDevolucionModal: false, ventaDevolucion: null });
+            const resultado = await this.context.registrarDevolucion(ventaId, items, devolverStock);
             if (resultado?.excedente > 0.009) {
               Alert.alert(
                 'Hay que devolver dinero',
-                `El cliente ya había pagado $${resultado.excedente.toFixed(2)} más de lo que ahora debe por esta venta. Recuerda devolvérselo en efectivo — la app todavía no lleva notas de crédito.`,
+                `El cliente ya había pagado ${formatoDinero(resultado.excedente, moneda)} más de lo que ahora debe por esta venta. Recuerda devolvérselo en efectivo — la app todavía no lleva notas de crédito.`,
               );
             }
             if (resultado?.itemsNoEncontrados?.length > 0) {
-              const detalle = resultado.itemsNoEncontrados.map(i => `• ${i.nombre} ${i.tamano}`).join('\n');
+              const detalle = resultado.itemsNoEncontrados.map(i => `• ${nombreProducto(i.nombre, i.tamano)}`).join('\n');
               Alert.alert(
                 'Stock no devuelto para algunos productos',
                 `Estos productos ya no existen en el inventario, así que su stock no se pudo devolver:\n\n${detalle}`,
@@ -400,13 +507,18 @@ export default class HistorialView extends Component {
           ListHeaderComponent={this.renderListHeader}
           contentContainerStyle={{ paddingBottom: spacing.xxl }}
           showsVerticalScrollIndicator={false}
-          ListEmptyComponent={() => (
+          onEndReached={this.cargarMas}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={this.renderPie}
+          ListEmptyComponent={() => (cargando ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
+          ) : (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
               <Text style={{ fontSize: 48 }}>🗒️</Text>
               <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', marginTop: spacing.md, color: colors.textPrimary }}>Sin ventas</Text>
               <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>No hay ventas en el período seleccionado.</Text>
             </View>
-          )}
+          ))}
         />
       </SafeAreaView>
     );

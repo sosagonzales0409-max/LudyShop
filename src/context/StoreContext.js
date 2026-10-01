@@ -1,231 +1,59 @@
 import React, { createContext, Component } from 'react';
+import { Alert } from 'react-native';
+import PantallaCarga from '../components/PantallaCarga';
+import { initDB, persistir, onErrorPersistencia } from '../data/db';
+import { newId, nowIso } from '../data/ids';
+import { nombreProducto, formatoDinero, formatoCantidad } from '../config/formato';
+import { debeSembrarAutomatico, sembrarAutomatico } from '../data/seed';
+import { prepararTienda, cargarConfig, guardarConfig, CONFIG_POR_DEFECTO } from '../data/repositories/tienda';
+import { cargarCategorias, crearCategoria, renombrarCategoria, eliminarCategoria } from '../data/repositories/categorias';
+import {
+  cargarProductos, crearProducto, crearPresentacion, editarPresentacion, editarProducto,
+  eliminarPresentacion, eliminarProducto, registrarMovimiento, leerPresentaciones,
+} from '../data/repositories/productos';
+import {
+  cargarClientes, crearCliente, renombrarCliente as renombrarClienteBD, limpiarNombre, normalizarNombre,
+} from '../data/repositories/clientes';
+import {
+  crearVenta, actualizarTotalesVenta, obtenerVenta, ventasCreditoConSaldo,
+  eliminarVenta as eliminarVentaBD, actualizarItemVenta, eliminarItemVenta,
+  crearAbono, actualizarMontoAbono,
+} from '../data/repositories/ventas';
+import {
+  crearCompra, obtenerCompra, editarCompra as editarCompraBD, eliminarCompra as eliminarCompraBD,
+} from '../data/repositories/compras';
+import { crearEvento } from '../data/repositories/log';
 
-// ─── Datos semilla ────────────────────────────────────────────────────────────
-// Los campos nuevos (precioCompra, esGranel, unidadGranel) son opcionales
-// en presentaciones existentes — se tratan como null/false si no están presentes.
+// Los datos de ejemplo viven en src/data/seed.js y se cargan en SQLite;
+// el estado inicial ahora se hidrata desde la BD al arrancar (ver arrancar()).
 
-const initialProducts = [
-  {
-    id: '1', nombre: 'Arroz', marca: 'Verde Valle', categoriaId: '1',
-    presentaciones: [
-      { id: '1-1', tamano: '1 kg',   precio: 28.5, precioCompra: 22.0, stock: 4,  esGranel: false, unidadGranel: null },
-      { id: '1-2', tamano: '1/2 kg', precio: 16.0, precioCompra: 12.0, stock: 10, esGranel: false, unidadGranel: null },
-    ],
-  },
-  { id: '2',  nombre: 'Frijol',          marca: 'La Costeña', categoriaId: '1', presentaciones: [{ id: '2-1',  tamano: '1 kg',          precio: 32.0, precioCompra: 25.0, stock: 35, esGranel: false, unidadGranel: null }] },
-  { id: '3',  nombre: 'Azúcar',          marca: 'Zulka',      categoriaId: '1', presentaciones: [{ id: '3-1',  tamano: '1 kg',          precio: 27.0, precioCompra: 20.5, stock: 50, esGranel: false, unidadGranel: null }] },
-  { id: '4',  nombre: 'Aceite vegetal',  marca: '1-2-3',      categoriaId: '2', presentaciones: [{ id: '4-1',  tamano: '1 L',           precio: 38.9, precioCompra: 30.0, stock: 25, esGranel: false, unidadGranel: null }] },
-  { id: '5',  nombre: 'Atún en lata',    marca: 'Dolores',    categoriaId: '2', presentaciones: [{ id: '5-1',  tamano: '140 g',         precio: 18.5, precioCompra: 13.0, stock: 45, esGranel: false, unidadGranel: null }] },
-  { id: '6',  nombre: 'Leche entera',    marca: 'Lala',       categoriaId: '3', presentaciones: [{ id: '6-1',  tamano: '1 L',           precio: 24.5, precioCompra: 18.5, stock: 30, esGranel: false, unidadGranel: null }] },
-  { id: '7',  nombre: 'Huevo',           marca: 'San Juan',   categoriaId: '3', presentaciones: [{ id: '7-1',  tamano: 'Cartón 12 pzas',precio: 36.0, precioCompra: 28.0, stock: 15, esGranel: false, unidadGranel: null }] },
-  { id: '8',  nombre: 'Pan blanco',      marca: 'Bimbo',      categoriaId: '4', presentaciones: [{ id: '8-1',  tamano: 'Chico',         precio: 34.0, precioCompra: 26.0, stock: 20, esGranel: false, unidadGranel: null }] },
-  { id: '9',  nombre: 'Agua embotellada',marca: 'Ciel',       categoriaId: '5', presentaciones: [{ id: '9-1',  tamano: '1.5 L',         precio: 15.0, precioCompra: 10.5, stock: 70, esGranel: false, unidadGranel: null }] },
-  {
-    id: '10', nombre: 'Coca-Cola', marca: 'Coca-Cola', categoriaId: '5',
-    presentaciones: [
-      { id: '10-1', tamano: '3 L',    precio: 45.0, precioCompra: 34.0, stock: 25, esGranel: false, unidadGranel: null },
-      { id: '10-2', tamano: '600 ml', precio: 18.0, precioCompra: 12.5, stock: 40, esGranel: false, unidadGranel: null },
-    ],
-  },
-  // Producto a granel de ejemplo — el toggle esGranel = true
-  {
-    id: '11', nombre: 'Frijol a granel', marca: 'Local', categoriaId: '1',
-    presentaciones: [
-      { id: '11-1', tamano: 'por kg', precio: 30.0, precioCompra: 22.0, stock: 8.5, esGranel: true, unidadGranel: 'kg' },
-    ],
-  },
-];
+// Pseudo-categoría de la UI (filtro "todas"). No se guarda en la BD.
+const CATEGORIA_TODOS = { id: 0, nombre: 'Todos' };
 
-const initialCategories = [
-  { id: 0,   nombre: 'Todos' },
-  { id: '1', nombre: 'Granos' },
-  { id: '2', nombre: 'Despensa' },
-  { id: '3', nombre: 'Lácteos' },
-  { id: '4', nombre: 'Panadería' },
-  { id: '5', nombre: 'Bebidas' },
-];
+// ─── Ayudantes ────────────────────────────────────────────────────────────────
 
-// ─── Helpers de tiempo ────────────────────────────────────────────────────────
+// Evento del registro de actividad (se guarda en la BD con crearEvento).
+const nuevoEvento = (tipo, desc) => ({ id: newId(), tipo, desc, fecha: nowIso() });
 
-const diasAtras = (dias, hora = 9) => {
-  const d = new Date();
-  d.setDate(d.getDate() - dias);
-  d.setHours(hora, 0, 0, 0);
-  return d.toISOString();
+// Parte final del evento de una venta eliminada o devuelta: dice "stock
+// devuelto" solo si de verdad volvió algo al inventario, y nombra los
+// productos que no tenían a dónde volver (presentación eliminada).
+const textoStock = (devolverStock, entradas, itemsNoEncontrados) => {
+  if (!devolverStock) return '';
+  const partes = [];
+  if (entradas.length) partes.push('stock devuelto');
+  if (itemsNoEncontrados.length) {
+    partes.push(`sin stock que devolver: ${itemsNoEncontrados.map(i => nombreProducto(i.nombre, i.tamano)).join(', ')} (producto eliminado)`);
+  }
+  return partes.map(p => ` · ${p}`).join('');
 };
 
-// ─── Generadores de IDs ───────────────────────────────────────────────────────
+// Misma regla que la BD (ROUND(stock, 3) en registrarMovimiento): memoria y
+// disco deben calcular igual o divergen con los decimales del granel.
+const redondearStock = n => Math.round(n * 1000) / 1000;
 
-let abonoSeq   = 0;
-let logSeq     = 0;
-let compraSeq  = 0;
-
-const nuevoIdAbono  = () => `abo-${Date.now().toString(36)}-${abonoSeq++}`;
-const nuevoIdLog    = () => `log-${Date.now().toString(36)}-${logSeq++}`;
-const nuevoIdCompra = () => `cmp-${Date.now().toString(36)}-${compraSeq++}`;
-
-const MAX_LOG = 500;
-
-// ─── Ventas semilla ───────────────────────────────────────────────────────────
-
-const initialSales = [
-  { id: 'seed-1',  fecha: diasAtras(0, 18),  tipoPago: 'Contado', cliente: null,                total: 83.0,   totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, precioCompra: 26.0, numProducts: 2,  totalPrice: 68.0  }, { productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada', marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, precioCompra: 10.5, numProducts: 1,  totalPrice: 15.0  }] },
-  { id: 'seed-2',  fecha: diasAtras(0, 14),  tipoPago: 'Contado', cliente: null,                total: 122.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '1',  presentacionId: '1-1',  nombre: 'Arroz',           marca: 'Verde Valle', tamano: '1 kg',           precio: 28.5, precioCompra: 22.0, numProducts: 3,  totalPrice: 85.5  }, { productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, precioCompra: 13.0, numProducts: 2,  totalPrice: 37.0  }] },
-  { id: 'seed-3',  fecha: diasAtras(0, 17),  tipoPago: 'Contado', cliente: null,                total: 154.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '10', presentacionId: '10-2', nombre: 'Coca-Cola',       marca: 'Coca-Cola',   tamano: '600 ml',         precio: 18.0, precioCompra: 12.5, numProducts: 5,  totalPrice: 90.0  }, { productId: '2',  presentacionId: '2-1',  nombre: 'Frijol',          marca: 'La Costeña',  tamano: '1 kg',           precio: 32.0, precioCompra: 25.0, numProducts: 2,  totalPrice: 64.0  }] },
-  { id: 'seed-4',  fecha: diasAtras(0, 10),  tipoPago: 'Credito', cliente: 'Tienda La Esquina', total: 354.0,  totalAbonado: 100.0, condonado: 0, productos: [{ productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, precioCompra: 10.5, numProducts: 10, totalPrice: 150.0 }, { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, precioCompra: 26.0, numProducts: 6,  totalPrice: 204.0 }] },
-  { id: 'seed-5',  fecha: diasAtras(0, 12),  tipoPago: 'Credito', cliente: 'Doña Rosa',         total: 145.5,  totalAbonado: 0.0,   condonado: 50.0, productos: [{ productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',           marca: 'San Juan',    tamano: 'Cartón 12 pzas', precio: 36.0, precioCompra: 28.0, numProducts: 2,  totalPrice: 72.0  }, { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 3,  totalPrice: 73.5  }] },
-  { id: 'seed-6',  fecha: diasAtras(2, 16),  tipoPago: 'Contado', cliente: null,                total: 126.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',          marca: 'Zulka',       tamano: '1 kg',           precio: 27.0, precioCompra: 20.5, numProducts: 4,  totalPrice: 108.0 }, { productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, precioCompra: 13.0, numProducts: 1,  totalPrice: 18.5  }] },
-  { id: 'seed-7',  fecha: diasAtras(3, 15),  tipoPago: 'Contado', cliente: null,                total: 147.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 6,  totalPrice: 147.0 }] },
-  { id: 'seed-8',  fecha: diasAtras(4, 13),  tipoPago: 'Contado', cliente: null,                total: 360.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '10', presentacionId: '10-1', nombre: 'Coca-Cola',       marca: 'Coca-Cola',   tamano: '3 L',            precio: 45.0, precioCompra: 34.0, numProducts: 8,  totalPrice: 360.0 }] },
-  { id: 'seed-9',  fecha: diasAtras(1, 11),  tipoPago: 'Credito', cliente: 'Juan Pérez',        total: 36.0,   totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',           marca: 'San Juan',    tamano: 'Cartón 12 pzas', precio: 36.0, precioCompra: 28.0, numProducts: 1,  totalPrice: 36.0  }] },
-  { id: 'seed-10', fecha: diasAtras(3, 9),   tipoPago: 'Credito', cliente: 'María García',      total: 116.7,  totalAbonado: 50.0,  condonado: 0, productos: [{ productId: '4',  presentacionId: '4-1',  nombre: 'Aceite vegetal',  marca: '1-2-3',       tamano: '1 L',            precio: 38.9, precioCompra: 30.0, numProducts: 3,  totalPrice: 116.7 }] },
-  { id: 'seed-11', fecha: diasAtras(8, 12),  tipoPago: 'Contado', cliente: null,                total: 113.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, precioCompra: 10.5, numProducts: 3,  totalPrice: 45.0  }, { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, precioCompra: 26.0, numProducts: 2,  totalPrice: 68.0  }] },
-  { id: 'seed-12', fecha: diasAtras(10, 17), tipoPago: 'Contado', cliente: null,                total: 146.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, precioCompra: 13.0, numProducts: 5,  totalPrice: 92.5  }, { productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',          marca: 'Zulka',       tamano: '1 kg',           precio: 27.0, precioCompra: 20.5, numProducts: 2,  totalPrice: 54.0  }] },
-  { id: 'seed-13', fecha: diasAtras(15, 14), tipoPago: 'Contado', cliente: null,                total: 128.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '2',  presentacionId: '2-1',  nombre: 'Frijol',          marca: 'La Costeña',  tamano: '1 kg',           precio: 32.0, precioCompra: 25.0, numProducts: 4,  totalPrice: 128.0 }] },
-  { id: 'seed-14', fecha: diasAtras(20, 10), tipoPago: 'Contado', cliente: null,                total: 145.5,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 3,  totalPrice: 73.5  }, { productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',           marca: 'San Juan',    tamano: 'Cartón 12 pzas', precio: 36.0, precioCompra: 28.0, numProducts: 2,  totalPrice: 72.0  }] },
-  { id: 'seed-15', fecha: diasAtras(10, 15), tipoPago: 'Credito', cliente: 'María García',      total: 225.0,  totalAbonado: 225.0, condonado: 0, productos: [{ productId: '10', presentacionId: '10-1', nombre: 'Coca-Cola',       marca: 'Coca-Cola',   tamano: '3 L',            precio: 45.0, precioCompra: 34.0, numProducts: 5,  totalPrice: 225.0 }] },
-  { id: 'seed-16', fecha: diasAtras(2, 13),  tipoPago: 'Credito', cliente: 'Juan Pérez',        total: 81.5,   totalAbonado: 30.0,  condonado: 0, productos: [{ productId: '1',  presentacionId: '1-1',  nombre: 'Arroz',           marca: 'Verde Valle', tamano: '1 kg',           precio: 28.5, precioCompra: 22.0, numProducts: 2,  totalPrice: 57.0  }, { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 1,  totalPrice: 24.5  }] },
-  { id: 'seed-17', fecha: diasAtras(32, 11), tipoPago: 'Contado', cliente: null,                total: 261.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',          marca: 'Zulka',       tamano: '1 kg',           precio: 27.0, precioCompra: 20.5, numProducts: 8,  totalPrice: 216.0 }, { productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',marca: 'Ciel',        tamano: '1.5 L',          precio: 15.0, precioCompra: 10.5, numProducts: 3,  totalPrice: 45.0  }] },
-  { id: 'seed-18', fecha: diasAtras(45, 16), tipoPago: 'Contado', cliente: null,                total: 142.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',    marca: 'Dolores',     tamano: '140 g',          precio: 18.5, precioCompra: 13.0, numProducts: 4,  totalPrice: 74.0  }, { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco',      marca: 'Bimbo',       tamano: 'Chico',          precio: 34.0, precioCompra: 26.0, numProducts: 2,  totalPrice: 68.0  }] },
-  { id: 'seed-19', fecha: diasAtras(30, 9),  tipoPago: 'Credito', cliente: 'Roberto Díaz',      total: 128.0,  totalAbonado: 0.0,   condonado: 0, productos: [{ productId: '2',  presentacionId: '2-1',  nombre: 'Frijol',          marca: 'La Costeña',  tamano: '1 kg',           precio: 32.0, precioCompra: 25.0, numProducts: 4,  totalPrice: 128.0 }] },
-  { id: 'seed-20', fecha: diasAtras(45, 10), tipoPago: 'Credito', cliente: 'Lupita Torres',     total: 165.7,  totalAbonado: 50.0,  condonado: 0, productos: [{ productId: '4',  presentacionId: '4-1',  nombre: 'Aceite vegetal',  marca: '1-2-3',       tamano: '1 L',            precio: 38.9, precioCompra: 30.0, numProducts: 3,  totalPrice: 116.7 }, { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',    marca: 'Lala',        tamano: '1 L',            precio: 24.5, precioCompra: 18.5, numProducts: 2,  totalPrice: 49.0  }] },
-];
-
-// ─── Abonos semilla ───────────────────────────────────────────────────────────
-
-const initialAbonos = [
-  { id: 'seed-a1', fecha: diasAtras(0, 11),  cliente: 'Tienda La Esquina', ventaId: 'seed-4',  monto: 100.0, tipo: 'abono' },
-  { id: 'seed-a2', fecha: diasAtras(2, 15),  cliente: 'María García',      ventaId: 'seed-10', monto: 50.0,  tipo: 'abono' },
-  { id: 'seed-a3', fecha: diasAtras(10, 18), cliente: 'María García',      ventaId: 'seed-15', monto: 225.0, tipo: 'abono' },
-  { id: 'seed-a4', fecha: diasAtras(1, 12),  cliente: 'Juan Pérez',        ventaId: 'seed-16', monto: 30.0,  tipo: 'abono' },
-  { id: 'seed-a5', fecha: diasAtras(20, 12), cliente: 'Lupita Torres',     ventaId: 'seed-20', monto: 50.0,  tipo: 'abono' },
-  { id: 'seed-a6', fecha: diasAtras(5, 11),  cliente: 'Doña Rosa',         ventaId: 'seed-5',  monto: 50.0,  tipo: 'condonacion' },
-];
-
-// ─── Compras semilla ──────────────────────────────────────────────────────────
-// Representan compras reales con distintos proveedores, incluyendo un caso
-// de compra por paquete/reja (el costoUnitario ya viene calculado).
-
-const initialCompras = [
-  {
-    id: 'seed-c1',
-    fecha: diasAtras(1, 9),
-    proveedor: 'Distribuidora García',
-    tipoPago: 'Contado',
-    notas: '',
-    total: 502.5,
-    items: [
-      { productId: '1',  presentacionId: '1-1',  nombre: 'Arroz',          tamano: '1 kg',          cantidad: 10, costoUnitario: 22.0,  subtotal: 220.0 },
-      { productId: '9',  presentacionId: '9-1',  nombre: 'Agua embotellada',tamano: '1.5 L',         cantidad: 24, costoUnitario: 10.5,  subtotal: 252.0 },
-      { productId: '3',  presentacionId: '3-1',  nombre: 'Azúcar',         tamano: '1 kg',          cantidad: 1,  costoUnitario: 20.5,  subtotal: 20.5  },
-    ],
-  },
-  {
-    id: 'seed-c2',
-    fecha: diasAtras(3, 10),
-    proveedor: 'Coca-Cola FEMSA',
-    tipoPago: 'Contado',
-    notas: 'Compra por reja de 24 pzas 600ml — costo unitario calculado',
-    total: 300.0,
-    // Reja de 24 Coca-Cola 600ml por $300 → $12.50 c/u
-    items: [
-      { productId: '10', presentacionId: '10-2', nombre: 'Coca-Cola', tamano: '600 ml', cantidad: 24, costoUnitario: 12.5, subtotal: 300.0 },
-    ],
-  },
-  {
-    id: 'seed-c3',
-    fecha: diasAtras(7, 8),
-    proveedor: 'Distribuidora García',
-    tipoPago: 'Contado',
-    notas: '',
-    total: 575.0,
-    items: [
-      { productId: '5',  presentacionId: '5-1',  nombre: 'Atún en lata',   tamano: '140 g',         cantidad: 20, costoUnitario: 13.0, subtotal: 260.0 },
-      { productId: '4',  presentacionId: '4-1',  nombre: 'Aceite vegetal', tamano: '1 L',           cantidad: 10, costoUnitario: 30.0, subtotal: 300.0 },
-      { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera',   tamano: '1 L',           cantidad: 5,  costoUnitario: 18.5, subtotal: 92.5  },
-    ],
-  },
-  {
-    id: 'seed-c4',
-    fecha: diasAtras(15, 11),
-    proveedor: 'Panadería El Molino',
-    tipoPago: 'Contado',
-    notas: '',
-    total: 520.0,
-    items: [
-      { productId: '8',  presentacionId: '8-1',  nombre: 'Pan blanco', tamano: 'Chico', cantidad: 20, costoUnitario: 26.0, subtotal: 520.0 },
-    ],
-  },
-  {
-    id: 'seed-c5',
-    fecha: diasAtras(20, 9),
-    proveedor: 'Lácteos del Norte',
-    tipoPago: 'Contado',
-    notas: '',
-    total: 532.0,
-    items: [
-      { productId: '6',  presentacionId: '6-1',  nombre: 'Leche entera', tamano: '1 L',           cantidad: 18, costoUnitario: 18.5, subtotal: 333.0 },
-      { productId: '7',  presentacionId: '7-1',  nombre: 'Huevo',        tamano: 'Cartón 12 pzas',cantidad: 7,  costoUnitario: 28.0, subtotal: 196.0 },
-    ],
-  },
-  {
-    id: 'seed-c6',
-    fecha: diasAtras(32, 14),
-    proveedor: 'Distribuidora García',
-    tipoPago: 'Contado',
-    notas: '',
-    total: 380.0,
-    items: [
-      { productId: '2',  presentacionId: '2-1',  nombre: 'Frijol', tamano: '1 kg', cantidad: 10, costoUnitario: 25.0, subtotal: 250.0 },
-      { productId: '1',  presentacionId: '1-1',  nombre: 'Arroz',  tamano: '1 kg', cantidad: 6,  costoUnitario: 22.0, subtotal: 132.0 },
-    ],
-  },
-];
-
-// ─── Log de actividad semilla ─────────────────────────────────────────────────
-
-const initialActivityLog = [
-  { id: 'slog-1',  tipo: 'venta',                  fecha: diasAtras(0, 18),  desc: 'Venta $83.00 · 2 productos (Contado)' },
-  { id: 'slog-2',  tipo: 'venta',                  fecha: diasAtras(0, 17),  desc: 'Venta $154.00 · 2 productos (Contado)' },
-  { id: 'slog-3',  tipo: 'venta',                  fecha: diasAtras(0, 14),  desc: 'Venta $122.50 · 2 productos (Contado)' },
-  { id: 'slog-4',  tipo: 'venta_credito',          fecha: diasAtras(0, 12),  desc: 'Venta $145.50 a crédito · Doña Rosa' },
-  { id: 'slog-5',  tipo: 'abono',                  fecha: diasAtras(0, 11),  desc: 'Abono $100.00 · Tienda La Esquina' },
-  { id: 'slog-6',  tipo: 'venta_credito',          fecha: diasAtras(0, 10),  desc: 'Venta $354.00 a crédito · Tienda La Esquina · abono inicial $100.00' },
-  { id: 'slog-7',  tipo: 'stock_agregado',         fecha: diasAtras(1, 18),  desc: '+24 uds · Coca-Cola 600 ml (stock anterior: 16)' },
-  { id: 'slog-8',  tipo: 'abono',                  fecha: diasAtras(1, 12),  desc: 'Abono $30.00 · Juan Pérez' },
-  { id: 'slog-9',  tipo: 'venta_credito',          fecha: diasAtras(1, 11),  desc: 'Venta $36.00 a crédito · Juan Pérez' },
-  // ─── Compras semilla en el log ───
-  { id: 'slog-c1', tipo: 'compra',                 fecha: diasAtras(1, 9),   desc: 'Compra $502.50 · 3 productos · Distribuidora García (Contado)' },
-  { id: 'slog-10', tipo: 'precio_editado',         fecha: diasAtras(1, 10),  desc: 'Arroz 1 kg: $27.00 → $28.50' },
-  { id: 'slog-11', tipo: 'consumo_propio',         fecha: diasAtras(2, 19),  desc: 'Consumo propio: 2 × Coca-Cola 600 ml' },
-  { id: 'slog-12', tipo: 'venta',                  fecha: diasAtras(2, 16),  desc: 'Venta $126.50 · 2 productos (Contado)' },
-  { id: 'slog-13', tipo: 'abono',                  fecha: diasAtras(2, 15),  desc: 'Abono $50.00 · María García' },
-  { id: 'slog-14', tipo: 'venta_credito',          fecha: diasAtras(2, 13),  desc: 'Venta $81.50 a crédito · Juan Pérez · abono inicial $30.00' },
-  { id: 'slog-15', tipo: 'stock_ajustado',         fecha: diasAtras(2, 12),  desc: 'Stock ajustado: Huevo Cartón 12 pzas · 18 → 15 uds' },
-  { id: 'slog-c2', tipo: 'compra',                 fecha: diasAtras(3, 10),  desc: 'Compra $300.00 · 1 producto · Coca-Cola FEMSA (Contado) · reja 24 pzas 600ml' },
-  { id: 'slog-16', tipo: 'abono_editado',          fecha: diasAtras(3, 17),  desc: 'Abono corregido $30.00 → $50.00 · Juan Pérez' },
-  { id: 'slog-17', tipo: 'venta',                  fecha: diasAtras(3, 15),  desc: 'Venta $147.00 · 1 producto (Contado)' },
-  { id: 'slog-18', tipo: 'venta_credito',          fecha: diasAtras(3, 9),   desc: 'Venta $116.70 a crédito · María García · abono inicial $50.00' },
-  { id: 'slog-19', tipo: 'venta',                  fecha: diasAtras(4, 13),  desc: 'Venta $360.00 · 1 producto (Contado)' },
-  { id: 'slog-20', tipo: 'producto_nuevo',         fecha: diasAtras(4, 10),  desc: 'Nuevo producto: Galletas María 170 g (Gamesa) · stock inicial 30' },
-  { id: 'slog-21', tipo: 'cliente_renombrado',     fecha: diasAtras(5, 12),  desc: 'Cliente renombrado: "Juan" → "Juan Pérez"' },
-  { id: 'slog-22', tipo: 'condonacion',            fecha: diasAtras(5, 11),  desc: 'Deuda condonada $50.00 · Doña Rosa' },
-  { id: 'slog-c3', tipo: 'compra',                 fecha: diasAtras(7, 8),   desc: 'Compra $575.00 · 3 productos · Distribuidora García (Crédito 15 días)' },
-  { id: 'slog-23', tipo: 'presentacion_nueva',     fecha: diasAtras(6, 14),  desc: 'Nueva presentación: Galletas María 340 g · $52.00 · stock 12' },
-  { id: 'slog-24', tipo: 'presentacion_eliminada', fecha: diasAtras(7, 16),  desc: 'Eliminada: Coca-Cola 1.5 L' },
-  { id: 'slog-25', tipo: 'categoria_creada',       fecha: diasAtras(8, 11),  desc: 'Nueva categoría: Snacks' },
-  { id: 'slog-26', tipo: 'categoria_renombrada',   fecha: diasAtras(9, 15),  desc: 'Categoría renombrada: "Bebidas" → "Refrescos y agua"' },
-  { id: 'slog-27', tipo: 'categoria_eliminada',    fecha: diasAtras(12, 13), desc: 'Categoría eliminada: Dulces' },
-];
-
-// ─── Configuración por defecto ────────────────────────────────────────────────
-
-const defaultConfig = {
-  nombreTienda: 'Mi Tienda',
-  nombreDueno: '',
-  moneda: '$',
-  umbralStock: 5,
-};
+// Reloj de alta resolución para las mediciones de rendimiento (solo desarrollo).
+const ahoraMs = () => global.performance?.now?.() ?? Date.now();
 
 // ─── Tipos y meta del log ─────────────────────────────────────────────────────
 
@@ -245,6 +73,7 @@ export const LOG_TIPOS = {
   STOCK_AJUSTADO:         'stock_ajustado',
   CONSUMO_PROPIO:         'consumo_propio',
   PRODUCTO_NUEVO:         'producto_nuevo',
+  PRODUCTO_EDITADO:       'producto_editado',
   PRESENTACION_NUEVA:     'presentacion_nueva',
   PRESENTACION_ELIMINADA: 'presentacion_eliminada',
   CLIENTE_RENOMBRADO:     'cliente_renombrado',
@@ -269,6 +98,7 @@ export const LOG_META = {
   stock_ajustado:         { icono: '🔧', filtro: 'inventario', label: 'Stock ajustado' },
   consumo_propio:         { icono: '🔸', filtro: 'inventario', label: 'Consumo propio' },
   producto_nuevo:         { icono: '✨', filtro: 'inventario', label: 'Producto nuevo' },
+  producto_editado:       { icono: '✏️', filtro: 'inventario', label: 'Producto editado' },
   presentacion_nueva:     { icono: '➕', filtro: 'inventario', label: 'Presentación nueva' },
   presentacion_eliminada: { icono: '🗑️', filtro: 'inventario', label: 'Presentación eliminada' },
   cliente_renombrado:     { icono: '👤', filtro: 'otros',      label: 'Cliente renombrado' },
@@ -288,85 +118,376 @@ const normalizarPresentacion = pres => ({
   ...pres,
 });
 
+// ¿Sigue viva la presentación de este ítem? `actuales` es el mapa
+// { presentacionId: { productId, stock, precioCompra } } que da
+// leerPresentaciones (BD) o presentacionesEnMemoria.
+const existeEn = (actuales, item) => actuales[item.presentacionId]?.productId === item.productId;
+
+/**
+ * Aplica al catálogo en memoria el efecto que ya se guardó en la BD:
+ *   movimientos: [{ presentacionId, cantidad(±) }]  → se SUMAN al stock
+ *   precios:     [{ presentacionId, precioCompra }] → valor final
+ * Diferencias y no valores absolutos: si entre la decisión y este setState
+ * se vendió algo, las dos cosas se suman bien (igual que ROUND(stock + ?) en
+ * registrarMovimiento).
+ */
+const aplicarEfecto = (products, { movimientos = [], precios = [] }) => products.map(p => ({
+  ...p,
+  presentaciones: p.presentaciones.map(pres => {
+    const delta = movimientos
+      .filter(m => m.presentacionId === pres.id)
+      .reduce((suma, m) => suma + m.cantidad, 0);
+    const precio = precios.find(x => x.presentacionId === pres.id);
+    if (!delta && !precio) return pres;
+    return normalizarPresentacion({
+      ...pres,
+      stock: redondearStock(pres.stock + delta),
+      ...(precio ? { precioCompra: precio.precioCompra } : {}),
+    });
+  }),
+}));
+
 export const StoreContext = createContext(null);
 
 export class StoreProvider extends Component {
+  // Estado "seco": se hidrata desde SQLite en arrancar(). Mientras
+  // cargando = true, render() muestra PantallaCarga en vez de la app.
+  // Solo lo pequeño vive en memoria (catálogo, clientes, config). Ventas,
+  // abonos, compras y el registro de actividad se consultan bajo demanda
+  // (src/data/consultas/ y los repositorios), y las acciones que los
+  // necesitan los leen dentro de su transacción (ver decidirEnBD).
   state = {
-    products:    initialProducts,
-    categories:  initialCategories,
-    sales:       initialSales,
-    abonos:      initialAbonos,
-    compras:     initialCompras,
-    activityLog: initialActivityLog,
-    config:      defaultConfig,
+    cargando:    true,
+    errorCarga:  null,
+    products:    [],
+    categories:  [],   // sin "Todos": se agrega en render()
+    clientes:    [],
+    config:      CONFIG_POR_DEFECTO,
+  };
+
+  // ─── Arranque e hidratación ───────────────────────────────────────────────
+
+  componentDidMount() {
+    // Si una escritura en segundo plano falla, la BD es la fuente de verdad:
+    // avisar y recargar el estado desde ella.
+    onErrorPersistencia(() => {
+      Alert.alert('No se pudo guardar', 'El último cambio no se guardó. Se recargarán los datos.');
+      this.recargarDesdeBD().catch(error => console.error('recargarDesdeBD', error));
+    });
+    // componentDidMount no puede esperar promesas: arrancar() atrapa sus
+    // propios errores y los muestra en PantallaCarga.
+    
+    this.arrancar();
+  }
+
+  componentWillUnmount() {
+    onErrorPersistencia(null);
+  }
+
+  arrancar = async () => {
+    this.setState({ cargando: true, errorCarga: null });
+    // Medición de rendimiento (solo desarrollo): tiempos en la consola de Metro.
+    const t0 = ahoraMs();
+    const tiempos = __DEV__ ? { inicio: t0 } : null;
+    try {
+      await initDB();                       // abrir + migraciones
+      if (tiempos) tiempos.initDB = ahoraMs() - t0;
+      this.tiendaId = await prepararTienda(); // crear tienda en el 1er arranque
+      if (await debeSembrarAutomatico()) {  // solo __DEV__, una vez por instalación
+        const tSemilla = ahoraMs();
+        await persistir(sembrarAutomatico, 'semilla');
+        if (tiempos) tiempos.semilla = ahoraMs() - tSemilla;
+      }
+      await this.recargarDesdeBD(tiempos);
+    } catch (error) {
+      console.error('arrancar', error);
+      this.setState({ cargando: false, errorCarga: error?.message ?? String(error) });
+    }
+  };
+
+  // Lee de SQLite (en paralelo) lo que vive en memoria y reemplaza el estado.
+  // `tiempos` (solo desarrollo): registra cuándo terminó cada carga y el
+  // primer dibujado, para medir el arranque.
+  recargarDesdeBD = async (tiempos = null) => {
+    const t0 = ahoraMs();
+    const medir = (nombre, promesa) => (tiempos
+      ? promesa.then(r => { tiempos[nombre] = ahoraMs() - t0; return r; })
+      : promesa);
+    const [config, categories, products, clientes] = await Promise.all([
+      medir('config', cargarConfig(this.tiendaId)),
+      medir('categorias', cargarCategorias()),
+      medir('productos', cargarProductos()),
+      medir('clientes', cargarClientes()),
+    ]);
+    const tCargas = ahoraMs() - t0;
+    this.setState({
+      cargando: false, errorCarga: null,
+      config, categories, products, clientes,
+    }, () => {
+      if (!tiempos) return;
+      const ms = n => `${Math.round(n)} ms`;
+      const heap = global.HermesInternal?.getInstrumentedStats?.()?.js_heapSize;
+      console.log(
+        `[rendimiento] arranque · en memoria solo ${products.length} productos y ${clientes.length} clientes (ventas/compras bajo demanda)\n` +
+        `  initDB ${ms(tiempos.initDB)}${tiempos.semilla != null ? ` · semilla ${ms(tiempos.semilla)}` : ''}\n` +
+        `  cargas (terminó a los…): ${['config', 'categorias', 'productos', 'clientes'].map(k => `${k} ${ms(tiempos[k])}`).join(' · ')}\n` +
+        `  todas las cargas ${ms(tCargas)} · + primer dibujado ${ms(ahoraMs() - t0 - tCargas)} · TOTAL del arranque ${ms(ahoraMs() - tiempos.inicio)}` +
+        (heap ? `\n  memoria JS (heap) ${(heap / 1048576).toFixed(1)} MB` : ''),
+      );
+    });
   };
 
   // ─── Log ──────────────────────────────────────────────────────────────────
+  // Las acciones guardan su evento EN LA MISMA transacción que su cambio
+  // (nuevoEvento + crearEvento). El registro ya no vive en memoria:
+  // ActivityLogView lo consulta por páginas y se refresca solo al cambiar la
+  // tabla activity_log. logEvent queda para los eventos sueltos que
+  // registran las pantallas (p. ej. EditarProductoView).
+
+  // Monto con la moneda configurada, para los textos del registro de
+  // actividad (antes decían "$" fijo aunque la moneda fuera otra).
+  dinero = monto => formatoDinero(monto, this.state.config?.moneda ?? '$');
 
   logEvent = (tipo, desc) => {
-    const evento = { id: nuevoIdLog(), tipo, desc, fecha: new Date().toISOString() };
-    this.setState(prev => ({ activityLog: [evento, ...prev.activityLog].slice(0, MAX_LOG) }));
+    const evento = nuevoEvento(tipo, desc);
+    persistir(tx => crearEvento(tx, evento), 'logEvent');
+  };
+
+  // ─── Acciones que deciden en la BD ────────────────────────────────────────
+  // Las acciones sobre ventas, abonos y compras ya registradas NO tienen esos
+  // datos en memoria: los leen DENTRO de su transacción, calculan y escriben
+  // ahí mismo. `decidir(tx)` devuelve { resultado, efecto }:
+  //   resultado: lo que la acción devuelve a la pantalla
+  //   efecto:    { movimientos, precios } para el catálogo en memoria, que se
+  //              aplica solo DESPUÉS del commit (la BD decide; la memoria se
+  //              entera después)
+  // op-sqlite descarta lo que devuelve el callback de transaction(), por eso
+  // la decisión se saca por un cierre (`decision`).
+  // Si la escritura falla, persistir ya avisó y recarga desde la BD
+  // (onErrorPersistencia): aquí solo se devuelve null.
+  decidirEnBD = async (etiqueta, decidir) => {
+    let decision = null;
+    try {
+      await persistir(async tx => { decision = await decidir(tx); }, etiqueta);
+    } catch {
+      return null;
+    }
+    if (decision?.efecto) {
+      this.setState(prev => ({ products: aplicarEfecto(prev.products, decision.efecto) }));
+    }
+    return decision?.resultado ?? null;
+  };
+
+  // Mismo formato que leerPresentaciones, pero desde el catálogo en memoria
+  // (para addCompra, que no necesita leer historial).
+  presentacionesEnMemoria = () => {
+    const resultado = {};
+    this.state.products.forEach(p => p.presentaciones.forEach(pres => {
+      resultado[pres.id] = { productId: p.id, stock: pres.stock, precioCompra: pres.precioCompra ?? null };
+    }));
+    return resultado;
   };
 
   // ─── Configuración ────────────────────────────────────────────────────────
 
   updateConfig = cambios => {
     this.setState(prev => ({ config: { ...prev.config, ...cambios } }));
+    persistir(tx => guardarConfig(tx, this.tiendaId, cambios), 'updateConfig');
   };
 
   // ─── Productos ────────────────────────────────────────────────────────────
 
   /**
+   * Compra que acompaña el alta de una presentación nueva ("registrar como
+   * compra" en AgregarProductoView). Antes la pantalla llamaba a addCompra
+   * por separado y fallaba: adivinaba el id de la presentación y validaba
+   * contra un estado que aún no incluía el producto recién creado.
+   * Devuelve null si no aplica (sin datos de compra, stock o costo en 0).
+   *   datosCompra: { proveedor, tipoPago?, notas?, paquete? }
+   *     paquete: { piezasPaquete, precioPaquete, numPaquetes } si se compró
+   *              por paquete/reja (o bulto, en granel): se guarda el desglose
+   *              para que el historial muestre "Paquete de 8 × $232.00"
+   */
+  armarCompraDeAlta = (productId, pres, nombre, datosCompra) => {
+    if (!datosCompra || !(pres.stock > 0) || !(pres.precioCompra > 0)) return null;
+    const subtotal = Math.round(pres.stock * pres.precioCompra * 100) / 100;
+    return {
+      id:        newId(),
+      fecha:     nowIso(),
+      proveedor: datosCompra.proveedor,
+      tipoPago:  datosCompra.tipoPago ?? 'Contado',
+      notas:     datosCompra.notas ?? `Alta de producto: ${nombreProducto(nombre, pres.tamano)}`,
+      total:     subtotal,
+      items: [{
+        id: newId(), productId, presentacionId: pres.id, nombre, tamano: pres.tamano,
+        cantidad: pres.stock, costoUnitario: pres.precioCompra, subtotal,
+        precioCompraAnterior: null, // presentación nueva: no había costo anterior
+        ...(datosCompra.paquete ?? {}),
+      }],
+    };
+  };
+
+  eventoDeCompra = compra => {
+    const moneda = this.state.config?.moneda ?? '$';
+    const nProd = compra.items.length;
+    return nuevoEvento(
+      LOG_TIPOS.COMPRA,
+      `Compra ${moneda}${compra.total.toFixed(2)} · ${nProd} ${nProd === 1 ? 'producto' : 'productos'} · ${compra.proveedor || 'Sin proveedor'} (${compra.tipoPago})`,
+    );
+  };
+
+  /**
+   * Guarda una presentación nueva. Sin compra, su stock entra como movimiento
+   * 'inicial'. Con compra, se inserta con stock 0 y el stock entra UNA vez
+   * como movimiento 'compra' ligado a esa compra (así no se duplica).
+   */
+  persistirPresentacionNueva = async (tx, productId, pres, compraAlta) => {
+    await crearPresentacion(tx, productId, compraAlta ? { ...pres, stock: 0 } : pres);
+    if (compraAlta) {
+      await crearCompra(tx, compraAlta);
+      await registrarMovimiento(tx, { presentacionId: pres.id, cantidad: pres.stock, tipo: 'compra', refId: compraAlta.id, fecha: compraAlta.fecha });
+    }
+  };
+
+  /**
    * Agrega un producto nuevo con su primera presentación.
    * Campos nuevos aceptados: precioCompra, esGranel, unidadGranel.
+   * datosCompra (opcional): { proveedor, tipoPago?, notas? } para registrar el
+   * stock inicial como una compra, todo en la misma transacción.
    */
-  addProduct = product => {
+  addProduct = (product, datosCompra = null) => {
     const {
       nombre, marca, categoriaId,
       tamano, precio, precioCompra = null, stock,
       esGranel = false, unidadGranel = null,
     } = product;
 
-    const newProduct = {
-      id: Date.now().toString(),
-      nombre, marca, categoriaId,
-      presentaciones: [normalizarPresentacion({ id: `${Date.now()}-1`, tamano, precio, precioCompra, stock, esGranel, unidadGranel })],
-    };
-    this.setState(prev => ({ products: [...prev.products, newProduct] }));
-    this.logEvent(
+    const pres = normalizarPresentacion({ id: newId(), tamano, precio, precioCompra, stock, esGranel, unidadGranel });
+    const newProduct = { id: newId(), nombre, marca, categoriaId, presentaciones: [pres] };
+    const compraAlta = this.armarCompraDeAlta(newProduct.id, pres, nombre, datosCompra);
+
+    const eventos = [nuevoEvento(
       LOG_TIPOS.PRODUCTO_NUEVO,
-      `Nuevo producto: ${nombre} ${tamano} (${marca}) · stock inicial ${stock}${precioCompra ? ` · costo $${precioCompra.toFixed(2)}` : ''}`,
-    );
+      `Nuevo producto: ${nombreProducto(nombre, tamano)}${marca ? ` (${marca})` : ''} · stock inicial ${stock}${precioCompra ? ` · costo ${this.dinero(precioCompra)}` : ''}`,
+    )];
+    if (compraAlta) eventos.push(this.eventoDeCompra(compraAlta));
+
+    this.setState(prev => ({
+      products:    [...prev.products, newProduct],
+    }));
+    persistir(async tx => {
+      await crearProducto(tx, { ...newProduct, presentaciones: [] });
+      await this.persistirPresentacionNueva(tx, newProduct.id, pres, compraAlta);
+      for (const evento of eventos) await crearEvento(tx, evento);
+    }, 'addProduct');
     return newProduct;
   };
 
   /**
-   * Agrega una presentación nueva a un producto existente.
-   * Acepta precioCompra, esGranel, unidadGranel.
+   * Edita los datos del PRODUCTO (nombre, marca, categoría), no de sus
+   * presentaciones. Es la forma de reasignar la categoría (p. ej. para poder
+   * borrar una categoría en uso). Las ventas y compras viejas conservan el
+   * nombre anterior en su "foto", como debe ser.
+   * Devuelve { ok: true } o { ok: false, error } para que la pantalla avise.
    */
-  addPresentacion = (productId, presentacion) => {
+  updateProduct = (productId, cambios) => {
+    const product = this.state.products.find(p => p.id === productId);
+    if (!product) return { ok: false, error: 'El producto ya no existe.' };
+
+    const nombre = (cambios.nombre ?? product.nombre).trim();
+    const marca = (cambios.marca ?? product.marca).trim();
+    const categoriaId = cambios.categoriaId ?? product.categoriaId;
+
+    if (!nombre) return { ok: false, error: 'El nombre no puede quedar vacío.' };
+    // La marca es opcional (granel, tortillas, pan del día…).
+    if (!this.state.categories.some(c => String(c.id) === String(categoriaId))) {
+      return { ok: false, error: 'Selecciona una categoría válida.' };
+    }
+    // Misma regla de duplicado que el alta (AgregarProductoView): nombre + marca.
+    const duplicado = this.state.products.some(p =>
+      p.id !== productId &&
+      p.nombre.trim().toLowerCase() === nombre.toLowerCase() &&
+      p.marca.trim().toLowerCase() === marca.toLowerCase(),
+    );
+    if (duplicado) return { ok: false, error: marca ? `Ya existe otro producto "${nombre}" de ${marca}.` : `Ya existe otro producto "${nombre}" sin marca.` };
+
+    const cambiosReales = {};
+    if (nombre !== product.nombre) cambiosReales.nombre = nombre;
+    if (marca !== (product.marca ?? '')) cambiosReales.marca = marca;
+    if (String(categoriaId) !== String(product.categoriaId)) cambiosReales.categoriaId = categoriaId;
+    if (!Object.keys(cambiosReales).length) return { ok: true }; // sin cambio real: nada que guardar
+
+    const nombreCat = id => this.state.categories.find(c => String(c.id) === String(id))?.nombre ?? '—';
+    const detalle = [
+      cambiosReales.nombre && `nombre "${product.nombre}" → "${nombre}"`,
+      cambiosReales.marca !== undefined && `marca ${product.marca ? `"${product.marca}"` : '(sin marca)'} → ${marca ? `"${marca}"` : '(sin marca)'}`,
+      cambiosReales.categoriaId && `categoría ${nombreCat(product.categoriaId)} → ${nombreCat(categoriaId)}`,
+    ].filter(Boolean).join(' · ');
+    const evento = nuevoEvento(LOG_TIPOS.PRODUCTO_EDITADO, `Producto editado: ${detalle}`);
+
+    this.setState(prev => ({
+      products:    prev.products.map(p => p.id === productId ? { ...p, ...cambiosReales } : p),
+    }));
+    persistir(async tx => {
+      await editarProducto(tx, productId, cambiosReales);
+      await crearEvento(tx, evento);
+    }, 'updateProduct');
+    return { ok: true };
+  };
+
+  /**
+   * Agrega una presentación nueva a un producto existente.
+   * Acepta precioCompra, esGranel, unidadGranel, y datosCompra como addProduct.
+   */
+  addPresentacion = (productId, presentacion, datosCompra = null) => {
     const { tamano, precio, precioCompra = null, stock, esGranel = false, unidadGranel = null } = presentacion;
-    const nueva = normalizarPresentacion({ id: Date.now().toString(), tamano, precio, precioCompra, stock, esGranel, unidadGranel });
+    const nueva = normalizarPresentacion({ id: newId(), tamano, precio, precioCompra, stock, esGranel, unidadGranel });
+    const product = this.state.products.find(p => p.id === productId);
+    const compraAlta = this.armarCompraDeAlta(productId, nueva, product?.nombre ?? '', datosCompra);
+
+    const eventos = [nuevoEvento(
+      LOG_TIPOS.PRESENTACION_NUEVA,
+      `Nueva presentación: ${nombreProducto(product?.nombre ?? productId, tamano)} · ${this.dinero(precio)}${precioCompra ? ` (costo ${this.dinero(precioCompra)})` : ''} · stock ${stock}`,
+    )];
+    if (compraAlta) eventos.push(this.eventoDeCompra(compraAlta));
+
     this.setState(prev => ({
       products: prev.products.map(p =>
         p.id === productId ? { ...p, presentaciones: [...p.presentaciones, nueva] } : p,
       ),
     }));
-    const product = this.state.products.find(p => p.id === productId);
-    this.logEvent(
-      LOG_TIPOS.PRESENTACION_NUEVA,
-      `Nueva presentación: ${product?.nombre ?? productId} ${tamano} · $${precio}${precioCompra ? ` (costo $${precioCompra.toFixed(2)})` : ''} · stock ${stock}`,
-    );
+    persistir(async tx => {
+      await this.persistirPresentacionNueva(tx, productId, nueva, compraAlta);
+      for (const evento of eventos) await crearEvento(tx, evento);
+    }, 'addPresentacion');
+    return nueva;
   };
 
   /**
    * Edita campos de una presentación existente.
    * Ahora acepta precioCompra, esGranel, unidadGranel además de precio y stock.
    * Solo genera log si precio o stock cambiaron — los demás cambios son silenciosos.
+   *
+   * El stock llega como valor absoluto ("ahora hay 15"); en la BD se guarda
+   * como movimiento 'ajuste' con la diferencia (15 − 10 = +5).
+   * razonAjuste (opcional): se agrega al evento de stock ajustado, en vez de
+   * registrar un segundo evento aparte.
    */
-  updatePresentacion = (productId, presentacionId, cambios) => {
+  updatePresentacion = (productId, presentacionId, cambios, razonAjuste = '') => {
     const product = this.state.products.find(p => p.id === productId);
     const pres = product?.presentaciones.find(pr => pr.id === presentacionId);
+    if (!pres) return;
+
+    const eventos = [];
+    if (cambios.precio !== undefined && cambios.precio !== pres.precio) {
+      eventos.push(nuevoEvento(LOG_TIPOS.PRECIO_EDITADO, `${nombreProducto(product?.nombre, pres.tamano)}: ${this.dinero(pres.precio)} → ${this.dinero(Number(cambios.precio))}`));
+    }
+    const delta = cambios.stock !== undefined ? redondearStock(cambios.stock - pres.stock) : 0;
+    if (delta !== 0) {
+      const razon = razonAjuste.trim() ? ` · Razón: ${razonAjuste.trim()}` : '';
+      eventos.push(nuevoEvento(LOG_TIPOS.STOCK_AJUSTADO, `Stock ajustado: ${nombreProducto(product?.nombre, pres.tamano)} · ${pres.stock} → ${cambios.stock} uds${razon}`));
+    }
+
     this.setState(prev => ({
       products: prev.products.map(p =>
         p.id === productId
@@ -374,65 +495,168 @@ export class StoreProvider extends Component {
           : p,
       ),
     }));
-    if (pres) {
-      if (cambios.precio !== undefined && cambios.precio !== pres.precio) {
-        this.logEvent(LOG_TIPOS.PRECIO_EDITADO, `${product?.nombre} ${pres.tamano}: $${pres.precio.toFixed(2)} → $${Number(cambios.precio).toFixed(2)}`);
-      }
-      if (cambios.stock !== undefined && cambios.stock !== pres.stock) {
-        this.logEvent(LOG_TIPOS.STOCK_AJUSTADO, `Stock ajustado: ${product?.nombre} ${pres.tamano} · ${pres.stock} → ${cambios.stock} uds`);
-      }
-    }
+    persistir(async tx => {
+      await editarPresentacion(tx, presentacionId, cambios); // ignora `stock` a propósito
+      await registrarMovimiento(tx, { presentacionId, cantidad: delta, tipo: 'ajuste' });
+      for (const evento of eventos) await crearEvento(tx, evento);
+    }, 'updatePresentacion');
   };
 
   agregarStock = (productId, presentacionId, cantidad) => {
     const product = this.state.products.find(p => p.id === productId);
     const pres = product?.presentaciones.find(pr => pr.id === presentacionId);
+    const evento = nuevoEvento(
+      LOG_TIPOS.STOCK_AGREGADO,
+      `+${cantidad} ${pres?.esGranel ? (pres?.unidadGranel ?? 'uds') : 'uds'} · ${nombreProducto(product?.nombre ?? productId, pres?.tamano)} (stock anterior: ${pres?.stock ?? '?'})`,
+    );
     this.setState(prev => ({
       products: prev.products.map(p =>
         p.id === productId
-          ? { ...p, presentaciones: p.presentaciones.map(pr => pr.id === presentacionId ? { ...pr, stock: pr.stock + cantidad } : pr) }
+          ? { ...p, presentaciones: p.presentaciones.map(pr => pr.id === presentacionId ? { ...pr, stock: redondearStock(pr.stock + cantidad) } : pr) }
           : p,
       ),
     }));
-    this.logEvent(
-      LOG_TIPOS.STOCK_AGREGADO,
-      `+${cantidad} ${pres?.esGranel ? (pres?.unidadGranel ?? 'uds') : 'uds'} · ${product?.nombre ?? productId} ${pres?.tamano ?? ''} (stock anterior: ${pres?.stock ?? '?'})`,
-    );
+    persistir(async tx => {
+      await registrarMovimiento(tx, { presentacionId, cantidad, tipo: 'ajuste' });
+      await crearEvento(tx, evento);
+    }, 'agregarStock');
   };
 
   deletePresentacion = (productId, presentacionId) => {
     const product = this.state.products.find(p => p.id === productId);
     const pres = product?.presentaciones.find(pr => pr.id === presentacionId);
+    // Si era la última presentación, el producto también desaparece.
+    const eraLaUltima = product?.presentaciones.length === 1;
+    const evento = nuevoEvento(LOG_TIPOS.PRESENTACION_ELIMINADA, `Eliminada: ${nombreProducto(product?.nombre ?? productId, pres?.tamano)}`);
     this.setState(prev => ({
       products: prev.products
         .map(p => p.id === productId ? { ...p, presentaciones: p.presentaciones.filter(pr => pr.id !== presentacionId) } : p)
         .filter(p => p.presentaciones.length > 0),
     }));
-    this.logEvent(LOG_TIPOS.PRESENTACION_ELIMINADA, `Eliminada: ${product?.nombre ?? productId} ${pres?.tamano ?? presentacionId}`);
+    persistir(async tx => {
+      await eliminarPresentacion(tx, presentacionId);
+      if (eraLaUltima) await eliminarProducto(tx, productId);
+      await crearEvento(tx, evento);
+    }, 'deletePresentacion');
   };
 
+  /**
+   * Descuenta stock. Hoy solo lo usa ConsumoPropioView (esConsumoPropio =
+   * true, registra su evento). Las ventas descuentan su stock dentro de
+   * addSale, en la misma transacción que la venta.
+   */
   decreaseStock = (items, esConsumoPropio = false) => {
-    this.setState(prev => ({
-      products: prev.products.map(p => ({
-        ...p,
-        presentaciones: p.presentaciones.map(pres => {
-          const match = items.find(i => i.productId === p.id && i.presentacionId === pres.id);
-          return match ? { ...pres, stock: pres.stock - match.cantidad } : pres;
-        }),
-      })),
-    }));
+    let evento = null;
     if (esConsumoPropio) {
       const resumen = items.map(i => {
         const product = this.state.products.find(p => p.id === i.productId);
         const pres = product?.presentaciones.find(pr => pr.id === i.presentacionId);
         const unidad = pres?.esGranel ? (pres?.unidadGranel ?? '') : '×';
-        return `${i.cantidad}${pres?.esGranel ? ' ' + unidad : ' ×'} ${product?.nombre ?? i.productId} ${pres?.tamano ?? ''}`;
+        return `${i.cantidad}${pres?.esGranel ? ' ' + unidad : ' ×'} ${nombreProducto(product?.nombre ?? i.productId, pres?.tamano)}`;
       }).join(', ');
-      this.logEvent(LOG_TIPOS.CONSUMO_PROPIO, `Consumo propio: ${resumen}`);
+      evento = nuevoEvento(LOG_TIPOS.CONSUMO_PROPIO, `Consumo propio: ${resumen}`);
     }
+    this.setState(prev => ({
+      products: prev.products.map(p => ({
+        ...p,
+        presentaciones: p.presentaciones.map(pres => {
+          const match = items.find(i => i.productId === p.id && i.presentacionId === pres.id);
+          return match ? { ...pres, stock: redondearStock(pres.stock - match.cantidad) } : pres;
+        }),
+      })),
+    }));
+    persistir(async tx => {
+      for (const item of items) {
+        await registrarMovimiento(tx, {
+          presentacionId: item.presentacionId,
+          cantidad:       -item.cantidad,
+          tipo:           esConsumoPropio ? 'consumo' : 'venta',
+        });
+      }
+      if (evento) await crearEvento(tx, evento);
+    }, 'decreaseStock');
   };
 
   // ─── Compras ──────────────────────────────────────────────────────────────
+
+  /**
+   * Cálculo único que usan addCompra, editarCompra y eliminarCompra.
+   * Función pura: no toca el estado, solo devuelve lo que hay que aplicar.
+   *
+   *   revertir: ítems de una compra ya registrada cuyo efecto se deshace
+   *             (stock − cantidad, sin bajar de 0; precioCompra restaurado si
+   *             nadie lo cambió después de esa compra)
+   *   aplicar:  ítems cuyo efecto se aplica (stock + cantidad, precioCompra =
+   *             costoUnitario). Se les agrega id y precioCompraAnterior.
+   *
+   *   actuales: { presentacionId: { productId, stock, precioCompra } } —
+   *             de la BD (leerPresentaciones, dentro de la transacción) o de
+   *             memoria (presentacionesEnMemoria, en addCompra)
+   *
+   * Devuelve { movimientos, precios, itemsAplicados }:
+   *   movimientos: [{ presentacionId, cantidad, tipo }] con la diferencia REAL
+   *                de stock (si el tope de 0 recortó la reversión, se registra
+   *                lo que de verdad bajó, para que SUM(movimientos) = stock)
+   *   precios:     [{ presentacionId, precioCompra }] final de cada presentación tocada
+   * (El catálogo en memoria se actualiza aparte con aplicarEfecto.)
+   * Como antes, si una presentación aparece dos veces en la misma lista,
+   * solo cuenta la primera.
+   */
+  calcularEfectoCompra = (actuales, revertir = [], aplicar = []) => {
+    // Copia de trabajo: la reversión cambia stock/precio antes de aplicar.
+    const pres = {};
+    Object.entries(actuales).forEach(([id, p]) => { pres[id] = { ...p }; });
+    const movimientos = [];
+    const tocadas = new Set();
+
+    // 1. Revertir los ítems anteriores
+    const revertidas = new Set();
+    revertir.forEach(item => {
+      if (!existeEn(pres, item) || revertidas.has(item.presentacionId)) return;
+      revertidas.add(item.presentacionId);
+      const p = pres[item.presentacionId];
+      const stock = redondearStock(Math.max(0, p.stock - item.cantidad));
+      if (p.precioCompra === item.costoUnitario) p.precioCompra = item.precioCompraAnterior ?? p.precioCompra;
+      movimientos.push({ presentacionId: item.presentacionId, cantidad: redondearStock(stock - p.stock), tipo: 'reversion_compra' });
+      p.stock = stock;
+      tocadas.add(item.presentacionId);
+    });
+
+    // 2. Capturar precioCompraAnterior (post-reversión) y aplicar los ítems nuevos
+    const itemsAplicados = aplicar.map(item => ({
+      ...item,
+      id: newId(),
+      precioCompraAnterior: existeEn(pres, item) ? pres[item.presentacionId].precioCompra : null,
+    }));
+
+    const aplicadas = new Set();
+    itemsAplicados.forEach(item => {
+      if (!existeEn(pres, item) || aplicadas.has(item.presentacionId)) return;
+      aplicadas.add(item.presentacionId);
+      const p = pres[item.presentacionId];
+      movimientos.push({ presentacionId: item.presentacionId, cantidad: item.cantidad, tipo: 'compra' });
+      p.stock = redondearStock(p.stock + item.cantidad);
+      p.precioCompra = item.costoUnitario;
+      tocadas.add(item.presentacionId);
+    });
+
+    const precios = [...tocadas].map(presentacionId => ({
+      presentacionId,
+      precioCompra: pres[presentacionId].precioCompra ?? null,
+    }));
+
+    return { movimientos, precios, itemsAplicados };
+  };
+
+  // Guarda en la transacción los movimientos y precios que calculó calcularEfectoCompra.
+  persistirEfectoCompra = async (tx, { movimientos, precios }, compraId, fecha) => {
+    for (const m of movimientos) {
+      await registrarMovimiento(tx, { presentacionId: m.presentacionId, cantidad: m.cantidad, tipo: m.tipo, refId: compraId, fecha });
+    }
+    for (const p of precios) {
+      await editarPresentacion(tx, p.presentacionId, { precioCompra: p.precioCompra });
+    }
+  };
 
   /**
    * Registra una compra de mercancía.
@@ -450,467 +674,538 @@ export class StoreProvider extends Component {
    * espera en el `compra` de entrada) para que `editarCompra` pueda restaurar
    * el precio de compra previo si esta compra se corrige más adelante.
    *
-   * Efectos colaterales:
-   *   1. Suma stock a cada presentación involucrada.
+   * Efectos colaterales (memoria y BD, todo o nada):
+   *   1. Suma stock a cada presentación involucrada (movimientos 'compra').
    *   2. Actualiza precioCompra de cada presentación con el costoUnitario de esta compra.
-   *   3. Registra logEvent 'compra'.
+   *   3. Registra el evento 'compra'.
    *
-   * Todo lo anterior ocurre en un solo setState (todo o nada): si algún ítem
-   * referencia un producto/presentación que ya no existe, la función no
-   * cambia nada y devuelve null, en vez de guardar la compra a medias con el
-   * inventario desincronizado.
+   * Si algún ítem referencia un producto/presentación que ya no existe, la
+   * función no cambia nada y devuelve null, en vez de guardar la compra a
+   * medias con el inventario desincronizado.
    */
   addCompra = compra => {
     // Validar ANTES de tocar cualquier estado.
-    const sinPresentacion = compra.items.find(item => {
-      const producto = this.state.products.find(p => p.id === item.productId);
-      return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
-    });
+    const sinPresentacion = compra.items.find(item => !this.existePresentacion(item.productId, item.presentacionId));
     if (sinPresentacion) {
       console.warn('addCompra: presentación no encontrada, compra cancelada', sinPresentacion);
       return null;
     }
 
-    const fecha = new Date().toISOString();
+    // Una compra nueva no necesita historial: se calcula con el catálogo en
+    // memoria y se aplica al momento (como addSale).
+    const fecha = nowIso();
+    const efecto = this.calcularEfectoCompra(this.presentacionesEnMemoria(), [], compra.items);
+    const nuevaCompra = { ...compra, id: newId(), fecha, items: efecto.itemsAplicados };
 
-    // Antes de tocar el stock, guardamos el precioCompra vigente de cada
-    // presentación en el propio ítem (precioCompraAnterior). Así, si esta
-    // compra se edita o elimina más adelante, se puede restaurar el precio
-    // previo en vez de dejarlo pegado al de esta compra.
-    const items = compra.items.map(item => {
-      const producto = this.state.products.find(p => p.id === item.productId);
-      const pres = producto.presentaciones.find(pr => pr.id === item.presentacionId);
-      return { ...item, precioCompraAnterior: pres.precioCompra ?? null };
-    });
-
-    const nuevaCompra = { id: nuevoIdCompra(), fecha, ...compra, items };
+    const nProd = nuevaCompra.items.length;
+    const moneda = this.state.config?.moneda ?? '$';
+    const evento = nuevoEvento(
+      LOG_TIPOS.COMPRA,
+      `Compra ${moneda}${compra.total.toFixed(2)} · ${nProd} ${nProd === 1 ? 'producto' : 'productos'} · ${compra.proveedor || 'Sin proveedor'} (${compra.tipoPago})`,
+    );
 
     this.setState(prev => ({
-      compras: [nuevaCompra, ...prev.compras],
-      products: prev.products.map(p => {
-        const itemsDelProducto = items.filter(i => i.productId === p.id);
-        if (itemsDelProducto.length === 0) return p;
-        return {
-          ...p,
-          presentaciones: p.presentaciones.map(pres => {
-            const item = itemsDelProducto.find(i => i.presentacionId === pres.id);
-            return item
-              ? normalizarPresentacion({ ...pres, stock: pres.stock + item.cantidad, precioCompra: item.costoUnitario })
-              : pres;
-          }),
-        };
-      }),
+      products:    aplicarEfecto(prev.products, efecto),
     }));
 
-    const nProd = items.length;
-    const moneda = this.state.config?.moneda ?? '$';
-    this.logEvent(
-      LOG_TIPOS.COMPRA,
-      `Compra ${moneda}${compra.total.toFixed(2)} · ${nProd} ${nProd === 1 ? 'producto' : 'productos'} · ${compra.proveedor} (${compra.tipoPago})`,
-    );
+    persistir(async tx => {
+      await crearCompra(tx, nuevaCompra);
+      await this.persistirEfectoCompra(tx, efecto, nuevaCompra.id, fecha);
+      await crearEvento(tx, evento);
+    }, 'addCompra');
 
     return nuevaCompra;
   };
 
   /**
    * Edita una compra ya registrada: revierte el efecto en stock/precioCompra
-   * de los ítems anteriores y vuelve a aplicar los ítems nuevos, en un solo
-   * setState atómico para que ambos pasos vean siempre el mismo estado base.
+   * de los ítems anteriores y vuelve a aplicar los ítems nuevos, en una sola
+   * transacción. En la BD los ítems se REEMPLAZAN (ver repositories/compras.js).
    *
    * El precioCompra solo se restaura al valor anterior si nadie más lo
    * cambió después de esta compra (si ya no coincide con el costoUnitario
    * que esta compra fijó, lo dejamos como está para no pisar un dato más
    * reciente).
+   *
+   * Asíncrona: la compra y el stock/precio actuales se leen de la BD dentro
+   * de la transacción. Devuelve (promesa) true si se guardó, false si la
+   * compra o algún producto ya no existe (no se cambia nada), o null si
+   * falló la escritura (ya se avisó).
    */
-  editarCompra = (compraId, cambios) => {
-    const compraAnterior = this.state.compras.find(c => c.id === compraId);
-    if (!compraAnterior) return false;
+  editarCompra = (compraId, cambios) => this.decidirEnBD('editarCompra', async tx => {
+    const compraAnterior = await obtenerCompra(compraId, tx);
+    if (!compraAnterior) return { resultado: false };
 
     const itemsAnteriores = compraAnterior.items ?? [];
     const itemsNuevos = cambios.items ?? [];
+    const actuales = await leerPresentaciones(tx, [...itemsAnteriores, ...itemsNuevos].map(i => i.presentacionId));
 
-    // Validar ANTES de tocar cualquier estado — mismo criterio que addCompra:
-    // si un ítem nuevo ya no tiene producto/presentación, no se aplica nada.
-    const itemInvalido = itemsNuevos.find(item => {
-      const producto = this.state.products.find(p => p.id === item.productId);
-      return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
-    });
+    // Validar ANTES de escribir — mismo criterio que addCompra: si un ítem
+    // nuevo ya no tiene producto/presentación, no se aplica nada.
+    const itemInvalido = itemsNuevos.find(item => !existeEn(actuales, item));
     if (itemInvalido) {
       console.warn('editarCompra: presentación no encontrada, edición cancelada', itemInvalido);
-      return false;
+      return { resultado: false };
     }
 
-    this.setState(prev => {
-      // 1. Revertir stock y precioCompra de los ítems anteriores
-      let products = prev.products.map(p => ({
-        ...p,
-        presentaciones: p.presentaciones.map(pres => {
-          const match = itemsAnteriores.find(i => i.productId === p.id && i.presentacionId === pres.id);
-          if (!match) return pres;
-          const stockRevertido = Math.max(0, pres.stock - match.cantidad);
-          const precioCompra = pres.precioCompra === match.costoUnitario
-            ? (match.precioCompraAnterior ?? pres.precioCompra)
-            : pres.precioCompra;
-          return normalizarPresentacion({ ...pres, stock: stockRevertido, precioCompra });
-        }),
-      }));
-
-      // 2. Capturar precioCompraAnterior (post-reversión) y aplicar los ítems nuevos
-      const itemsNuevosConAnterior = itemsNuevos.map(item => {
-        const producto = products.find(p => p.id === item.productId);
-        const pres = producto?.presentaciones.find(pr => pr.id === item.presentacionId);
-        return { ...item, precioCompraAnterior: pres?.precioCompra ?? null };
-      });
-
-      products = products.map(p => ({
-        ...p,
-        presentaciones: p.presentaciones.map(pres => {
-          const match = itemsNuevosConAnterior.find(i => i.productId === p.id && i.presentacionId === pres.id);
-          if (!match) return pres;
-          return normalizarPresentacion({ ...pres, stock: pres.stock + match.cantidad, precioCompra: match.costoUnitario });
-        }),
-      }));
-
-      const compraActualizada = { ...compraAnterior, ...cambios, items: itemsNuevosConAnterior };
-
-      return {
-        products,
-        compras: prev.compras.map(c => (c.id === compraId ? compraActualizada : c)),
-      };
-    });
+    const efecto = this.calcularEfectoCompra(actuales, itemsAnteriores, itemsNuevos);
+    const compraActualizada = { ...compraAnterior, ...cambios, id: compraAnterior.id, items: efecto.itemsAplicados };
 
     const moneda = this.state.config?.moneda ?? '$';
-    const total = cambios.total ?? compraAnterior.total;
-    const proveedor = cambios.proveedor ?? compraAnterior.proveedor;
-    this.logEvent(
+    const evento = nuevoEvento(
       LOG_TIPOS.COMPRA_EDITADA,
-      `Compra editada · ${moneda}${total.toFixed(2)} · ${proveedor}`,
+      `Compra editada · ${moneda}${compraActualizada.total.toFixed(2)} · ${compraActualizada.proveedor || 'Sin proveedor'}`,
     );
-    return true;
-  };
+
+    await editarCompraBD(tx, compraActualizada); // cabecera + reemplazo de ítems
+    await this.persistirEfectoCompra(tx, efecto, compraId, nowIso());
+    await crearEvento(tx, evento);
+    return { resultado: true, efecto };
+  });
 
   /**
    * Elimina una compra del historial.
    * Si revertirStock es true, descuenta del inventario las cantidades que entró la compra
    * y, cuando es seguro (nadie cambió el precio desde entonces), restaura el
    * precioCompra que tenía la presentación antes de esta compra — misma lógica que
-   * usa editarCompra.
+   * usa editarCompra (calcularEfectoCompra).
+   * Asíncrona (lee la compra en la transacción). Devuelve (promesa)
+   * { itemsNoEncontrados }, o null si la compra ya no existe o falló.
    */
-  eliminarCompra = (compraId, revertirStock) => {
-    const compra = this.state.compras.find(c => c.id === compraId);
-    if (!compra) return null;
+  eliminarCompra = (compraId, revertirStock) => this.decidirEnBD('eliminarCompra', async tx => {
+    const compra = await obtenerCompra(compraId, tx);
+    if (!compra) return { resultado: null };
 
-    const debeRevertir = revertirStock && Array.isArray(compra.items);
+    const items = compra.items ?? [];
+    const actuales = revertirStock ? await leerPresentaciones(tx, items.map(i => i.presentacionId)) : {};
 
     // Detectar (sin bloquear el borrado) ítems cuya presentación ya no
     // existe — para esos no hay nada que revertir; se avisa en vez de
     // fallar en silencio.
-    const itemsNoEncontrados = debeRevertir
-      ? compra.items.filter(item => {
-          const producto = this.state.products.find(p => p.id === item.productId);
-          return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
-        })
-      : [];
+    const itemsNoEncontrados = revertirStock ? items.filter(item => !existeEn(actuales, item)) : [];
 
-    this.setState(prev => ({
-      compras: prev.compras.filter(c => c.id !== compraId),
-      products: debeRevertir
-        ? prev.products.map(p => ({
-            ...p,
-            presentaciones: p.presentaciones.map(pres => {
-              const match = compra.items.find(i => i.productId === p.id && i.presentacionId === pres.id);
-              if (!match) return pres;
-              const stockRevertido = Math.max(0, pres.stock - match.cantidad);
-              const precioCompra = pres.precioCompra === match.costoUnitario
-                ? (match.precioCompraAnterior ?? pres.precioCompra)
-                : pres.precioCompra;
-              return normalizarPresentacion({ ...pres, stock: stockRevertido, precioCompra });
-            }),
-          }))
-        : prev.products,
-    }));
+    const efecto = revertirStock
+      ? this.calcularEfectoCompra(actuales, items, [])
+      : { movimientos: [], precios: [] };
 
     const moneda = this.state.config?.moneda ?? '$';
     const stock = revertirStock ? ' · stock revertido' : '';
-    this.logEvent(
+    const evento = nuevoEvento(
       LOG_TIPOS.COMPRA_ELIMINADA,
-      `Compra ${moneda}${compra.total.toFixed(2)} eliminada · ${compra.proveedor}${stock}`,
+      `Compra ${moneda}${compra.total.toFixed(2)} eliminada · ${compra.proveedor || 'Sin proveedor'}${stock}`,
     );
-    return { itemsNoEncontrados };
-  };
+
+    await eliminarCompraBD(tx, compraId); // cascada: compra + ítems
+    await this.persistirEfectoCompra(tx, efecto, compraId, nowIso());
+    await crearEvento(tx, evento);
+    return { resultado: { itemsNoEncontrados }, efecto };
+  });
 
   // ─── Categorías ───────────────────────────────────────────────────────────
 
   addCategory = nombre => {
-    const newCat = { id: Date.now().toString(), nombre: nombre.trim() };
-    this.setState(prev => ({ categories: [...prev.categories, newCat] }));
-    this.logEvent(LOG_TIPOS.CATEGORIA_CREADA, `Nueva categoría: ${nombre.trim()}`);
+    const newCat = { id: newId(), nombre: nombre.trim() };
+    const evento = nuevoEvento(LOG_TIPOS.CATEGORIA_CREADA, `Nueva categoría: ${nombre.trim()}`);
+    this.setState(prev => ({
+      categories:  [...prev.categories, newCat],
+    }));
+    persistir(async tx => {
+      await crearCategoria(tx, newCat);
+      await crearEvento(tx, evento);
+    }, 'addCategory');
+    return newCat;
   };
 
+  // Protegida aquí también (no solo en CategoriasModal): no se permite un
+  // nombre que ya tenga OTRA categoría (ni "Todos"). Devuelve true/false.
   renameCategory = (id, nuevoNombre) => {
+    if (String(id) === String(CATEGORIA_TODOS.id)) return false;
+    const nombreNorm = nuevoNombre.trim().toLowerCase();
+    const duplicada = nombreNorm === CATEGORIA_TODOS.nombre.toLowerCase()
+      || this.state.categories.some(c => String(c.id) !== String(id) && c.nombre.toLowerCase() === nombreNorm);
+    if (!nombreNorm || duplicada) {
+      console.warn('renameCategory: nombre vacío o de otra categoría, no se renombra', nuevoNombre);
+      return false;
+    }
     const cat = this.state.categories.find(c => String(c.id) === String(id));
+    const evento = nuevoEvento(LOG_TIPOS.CATEGORIA_RENOMBRADA, `Categoría renombrada: "${cat?.nombre ?? id}" → "${nuevoNombre.trim()}"`);
     this.setState(prev => ({
-      categories: prev.categories.map(c => String(c.id) === String(id) ? { ...c, nombre: nuevoNombre.trim() } : c),
+      categories:  prev.categories.map(c => String(c.id) === String(id) ? { ...c, nombre: nuevoNombre.trim() } : c),
     }));
-    this.logEvent(LOG_TIPOS.CATEGORIA_RENOMBRADA, `Categoría renombrada: "${cat?.nombre ?? id}" → "${nuevoNombre.trim()}"`);
+    persistir(async tx => {
+      await renombrarCategoria(tx, id, nuevoNombre.trim());
+      await crearEvento(tx, evento);
+    }, 'renameCategory');
+    return true;
   };
 
   // Protegida aquí (no solo en CategoriasModal): si algún producto sigue
   // asignado a esta categoría, no se borra — dejaría productos con
-  // categoriaId huérfana sin forma de repararlo desde la UI.
+  // categoriaId huérfana. Para liberarla, primero se reasignan los productos
+  // con updateProduct (botón ✏️ en ProductDetailView).
   deleteCategory = id => {
+    if (String(id) === String(CATEGORIA_TODOS.id)) return false;
     const enUso = this.state.products.some(p => String(p.categoriaId) === String(id));
     if (enUso) {
       console.warn('deleteCategory: categoría en uso, no se elimina', id);
       return false;
     }
     const cat = this.state.categories.find(c => String(c.id) === String(id));
-    this.setState(prev => ({ categories: prev.categories.filter(c => String(c.id) !== String(id)) }));
-    this.logEvent(LOG_TIPOS.CATEGORIA_ELIMINADA, `Categoría eliminada: ${cat?.nombre ?? id}`);
+    const evento = nuevoEvento(LOG_TIPOS.CATEGORIA_ELIMINADA, `Categoría eliminada: ${cat?.nombre ?? id}`);
+    this.setState(prev => ({
+      categories:  prev.categories.filter(c => String(c.id) !== String(id)),
+    }));
+    persistir(async tx => {
+      await eliminarCategoria(tx, id);
+      await crearEvento(tx, evento);
+    }, 'deleteCategory');
     return true;
   };
 
   // ─── Ventas ───────────────────────────────────────────────────────────────
+  // addSale sigue el patrón "calcular primero, aplicar después": todo lo que
+  // necesita está en memoria (catálogo y clientes), así que calcula una vez y
+  // aplica ese resultado en memoria (setState) y en disco (persistir).
+  // Las acciones sobre ventas YA registradas (abonar, corregir, condonar,
+  // eliminar, devolver) leen la venta de la BD dentro de su transacción
+  // (decidirEnBD) y son asíncronas.
 
+  /**
+   * Resuelve el nombre escrito a un cliente existente (misma normalización
+   * que la BD) o prepara uno nuevo con id ya generado.
+   * Devuelve { cliente, clienteNuevo } — clienteNuevo solo si hay que crearlo.
+   */
+  resolverCliente = nombre => {
+    const limpio = limpiarNombre(nombre);
+    if (!limpio) return { cliente: null, clienteNuevo: null };
+    const norm = normalizarNombre(limpio);
+    const existente = this.state.clientes.find(c => normalizarNombre(c.nombre) === norm);
+    if (existente) return { cliente: existente, clienteNuevo: null };
+    const nuevo = { id: newId(), nombre: limpio };
+    return { cliente: nuevo, clienteNuevo: nuevo };
+  };
+
+  // ¿Existe (viva) esta presentación en el catálogo en memoria? Si no, no
+  // hay a dónde mover stock. (Las acciones que deciden en la BD usan
+  // existeEn con leerPresentaciones.)
+  existePresentacion = (productId, presentacionId) => {
+    const producto = this.state.products.find(p => p.id === productId);
+    return !!producto?.presentaciones.find(pr => pr.id === presentacionId);
+  };
+
+  /**
+   * Registra una venta Y descuenta su stock, todo en una transacción
+   * (antes Main.js llamaba a decreaseStock por separado: si la app se cerraba
+   * entre las dos, quedaba stock descontado sin venta).
+   */
   addSale = sale => {
-    const fecha = new Date().toISOString();
-    const newSale = { id: Date.now().toString(), fecha, totalAbonado: 0, condonado: 0, ...sale };
-    const abonoInicial = newSale.totalAbonado > 0.009;
+    const fecha = nowIso();
+    const esCredito = sale.tipoPago === 'Credito';
+    const { cliente, clienteNuevo } = esCredito ? this.resolverCliente(sale.cliente) : { cliente: null, clienteNuevo: null };
+
+    const newSale = {
+      totalAbonado: 0, condonado: 0, ...sale,
+      id:        newId(),
+      fecha,
+      cliente:   cliente?.nombre ?? null,
+      clienteId: cliente?.id ?? null,
+      // Solo la "foto" del producto; lo demás del carrito (stock,
+      // cantidadTexto…) no es parte de la venta.
+      productos: (sale.productos ?? []).map(p => ({
+        id:             newId(),
+        productId:      p.productId,
+        presentacionId: p.presentacionId,
+        nombre:         p.nombre,
+        marca:          p.marca ?? '',
+        tamano:         p.tamano ?? '',
+        precio:         p.precio,
+        precioCompra:   p.precioCompra ?? null,
+        esGranel:       !!p.esGranel,
+        unidadGranel:   p.unidadGranel ?? null,
+        numProducts:    p.numProducts,
+        totalPrice:     p.totalPrice,
+      })),
+    };
+
+    const abonoInicial = newSale.totalAbonado > 0.009
+      ? { id: newId(), fecha, clienteId: newSale.clienteId, ventaId: newSale.id, monto: newSale.totalAbonado, tipo: 'abono' }
+      : null;
+
+    const salidas = newSale.productos
+      .filter(p => this.existePresentacion(p.productId, p.presentacionId))
+      .map(p => ({ productId: p.productId, presentacionId: p.presentacionId, cantidad: -p.numProducts }));
+
+    const numProd = newSale.productos.length;
+    const evento = esCredito
+      ? nuevoEvento(
+          LOG_TIPOS.VENTA_CREDITO,
+          abonoInicial
+            ? `Venta ${this.dinero(newSale.total)} a crédito · ${newSale.cliente} · abono inicial ${this.dinero(newSale.totalAbonado)}`
+            : `Venta ${this.dinero(newSale.total)} a crédito · ${newSale.cliente}`,
+        )
+      : nuevoEvento(LOG_TIPOS.VENTA, `Venta ${this.dinero(newSale.total)} · ${numProd} ${numProd === 1 ? 'producto' : 'productos'} (Contado)`);
+
     this.setState(prev => ({
-      sales: [newSale, ...prev.sales],
-      abonos: abonoInicial
-        ? [...prev.abonos, { id: nuevoIdAbono(), fecha, cliente: (newSale.cliente || '').trim(), ventaId: newSale.id, monto: newSale.totalAbonado, tipo: 'abono' }]
-        : prev.abonos,
+      clientes:    clienteNuevo ? [...prev.clientes, clienteNuevo] : prev.clientes,
+      products:    aplicarEfecto(prev.products, { movimientos: salidas }),
     }));
-    const numProd = Array.isArray(newSale.productos) ? newSale.productos.length : 0;
-    if (newSale.tipoPago === 'Credito') {
-      this.logEvent(
-        LOG_TIPOS.VENTA_CREDITO,
-        abonoInicial
-          ? `Venta $${newSale.total.toFixed(2)} a crédito · ${newSale.cliente} · abono inicial $${newSale.totalAbonado.toFixed(2)}`
-          : `Venta $${newSale.total.toFixed(2)} a crédito · ${newSale.cliente}`,
-      );
-    } else {
-      this.logEvent(LOG_TIPOS.VENTA, `Venta $${newSale.total.toFixed(2)} · ${numProd} ${numProd === 1 ? 'producto' : 'productos'} (Contado)`);
-    }
+
+    persistir(async tx => {
+      if (clienteNuevo) await crearCliente(tx, clienteNuevo);
+      await crearVenta(tx, newSale);
+      if (abonoInicial) await crearAbono(tx, abonoInicial);
+      for (const s of salidas) {
+        await registrarMovimiento(tx, { presentacionId: s.presentacionId, cantidad: s.cantidad, tipo: 'venta', refId: newSale.id, fecha });
+      }
+      await crearEvento(tx, evento);
+    }, 'addSale');
+
     return newSale;
   };
 
+  /**
+   * Abono de un cliente: se reparte entre sus ventas a crédito pendientes,
+   * liquidando primero las más antiguas (aging real de la deuda).
+   * Asíncrona: las ventas con saldo se leen de la BD en la transacción.
+   * El cliente se identifica por id (el nombre se resuelve con la misma
+   * normalización que la BD); nombre vacío = ventas a crédito sin cliente.
+   */
   registrarAbono = (clienteNombre, monto) => {
-    const fecha = new Date().toISOString();
-    this.setState(prev => {
+    const limpio = limpiarNombre(clienteNombre ?? '');
+    const cliente = limpio
+      ? this.state.clientes.find(c => normalizarNombre(c.nombre) === normalizarNombre(limpio))
+      : null;
+    if (limpio && !cliente) {
+      console.warn('registrarAbono: cliente no encontrado', limpio);
+      return Promise.resolve(null);
+    }
+    const evento = nuevoEvento(LOG_TIPOS.ABONO, `Abono ${this.dinero(monto)} · ${clienteNombre}`);
+
+    return this.decidirEnBD('registrarAbono', async tx => {
+      const fecha = nowIso();
       let restante = monto;
-      const eventos = [];
-      const aplicados = {}; // saleId -> nuevo totalAbonado
-
-      // Liquidar primero las ventas más antiguas (orden de aging real de la
-      // deuda), no el orden en que aparecen en el arreglo (que es más
-      // reciente primero, porque addSale inserta al inicio).
-      const ventasOrdenadas = prev.sales
-        .filter(sale => sale.tipoPago === 'Credito' && (sale.cliente || '').trim() === clienteNombre.trim())
-        .sort((a, b) => (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
-
-      for (const sale of ventasOrdenadas) {
+      const ventas = await ventasCreditoConSaldo(tx, cliente?.id ?? null);
+      for (const sale of ventas) {
         if (restante <= 0) break;
         const pendiente = sale.total - (sale.totalAbonado ?? 0) - (sale.condonado ?? 0);
         if (pendiente <= 0) continue;
         const aplicar = Math.min(pendiente, restante);
         restante -= aplicar;
-        eventos.push({ id: nuevoIdAbono(), fecha, cliente: (sale.cliente || '').trim(), ventaId: sale.id, monto: aplicar, tipo: 'abono' });
-        aplicados[sale.id] = (sale.totalAbonado ?? 0) + aplicar;
+        await actualizarTotalesVenta(tx, sale.id, { totalAbonado: (sale.totalAbonado ?? 0) + aplicar });
+        await crearAbono(tx, { id: newId(), fecha, clienteId: sale.clienteId ?? null, ventaId: sale.id, monto: aplicar, tipo: 'abono' });
       }
-
-      const sales = prev.sales.map(sale => aplicados[sale.id] !== undefined ? { ...sale, totalAbonado: aplicados[sale.id] } : sale);
-      return { sales, abonos: [...prev.abonos, ...eventos] };
+      await crearEvento(tx, evento);
+      return { resultado: true };
     });
-    this.logEvent(LOG_TIPOS.ABONO, `Abono $${monto.toFixed(2)} · ${clienteNombre}`);
   };
 
-  ajustarAbonoVenta = (saleId, nuevoAbonado) => {
-    const sale = this.state.sales.find(s => String(s.id) === String(saleId));
-    const abonoAnterior = sale?.totalAbonado ?? 0;
-    this.setState(prev => {
-      const saleLocal = prev.sales.find(s => String(s.id) === String(saleId));
-      if (!saleLocal) return null;
-      const techo = Math.max(0, saleLocal.total - (saleLocal.condonado ?? 0));
-      const nuevo  = Math.max(0, Math.min(nuevoAbonado, techo));
-      const actual = saleLocal.totalAbonado ?? 0;
-      const delta  = nuevo - actual;
-      if (Math.abs(delta) < 0.0005) return null;
-      const eventosDeVenta = prev.abonos
-        .map((a, idx) => ({ a, idx }))
-        .filter(x => String(x.a.ventaId) === String(saleId) && x.a.tipo === 'abono')
-        .sort((x, y) => (x.a.fecha > y.a.fecha ? -1 : 1));
-      const abonos = prev.abonos.slice();
-      let pendiente = delta;
-      for (const { a, idx } of eventosDeVenta) {
-        if (Math.abs(pendiente) < 0.0005) break;
-        const cambio = pendiente > 0 ? pendiente : Math.max(pendiente, -a.monto);
-        abonos[idx] = { ...a, monto: a.monto + cambio };
-        pendiente -= cambio;
-      }
-      if (eventosDeVenta.length === 0 && nuevo > 0.0005) {
-        // Fecha de HOY, no la de la venta: este evento representa dinero que
-        // se está registrando ahora (vía "Editar abono"), y así lo cuenta
-        // el corte de caja del día en que realmente se captura.
-        abonos.push({ id: nuevoIdAbono(), fecha: new Date().toISOString(), cliente: (saleLocal.cliente || '').trim(), ventaId: saleLocal.id, monto: nuevo, tipo: 'abono' });
-      }
-      const sumaEventos = abonos.filter(a => String(a.ventaId) === String(saleId) && a.tipo === 'abono').reduce((s, a) => s + a.monto, 0);
-      const totalFinal  = sumaEventos >= nuevo - 0.0005 ? nuevo : sumaEventos;
-      return { sales: prev.sales.map(s => String(s.id) === String(saleId) ? { ...s, totalAbonado: totalFinal } : s), abonos };
-    });
-    if (sale) this.logEvent(LOG_TIPOS.ABONO_EDITADO, `Abono corregido $${abonoAnterior.toFixed(2)} → $${nuevoAbonado.toFixed(2)} · ${sale.cliente ?? 'cliente'}`);
-  };
+  ajustarAbonoVenta = (saleId, nuevoAbonado) => this.decidirEnBD('ajustarAbonoVenta', async tx => {
+    const sale = await obtenerVenta(tx, saleId);
+    if (!sale) return { resultado: null };
+    const abonoAnterior = sale.totalAbonado ?? 0;
 
-  condonarVenta = saleId => {
-    const sale = this.state.sales.find(s => String(s.id) === String(saleId));
-    this.setState(prev => {
-      const saleLocal = prev.sales.find(s => String(s.id) === String(saleId));
-      if (!saleLocal) return null;
-      const pendiente = saleLocal.total - (saleLocal.totalAbonado ?? 0) - (saleLocal.condonado ?? 0);
-      if (pendiente <= 0.009) return null;
-      return {
-        sales: prev.sales.map(s => String(s.id) === String(saleId) ? { ...s, condonado: (s.condonado ?? 0) + pendiente } : s),
-        abonos: [...prev.abonos, { id: nuevoIdAbono(), fecha: new Date().toISOString(), cliente: (saleLocal.cliente || '').trim(), ventaId: saleLocal.id, monto: pendiente, tipo: 'condonacion' }],
-      };
-    });
-    if (sale) {
-      const pendiente = sale.total - (sale.totalAbonado ?? 0) - (sale.condonado ?? 0);
-      this.logEvent(LOG_TIPOS.CONDONACION, `Deuda condonada $${pendiente.toFixed(2)} · ${sale.cliente ?? 'cliente'}`);
+    const techo  = Math.max(0, sale.total - (sale.condonado ?? 0));
+    const nuevo  = Math.max(0, Math.min(nuevoAbonado, techo));
+    const delta  = nuevo - abonoAnterior;
+    if (Math.abs(delta) < 0.0005) return { resultado: true }; // sin cambio real: nada que guardar
+
+    // "Editar abono" es CORREGIR un error de captura (decisión de negocio,
+    // sep 2026): la diferencia se aplica a los abonos existentes, del más
+    // reciente al más viejo, CONSERVANDO su fecha — el corte de ese día
+    // cambia. Solo si la venta no tenía ningún abono se crea uno con fecha de hoy.
+    const eventosDeVenta = sale.abonos
+      .filter(a => a.tipo === 'abono')
+      .sort((x, y) => (x.fecha > y.fecha ? -1 : x.fecha < y.fecha ? 1 : x.id > y.id ? -1 : 1));
+    const montosCorregidos = {}; // abonoId -> monto nuevo
+    let pendiente = delta;
+    for (const a of eventosDeVenta) {
+      if (Math.abs(pendiente) < 0.0005) break;
+      const cambio = pendiente > 0 ? pendiente : Math.max(pendiente, -a.monto);
+      montosCorregidos[a.id] = a.monto + cambio;
+      pendiente -= cambio;
     }
-  };
+    // Sin abonos previos: el dinero se registra hoy (fecha de HOY, no la de
+    // la venta), y así lo cuenta el corte de caja del día en que se captura.
+    const abonoNuevo = eventosDeVenta.length === 0 && nuevo > 0.0005
+      ? { id: newId(), fecha: nowIso(), clienteId: sale.clienteId ?? null, ventaId: sale.id, monto: nuevo, tipo: 'abono' }
+      : null;
 
-  eliminarVenta = (saleId, devolverStock) => {
-    const sale = this.state.sales.find(s => String(s.id) === String(saleId));
-    if (!sale) return null;
+    const sumaEventos = eventosDeVenta.reduce((s, a) => s + (montosCorregidos[a.id] ?? a.monto), 0) + (abonoNuevo?.monto ?? 0);
+    const totalFinal  = sumaEventos >= nuevo - 0.0005 ? nuevo : sumaEventos;
+
+    const evento = nuevoEvento(LOG_TIPOS.ABONO_EDITADO, `Abono corregido ${this.dinero(abonoAnterior)} → ${this.dinero(nuevoAbonado)} · ${sale.cliente ?? 'cliente'}`);
+
+    await actualizarTotalesVenta(tx, sale.id, { totalAbonado: totalFinal });
+    for (const [abonoId, monto] of Object.entries(montosCorregidos)) await actualizarMontoAbono(tx, abonoId, monto);
+    if (abonoNuevo) await crearAbono(tx, abonoNuevo);
+    await crearEvento(tx, evento);
+    return { resultado: true };
+  });
+
+  condonarVenta = saleId => this.decidirEnBD('condonarVenta', async tx => {
+    const sale = await obtenerVenta(tx, saleId);
+    if (!sale) return { resultado: null };
+    const pendiente = sale.total - (sale.totalAbonado ?? 0) - (sale.condonado ?? 0);
+    if (pendiente <= 0.009) return { resultado: true };
+
+    const condonado = (sale.condonado ?? 0) + pendiente;
+    const condonacion = { id: newId(), fecha: nowIso(), clienteId: sale.clienteId ?? null, ventaId: sale.id, monto: pendiente, tipo: 'condonacion' };
+    const evento = nuevoEvento(LOG_TIPOS.CONDONACION, `Deuda condonada ${this.dinero(pendiente)} · ${sale.cliente ?? 'cliente'}`);
+
+    await actualizarTotalesVenta(tx, sale.id, { condonado });
+    await crearAbono(tx, condonacion);
+    await crearEvento(tx, evento);
+    return { resultado: true };
+  });
+
+  /**
+   * Elimina una venta (cascada: ítems y abonos) y, si se pide, devuelve su
+   * stock. Asíncrona: la venta se lee de la BD en la transacción.
+   * Devuelve (promesa) { itemsNoEncontrados }, o null si ya no existe o falló.
+   */
+  eliminarVenta = (saleId, devolverStock) => this.decidirEnBD('eliminarVenta', async tx => {
+    const sale = await obtenerVenta(tx, saleId);
+    if (!sale) return { resultado: null };
+    const productos = sale.productos ?? [];
+    const actuales = devolverStock ? await leerPresentaciones(tx, productos.map(p => p.presentacionId)) : {};
 
     // Si algún producto de la venta ya no existe en el inventario (se borró
     // la presentación), no hay dónde devolverle el stock — se detecta para
     // avisar en vez de fallar en silencio, igual que en eliminarCompra.
-    const itemsNoEncontrados = (devolverStock && Array.isArray(sale.productos))
-      ? sale.productos.filter(item => {
-          const producto = this.state.products.find(p => p.id === item.productId);
-          return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
-        })
+    const itemsNoEncontrados = devolverStock ? productos.filter(item => !existeEn(actuales, item)) : [];
+    const entradas = devolverStock
+      ? productos
+          .filter(item => existeEn(actuales, item))
+          .map(item => ({ presentacionId: item.presentacionId, cantidad: item.numProducts || 1 }))
       : [];
-
-    this.setState(prev => {
-      const saleLocal = prev.sales.find(s => String(s.id) === String(saleId));
-      if (!saleLocal) return null;
-      let products = prev.products;
-      if (devolverStock && Array.isArray(saleLocal.productos)) {
-        products = products.map(p => ({
-          ...p,
-          presentaciones: p.presentaciones.map(pres => {
-            const match = saleLocal.productos.find(i => i.productId === p.id && i.presentacionId === pres.id);
-            return match ? { ...pres, stock: pres.stock + (match.numProducts || 1) } : pres;
-          }),
-        }));
-      }
-      return {
-        sales:  prev.sales.filter(s => String(s.id) !== String(saleId)),
-        products,
-        abonos: prev.abonos.filter(a => String(a.ventaId) !== String(saleId)),
-      };
-    });
 
     const tipo  = sale.tipoPago === 'Credito' ? 'crédito' : 'contado';
-    const stock = devolverStock ? ' · stock devuelto' : '';
-    this.logEvent(LOG_TIPOS.VENTA_ELIMINADA, `Venta $${sale.total.toFixed(2)} eliminada (${tipo})${stock}`);
+    const stock = textoStock(devolverStock, entradas, itemsNoEncontrados);
+    const evento = nuevoEvento(LOG_TIPOS.VENTA_ELIMINADA, `Venta ${this.dinero(sale.total)} eliminada (${tipo})${stock}`);
 
-    return { itemsNoEncontrados };
-  };
+    await eliminarVentaBD(tx, sale.id); // cascada: venta + ítems + abonos
+    for (const e of entradas) {
+      await registrarMovimiento(tx, { presentacionId: e.presentacionId, cantidad: e.cantidad, tipo: 'reversion_venta', refId: sale.id });
+    }
+    await crearEvento(tx, evento);
+    return { resultado: { itemsNoEncontrados }, efecto: { movimientos: entradas } };
+  });
 
+  /**
+   * Devolución parcial o total de una venta. Asíncrona (lee la venta en la
+   * transacción). Devuelve (promesa)
+   * { valorDevuelto, excedente, itemsNoEncontrados, ventaEliminada },
+   * o null si la venta ya no existe o falló.
+   */
   registrarDevolucion = (saleId, items, devolverStock) => {
-    const sale = this.state.sales.find(s => String(s.id) === String(saleId));
-    if (!sale || !items.length) return null;
+    if (!items.length) return Promise.resolve(null);
+    return this.decidirEnBD('registrarDevolucion', async tx => {
+      const sale = await obtenerVenta(tx, saleId);
+      if (!sale) return { resultado: null };
 
-    const valorDevuelto = items.reduce((sum, item) => {
-      const prod = (sale.productos ?? []).find(p => p.productId === item.productId && p.presentacionId === item.presentacionId);
-      return sum + (prod ? prod.precio * item.cantidad : 0);
-    }, 0);
+      const valorDevuelto = Math.round(items.reduce((sum, item) => {
+        const prod = (sale.productos ?? []).find(p => p.productId === item.productId && p.presentacionId === item.presentacionId);
+        return sum + (prod ? prod.precio * item.cantidad : 0);
+      }, 0) * 100) / 100; // a granel: 0.5 kg × $28 — redondeo a centavos
 
-    // Si el cliente ya había pagado más de lo que debe después de esta
-    // devolución, ese excedente no se puede "guardar" en la venta (su deuda
-    // ya no puede ser negativa) — hay que devolverle ese dinero en efectivo.
-    // No hay módulo de nota de crédito todavía, así que al menos avisamos.
-    const nuevoTotalPrevisto = Math.max(0, sale.total - valorDevuelto);
-    const excedente = Math.max(0, (sale.totalAbonado ?? 0) - nuevoTotalPrevisto);
+      // Si el cliente ya había pagado más de lo que debe después de esta
+      // devolución, ese excedente no se puede "guardar" en la venta (su deuda
+      // ya no puede ser negativa) — hay que devolverle ese dinero en efectivo.
+      // No hay módulo de nota de crédito todavía, así que al menos avisamos.
+      const nuevoTotal     = Math.max(0, sale.total - valorDevuelto);
+      const excedente      = Math.max(0, (sale.totalAbonado ?? 0) - nuevoTotal);
+      const nuevoAbonado   = Math.min(sale.totalAbonado ?? 0, nuevoTotal);
+      const nuevoCondonado = Math.min(sale.condonado ?? 0, Math.max(0, nuevoTotal - nuevoAbonado));
 
-    // Mismo chequeo que en eliminarCompra/eliminarVenta: ítems cuya
-    // presentación ya no existe no tienen dónde devolver el stock.
-    const itemsNoEncontrados = devolverStock
-      ? items.filter(item => {
-          const producto = this.state.products.find(p => p.id === item.productId);
-          return !producto?.presentaciones.find(pr => pr.id === item.presentacionId);
-        })
-      : [];
+      // Mismo chequeo que en eliminarCompra/eliminarVenta: ítems cuya
+      // presentación ya no existe no tienen dónde devolver el stock.
+      const actuales = devolverStock ? await leerPresentaciones(tx, items.map(i => i.presentacionId)) : {};
+      const itemsNoEncontrados = devolverStock ? items.filter(item => !existeEn(actuales, item)) : [];
+      const entradas = devolverStock
+        ? items
+            .filter(item => existeEn(actuales, item))
+            .map(item => ({ presentacionId: item.presentacionId, cantidad: item.cantidad }))
+        : [];
 
-    this.setState(prev => {
-      const sales = prev.sales.map(s => {
-        if (String(s.id) !== String(saleId)) return s;
-        const nuevoTotal    = Math.max(0, s.total - valorDevuelto);
-        const nuevoAbonado  = Math.min(s.totalAbonado ?? 0, nuevoTotal);
-        const nuevoCondonado= Math.min(s.condonado ?? 0, Math.max(0, nuevoTotal - nuevoAbonado));
-        const productos = Array.isArray(s.productos)
-          ? s.productos.map(p => {
-              const devuelto = items.find(i => i.productId === p.productId && i.presentacionId === p.presentacionId);
-              if (!devuelto) return p;
-              const nuevaCantidad = Math.max(0, p.numProducts - devuelto.cantidad);
-              return { ...p, numProducts: nuevaCantidad, totalPrice: p.precio * nuevaCantidad };
-            }).filter(p => p.numProducts > 0)
-          : s.productos;
-        return { ...s, total: nuevoTotal, totalAbonado: nuevoAbonado, condonado: nuevoCondonado, productos };
-      });
+      // Ítems de la venta: los que quedan en 0 se borran, los demás se reducen.
+      const itemsActualizados = [];
+      const itemsBorrados = [];
+      const productos = (sale.productos ?? []).map(p => {
+        const devuelto = items.find(i => i.productId === p.productId && i.presentacionId === p.presentacionId);
+        if (!devuelto) return p;
+        // redondearStock: a granel 1.5 − 0.4 no debe quedar en 1.0999999.
+        const nuevaCantidad = redondearStock(Math.max(0, p.numProducts - devuelto.cantidad));
+        const actualizado = { ...p, numProducts: nuevaCantidad, totalPrice: Math.round(p.precio * nuevaCantidad * 100) / 100 };
+        (nuevaCantidad > 0 ? itemsActualizados : itemsBorrados).push(actualizado);
+        return actualizado;
+      }).filter(p => p.numProducts > 0);
 
-      let products = prev.products;
-      if (devolverStock) {
-        products = products.map(p => ({
-          ...p,
-          presentaciones: p.presentaciones.map(pres => {
-            const match = items.find(i => i.productId === p.id && i.presentacionId === pres.id);
-            return match ? { ...pres, stock: pres.stock + match.cantidad } : pres;
-          }),
-        }));
+      // Devolución TOTAL (no queda ningún producto): la venta se elimina, igual
+      // que eliminarVenta — cascada de venta, ítems y abonos (decisión de
+      // negocio, sep 2026). Si no, solo se actualiza.
+      const ventaEliminada = productos.length === 0;
+
+      const resumen = items.map(i => `${formatoCantidad(i.cantidad, i.esGranel, i.unidadGranel)} × ${nombreProducto(i.nombre, i.tamano)}`).join(', ');
+      const stock   = textoStock(devolverStock, entradas, itemsNoEncontrados);
+      const evento  = nuevoEvento(
+        LOG_TIPOS.DEVOLUCION,
+        `Devolución${ventaEliminada ? ' total' : ''} ${this.dinero(valorDevuelto)} · ${resumen}${stock}${ventaEliminada ? ' · venta eliminada' : ''}`,
+      );
+
+      if (ventaEliminada) {
+        await eliminarVentaBD(tx, sale.id); // cascada: venta + ítems + abonos
+      } else {
+        await actualizarTotalesVenta(tx, sale.id, { total: nuevoTotal, totalAbonado: nuevoAbonado, condonado: nuevoCondonado });
+        for (const item of itemsActualizados) await actualizarItemVenta(tx, item.id, item);
+        for (const item of itemsBorrados) await eliminarItemVenta(tx, item.id);
       }
-
-      return { sales, products };
+      for (const e of entradas) {
+        await registrarMovimiento(tx, { presentacionId: e.presentacionId, cantidad: e.cantidad, tipo: 'devolucion', refId: sale.id });
+      }
+      await crearEvento(tx, evento);
+      return {
+        resultado: { valorDevuelto, excedente, itemsNoEncontrados, ventaEliminada },
+        efecto:    { movimientos: entradas },
+      };
     });
-
-    const resumen = items.map(i => `${i.cantidad} × ${i.nombre} ${i.tamano}`).join(', ');
-    const stock   = devolverStock ? ' · stock devuelto' : '';
-    this.logEvent(LOG_TIPOS.DEVOLUCION, `Devolución $${valorDevuelto.toFixed(2)} · ${resumen}${stock}`);
-
-    return { valorDevuelto, excedente, itemsNoEncontrados };
   };
 
-  // Como los clientes no tienen un id propio (solo se agrupan por nombre),
-  // renombrar sin control podría fusionar sin querer el historial de dos
-  // personas distintas. Se bloquea si el nombre nuevo ya pertenece a otro
-  // cliente con ventas propias (corregir mayúsculas/espacios del mismo
-  // cliente sí se permite).
+  // Los clientes ya tienen id propio: renombrar cambia UNA fila en la BD.
+  // Aun así se bloquea si el nombre nuevo pertenece a OTRO cliente (fusionaría
+  // sin querer el historial de dos personas; además el índice único de la BD
+  // lo rechazaría). Corregir mayúsculas/espacios del mismo cliente sí se permite.
   renombrarCliente = (nombreActual, nombreNuevo) => {
-    const nuevo  = nombreNuevo.trim();
+    const nuevo = limpiarNombre(nombreNuevo);
     if (!nuevo) return false;
-    const actual = (nombreActual || '').trim();
+    const actual = limpiarNombre(nombreActual);
 
-    const perteneceAOtroCliente = this.state.sales.some(sale => {
-      const nombreVenta = (sale.cliente || '').trim();
-      return nombreVenta.toLowerCase() === nuevo.toLowerCase() && nombreVenta.toLowerCase() !== actual.toLowerCase();
-    });
+    const cliente = this.state.clientes.find(c => normalizarNombre(c.nombre) === normalizarNombre(actual));
+    if (!cliente) {
+      console.warn('renombrarCliente: cliente no encontrado', actual);
+      return false;
+    }
+    if (nuevo === cliente.nombre) return true; // sin cambio real: nada que guardar
+    const perteneceAOtroCliente = this.state.clientes.some(c =>
+      c.id !== cliente.id && normalizarNombre(c.nombre) === normalizarNombre(nuevo),
+    );
     if (perteneceAOtroCliente) {
       console.warn('renombrarCliente: el nombre ya pertenece a otro cliente, renombrado bloqueado');
       return false;
     }
 
+    const evento = nuevoEvento(LOG_TIPOS.CLIENTE_RENOMBRADO, `Cliente renombrado: "${cliente.nombre}" → "${nuevo}"`);
+
+    // Una sola fila, en memoria y en la BD: ventas y abonos guardan el
+    // cliente_id y las consultas traen el nombre con un JOIN.
     this.setState(prev => ({
-      sales:  prev.sales.map(sale => (sale.cliente || '').trim() === actual ? { ...sale, cliente: nuevo } : sale),
-      // Los abonos guardan su propio snapshot del nombre del cliente — si no
-      // se actualizan aquí también, el Corte de caja (que lee abonos[].cliente)
-      // queda desincronizado del nombre nuevo que ya muestran Créditos/deuda.
-      abonos: prev.abonos.map(a => (a.cliente || '').trim() === actual ? { ...a, cliente: nuevo } : a),
+      clientes:    prev.clientes.map(c => c.id === cliente.id ? { ...c, nombre: nuevo } : c),
     }));
-    this.logEvent(LOG_TIPOS.CLIENTE_RENOMBRADO, `Cliente renombrado: "${actual}" → "${nuevo}"`);
+
+    persistir(async tx => {
+      await renombrarClienteBD(tx, cliente.id, nuevo);
+      await crearEvento(tx, evento);
+    }, 'renombrarCliente');
+
     return true;
   };
 
@@ -943,50 +1238,24 @@ export class StoreProvider extends Component {
     );
   };
 
-  getClientesConDeudaCount = () => {
-    const { sales } = this.state;
-    const mapa = {};
-    sales.filter(s => s.tipoPago === 'Credito').forEach(s => {
-      const key = (s.cliente || '').trim();
-      if (!mapa[key]) mapa[key] = 0;
-      mapa[key] += s.total - (s.totalAbonado ?? 0) - (s.condonado ?? 0);
-    });
-    return Object.values(mapa).filter(saldo => saldo > 0.009).length;
-  };
-
-  /**
-   * Lista de proveedores únicos usados en compras anteriores,
-   * ordenada por el más reciente primero. Útil para el autocompletado
-   * en RegistrarCompraView.
-   */
-  getProveedores = () => {
-    const vistos = new Set();
-    return this.state.compras
-      .sort((a, b) => (a.fecha > b.fecha ? -1 : 1))
-      .map(c => c.proveedor)
-      .filter(p => {
-        if (!p || vistos.has(p)) return false;
-        vistos.add(p);
-        return true;
-      });
-  };
-
   render() {
+    // Compuerta: las pantallas no se montan hasta tener los datos de la BD.
+    if (this.state.cargando || this.state.errorCarga) {
+      return <PantallaCarga error={this.state.errorCarga} onReintentar={this.arrancar} />;
+    }
     return (
       <StoreContext.Provider
         value={{
           // Estado
           products:              this.state.products,
-          categories:            this.state.categories,
-          sales:                 this.state.sales,
-          abonos:                this.state.abonos,
-          compras:               this.state.compras,
-          activityLog:           this.state.activityLog,
+          categories:            [CATEGORIA_TODOS, ...this.state.categories],
+          clientes:              this.state.clientes,
+          // (ventas, abonos y compras no viven en memoria: las pantallas los
+          // consultan bajo demanda en src/data/consultas/ y las acciones los
+          // leen dentro de su transacción.)
           config:                this.state.config,
           // Derivados
           sellableItems:         this.getSellableItems(),
-          clientesConDeudaCount: this.getClientesConDeudaCount(),
-          proveedores:           this.getProveedores(),
           // Log
           logEvent:              this.logEvent,
           // Config
@@ -994,6 +1263,7 @@ export class StoreProvider extends Component {
           // Productos
           addProduct:            this.addProduct,
           addPresentacion:       this.addPresentacion,
+          updateProduct:         this.updateProduct,
           updatePresentacion:    this.updatePresentacion,
           agregarStock:          this.agregarStock,
           deletePresentacion:    this.deletePresentacion,
