@@ -12,6 +12,7 @@ import {
 import { StoreContext } from '../context/StoreContext';
 import { clientesConSaldo } from '../data/consultas/creditos';
 import { crearConsultaViva } from '../data/consultaViva';
+import { estadoCopia } from '../data/respaldo';
 import ProductsModal from './ProductsModal.js';
 import ConfirmarVentaModal from './ConfirmarVentaModal.js';
 import NumericStepper from './NumericStepper.js';
@@ -53,6 +54,8 @@ class Main extends Component {
       cartProducts: [],
       // Clientes con saldo (bajo demanda, de SQLite), mayor deuda primero.
       clientesDeuda: [],
+      // Punto en el engrane: hay ventas sin respaldar (ver respaldo.estadoCopia).
+      recordarCopia: false,
     };
   }
 
@@ -66,10 +69,18 @@ class Main extends Component {
       alCargar: clientes => this.setState({ clientesDeuda: [...clientes].sort((a, b) => b.saldo - a.saldo) }),
       alFallar: error => console.error('Main.clientesConSaldo', error),
     });
+    // Se apaga solo al guardar/compartir una copia (escribe en meta).
+    this.consultaCopia = crearConsultaViva({
+      tablas: ['ventas', 'meta'],
+      cargar: estadoCopia,
+      alCargar: ({ recordar }) => this.setState({ recordarCopia: recordar }),
+      alFallar: error => console.error('Main.estadoCopia', error),
+    });
   }
 
   componentWillUnmount() {
     this.consultaClientes?.detener();
+    this.consultaCopia?.detener();
   }
 
   // Clientes con saldo pendiente (mismo cálculo que CreditosView), para el
@@ -417,6 +428,16 @@ class Main extends Component {
               style={{ width: 44, height: 44, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}
             >
               <IconSettings size={28} color={colors.textPrimary} />
+              {this.state.recordarCopia && (
+                <View
+                  style={{
+                    position: 'absolute', top: 6, right: 6,
+                    width: 12, height: 12, borderRadius: 6,
+                    backgroundColor: colors.warning,
+                    borderWidth: 2, borderColor: colors.card,
+                  }}
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>

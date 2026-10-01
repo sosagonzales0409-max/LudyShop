@@ -40,7 +40,8 @@ export const VENTAS_POR_DIA = 80;
 const SEMILLA_ALEATORIA = 20260926;
 
 // Tablas con datos de la tienda (no incluye `tienda` ni `meta`).
-const TABLAS_DE_DATOS = [
+// También la usa respaldo.js: son las tablas que viajan en una copia.
+export const TABLAS_DE_DATOS = [
   'categorias', 'productos', 'presentaciones', 'movimientos_inventario', 'clientes',
   'ventas', 'venta_items', 'abonos', 'compras', 'compra_items', 'activity_log',
 ];

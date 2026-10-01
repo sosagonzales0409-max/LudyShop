@@ -6,10 +6,14 @@ import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme
  * Se muestra mientras StoreProvider abre la BD y carga los datos
  * (normalmente una fracción de segundo), o si ese arranque falla.
  *
+ * También al reemplazar todos los datos (importar una copia, etc.), con un
+ * `mensaje` propio.
+ *
  * @param {string|null} error       — mensaje si falló la carga
+ * @param {string|null} mensaje     — texto en lugar de "Cargando…"
  * @param {Function}    onReintentar
  */
-export default function PantallaCarga({ error, onReintentar }) {
+export default function PantallaCarga({ error, mensaje, onReintentar }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.white, justifyContent: 'center', alignItems: 'center', padding: spacing.xxl }}>
       {error ? (
@@ -33,7 +37,14 @@ export default function PantallaCarga({ error, onReintentar }) {
             source={require('../images/logo.png')}
             style={{ width: 300, height: 300, marginBottom: spacing.xl }}
           />
-          <Text style={{ fontSize: fontSize.splash, color: colors.textPrimary, marginTop: spacing.md }}>Cargando…</Text>
+          {mensaje ? (
+            <>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={{ fontSize: fontSize.heading, color: colors.textPrimary, marginTop: spacing.md, textAlign: 'center' }}>{mensaje}</Text>
+            </>
+          ) : (
+            <Text style={{ fontSize: fontSize.splash, color: colors.textPrimary, marginTop: spacing.md }}>Cargando…</Text>
+          )}
         </>
       )}
     </View>

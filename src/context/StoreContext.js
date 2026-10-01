@@ -1,10 +1,12 @@
 import React, { createContext, Component } from 'react';
 import { Alert } from 'react-native';
 import PantallaCarga from '../components/PantallaCarga';
-import { initDB, persistir, onErrorPersistencia } from '../data/db';
+import Toast from '../components/Toast';
+import { initDB, getDB, persistir, esperarEscrituras, onErrorPersistencia } from '../data/db';
 import { newId, nowIso } from '../data/ids';
 import { nombreProducto, formatoDinero, formatoCantidad } from '../config/formato';
-import { debeSembrarAutomatico, sembrarAutomatico } from '../data/seed';
+import { debeSembrarAutomatico, sembrarAutomatico, reiniciarConSemilla, vaciarDatos } from '../data/seed';
+import { reemplazarConCopia, limpiarTemporales, ErrorCopia } from '../data/respaldo';
 import { prepararTienda, cargarConfig, guardarConfig, CONFIG_POR_DEFECTO } from '../data/repositories/tienda';
 import { cargarCategorias, crearCategoria, renombrarCategoria, eliminarCategoria } from '../data/repositories/categorias';
 import {
@@ -80,6 +82,8 @@ export const LOG_TIPOS = {
   CATEGORIA_CREADA:       'categoria_creada',
   CATEGORIA_RENOMBRADA:   'categoria_renombrada',
   CATEGORIA_ELIMINADA:    'categoria_eliminada',
+  COPIA_EXPORTADA:        'copia_exportada',
+  DATOS_IMPORTADOS:       'datos_importados',
 };
 
 export const LOG_META = {
@@ -105,6 +109,8 @@ export const LOG_META = {
   categoria_creada:       { icono: '🏷️', filtro: 'otros',      label: 'Categoría creada' },
   categoria_renombrada:   { icono: '✏️', filtro: 'otros',      label: 'Categoría renombrada' },
   categoria_eliminada:    { icono: '🗑️', filtro: 'otros',      label: 'Categoría eliminada' },
+  copia_exportada:        { icono: '💾', filtro: 'otros',      label: 'Copia de seguridad' },
+  datos_importados:       { icono: '📥', filtro: 'otros',      label: 'Datos importados' },
 };
 
 // ─── Utilidad: normalizar presentación con defaults de nuevos campos ──────────
@@ -159,6 +165,7 @@ export class StoreProvider extends Component {
   state = {
     cargando:    true,
     errorCarga:  null,
+    mensajeCarga: null, // texto de PantallaCarga al reemplazar los datos
     products:    [],
     categories:  [],   // sin "Todos": se agrega en render()
     clientes:    [],
@@ -199,6 +206,9 @@ export class StoreProvider extends Component {
         if (tiempos) tiempos.semilla = ahoraMs() - tSemilla;
       }
       await this.recargarDesdeBD(tiempos);
+      // Copias exportadas/importadas que quedaron en la caché. En segundo
+      // plano: no retrasa el arranque y nunca falla.
+      limpiarTemporales();
     } catch (error) {
       console.error('arrancar', error);
       this.setState({ cargando: false, errorCarga: error?.message ?? String(error) });
@@ -235,6 +245,82 @@ export class StoreProvider extends Component {
         (heap ? `\n  memoria JS (heap) ${(heap / 1048576).toFixed(1)} MB` : ''),
       );
     });
+  };
+
+  // ─── Reemplazar todos los datos ───────────────────────────────────────────
+  // Importar una copia, deshacer una importación y (en desarrollo) reiniciar
+  // o vaciar cambian TODO. En vez de avisar pantalla por pantalla, se vuelve
+  // a PantallaCarga: eso desmonta el árbol de navegación completo, y al
+  // recargar se monta de cero (carrito vacío, pestañas en su raíz, ninguna
+  // pantalla con ids que ya no existen). Por lo mismo, quien llama no debe
+  // tocar su propio estado después: ya no estará montado.
+  //
+  // `operacion` corre con la cola de escrituras vacía. Devuelve true si salió
+  // bien; si falla, avisa con un Alert (los datos no cambiaron: todas las
+  // operaciones son una sola transacción).
+
+  reemplazarDatos = async (mensaje, operacion) => {
+    this.setState({ cargando: true, errorCarga: null, mensajeCarga: mensaje });
+    let fallo = null;
+    try {
+      await esperarEscrituras();
+      await operacion();
+    } catch (error) {
+      console.error(`reemplazarDatos(${mensaje})`, error);
+      fallo = error;
+    }
+    try {
+      // Importar adopta la tienda de la copia: hay que volver a leerla.
+      this.tiendaId = await prepararTienda();
+      await this.recargarDesdeBD();
+    } catch (error) {
+      console.error('reemplazarDatos: recargar', error);
+      this.setState({ cargando: false, errorCarga: error?.message ?? String(error) });
+      return false;
+    }
+    this.setState({ mensajeCarga: null });
+    if (fallo) {
+      Alert.alert(
+        'No se pudo completar',
+        fallo instanceof ErrorCopia ? fallo.message : 'Ocurrió un error. Tus datos no cambiaron.',
+      );
+      return false;
+    }
+    return true;
+  };
+
+  /**
+   * Reemplaza todos los datos por los de una copia ya revisada
+   * (respaldo.revisarCopia). `deshacer`: true si es la vuelta a los datos de
+   * antes de la última importación (solo cambia los textos).
+   */
+  importarCopia = async (copia, { deshacer = false } = {}) => {
+    const ok = await this.reemplazarDatos(
+      deshacer ? 'Recuperando tus datos anteriores…' : 'Importando tus datos…',
+      () => reemplazarConCopia(copia),
+    );
+    if (!ok) return;
+    const { nombreTienda, productos, ventas } = copia.resumen;
+    this.logEvent(
+      LOG_TIPOS.DATOS_IMPORTADOS,
+      deshacer
+        ? 'Importación deshecha: se recuperaron los datos anteriores'
+        : `Datos importados de una copia: ${nombreTienda} · ${productos} productos · ${ventas} ventas`,
+    );
+    Toast.show(deshacer ? 'Datos anteriores recuperados' : 'Datos importados', 'success');
+  };
+
+  // Solo desarrollo (sección "Desarrollo" de ConfigView).
+  reiniciarConEjemplos = async () => {
+    if (await this.reemplazarDatos('Generando datos de ejemplo…', () => getDB().transaction(reiniciarConSemilla))) {
+      Toast.show('Datos de ejemplo listos', 'success');
+    }
+  };
+
+  vaciarTodo = async () => {
+    if (await this.reemplazarDatos('Vaciando datos…', () => getDB().transaction(vaciarDatos))) {
+      Toast.show('Datos vaciados', 'success');
+    }
   };
 
   // ─── Log ──────────────────────────────────────────────────────────────────
@@ -1241,7 +1327,7 @@ export class StoreProvider extends Component {
   render() {
     // Compuerta: las pantallas no se montan hasta tener los datos de la BD.
     if (this.state.cargando || this.state.errorCarga) {
-      return <PantallaCarga error={this.state.errorCarga} onReintentar={this.arrancar} />;
+      return <PantallaCarga error={this.state.errorCarga} mensaje={this.state.mensajeCarga} onReintentar={this.arrancar} />;
     }
     return (
       <StoreContext.Provider
@@ -1284,6 +1370,10 @@ export class StoreProvider extends Component {
           eliminarVenta:         this.eliminarVenta,
           registrarDevolucion:   this.registrarDevolucion,
           renombrarCliente:      this.renombrarCliente,
+          // Datos completos (copia de seguridad / desarrollo)
+          importarCopia:         this.importarCopia,
+          reiniciarConEjemplos:  this.reiniciarConEjemplos,
+          vaciarTodo:            this.vaciarTodo,
         }}
       >
         {this.props.children}

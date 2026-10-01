@@ -506,6 +506,47 @@ Los valores exactos cambian a cada paso. Se valida **la relación** antes/despu�
 
 ## Parte D — Pruebas transversales
 
+### D5 · Copia de seguridad y sección Desarrollo (checklist 30–31)
+La parte SQL ya está verificada en Node con la BD real (20 pruebas: filas e ids idénticos, totales, integridad en 0, rollback, archivos inválidos). Aquí se prueba lo que solo existe en el teléfono: el selector de archivos, Guardar/Compartir y la recarga de la app.
+
+**Exportar**
+- [ ] Configuración → **Exportar información**: aparece "Preparando la copia…" y luego "Copia lista" con el nombre `MiTienda-respaldo-AAAA-MM-DD.db`.
+- [ ] **Guardar** → se abre el diálogo de Android → guarda en Descargas → Toast "Copia guardada". En el Historial de actividad (filtro Otros) aparece 💾 "Copia de seguridad guardada".
+- [ ] **Compartir** → se abre la hoja de compartir (WhatsApp, Drive, correo…). Mándatelo por WhatsApp o Drive.
+- [ ] Cancelar el diálogo de Guardar no muestra ningún error.
+
+**Importar en el mismo teléfono (con datos)**
+- [ ] Después de exportar, haz una venta nueva. Luego **Importar información** → elige la copia → "Revisando la copia…" → aparece "¿Reemplazar tus datos?" con tienda, productos, ventas, última venta y fecha de la copia.
+- [ ] **Cancelar**: nada cambia.
+- [ ] **Reemplazar**: "Importando tus datos…" → la app vuelve a Ventas con el carrito vacío → la venta nueva **ya no existe** → Toast "Datos importados" → en el log aparece 📥 "Datos importados de una copia…".
+- [ ] Con un producto en el carrito y otra pantalla abierta en Inventario antes de importar: después de importar, las dos pestañas quedan en su pantalla inicial (sin errores).
+- [ ] Aparece la fila **Deshacer última importación** con la fecha. Al usarla, vuelve la venta nueva. Usarla otra vez la vuelve a quitar: deshacer guarda los datos actuales.
+
+**Teléfono recién instalado (el caso de pasar los datos a otro teléfono)**
+- [ ] `SEED_AUTOMATICO = false` en `src/data/seed.js` + `adb shell pm clear com.mitienda` → la app abre vacía.
+- [ ] Configuración → Importar → elige la copia (desde Descargas, Drive o WhatsApp) → el diálogo dice "¿Importar estos datos?" (sin el aviso de reemplazar) → **Importar**.
+- [ ] Todos los datos del otro teléfono aparecen: nombre de la tienda, moneda, umbral, productos, créditos, historial y reportes. **No** aparece la fila "Deshacer última importación".
+- [ ] Haz una venta, cierra la app a la fuerza y reábrela: la venta sigue ahí. `qa\extraer-bd.cmd` → **integridad en 0**, y en `meta` `tienda_id_actual` es el id de la tienda de la copia.
+
+**Archivos inválidos (los datos no cambian en ninguno)**
+- [ ] Una foto o un PDF → "Este archivo no es una copia de Mi Tienda."
+- [ ] Un `.db` de otra app → el mismo mensaje.
+
+**Recordatorio de copia** (se activa con ventas sin respaldar desde hace 7+ días)
+- [ ] Con la semilla y sin haber exportado nunca: punto naranja en el engrane de Ventas. En Configuración aparece el aviso "Haz una copia de tus datos" con el número de ventas sin respaldar, y la fila Exportar dice "Nunca has hecho una copia".
+- [ ] Tocar el aviso inicia la exportación. Al **Guardar** o **Compartir**: el aviso y el punto desaparecen solos, y la fila dice "Última copia: hoy". Si cancelas, siguen ahí.
+- [ ] Desde 0 (`pm clear`, sin semilla): haz ventas → **no** hay punto ni aviso, porque las ventas tienen menos de 7 días.
+- [ ] En un teléfono nuevo, después de importar: **no** hay aviso (cuenta desde la fecha de la copia importada) y la fila dice "Última copia: hace N días" según la copia.
+
+**Limpieza de temporales**
+- [ ] Exporta 2 veces en días distintos (o cambia la fecha del teléfono) → `adb shell run-as com.mitienda ls cache` muestra solo la copia más reciente.
+- [ ] Importa una copia → tras reiniciar la app, en `cache` no quedan `importando.db` ni carpetas con nombre UUID.
+
+**Desarrollo (solo build de desarrollo)**
+- [ ] Al final de Configuración aparece la tarjeta "DESARROLLO". En un build release **no** aparece.
+- [ ] **Vaciar datos** → confirmación → "Vaciando datos…" → app vacía, pero conserva el nombre de la tienda y la moneda.
+- [ ] **Reiniciar con datos de ejemplo** → confirmación → "Generando datos de ejemplo…" (unos segundos) → vuelve el año de tienda.
+
 ### D1 · Persistencia (checklist 10)
 - [ ] Después de B9 (y otra vez al final de C2): cierra la app a la fuerza (deslizar en recientes o `adb shell am force-stop com.mitienda`) y ábrela. **Todos** los valores de B9 siguen iguales, incluidos la moneda, el umbral, las categorías y el nombre de la tienda.
 - [ ] Haz una venta y **en menos de 1 segundo** cierra la app a la fuerza. Al reabrir, la venta está completa (con sus productos y su stock descontado) o no está en absoluto. Nunca a medias. Confírmalo con la integridad (`qa\extraer-bd.cmd`).
@@ -558,7 +599,7 @@ Copia los logs `[rendimiento]` de Metro a la Parte G.
 
 ---
 
-## Parte E — Checklist acumulado (1–29)
+## Parte E — Checklist acumulado (1–32)
 
 | # | Punto | Dónde se prueba |
 |---|---|---|
@@ -591,6 +632,9 @@ Copia los logs `[rendimiento]` de Metro a la Parte G.
 | 27 | Fase 4: Créditos | B6, C1, C2 |
 | 28 | Fase 5: Compras y detalle de producto | B3, B8, C1 |
 | 29 | Fase 6: acciones leen de la BD; arranque liviano | A, B6, B7, B8, D4 |
+| 30 | Copia de seguridad: exportar / importar / deshacer, también en un teléfono recién instalado | D5 |
+| 31 | Sección Desarrollo (reiniciar con ejemplos / vaciar) | D5 |
+| 32 | Recordatorio de copia (punto en el engrane + aviso) y limpieza de temporales | D5 |
 
 ---
 
