@@ -7,7 +7,7 @@ import { formatoDinero } from '../config/formato';
 // ─── Datos de ejemplo: "un año de tienda" (solo desarrollo) ───────────────────
 // Cuándo se cargan:
 //   • Automático: en __DEV__, UNA vez por instalación (nota `semilla_auto_hecha`
-//     en meta). Así "Vaciar datos" + reiniciar deja la app vacía de verdad.
+//     en meta). Así "Borrar todos los datos" + reiniciar deja la app vacía de verdad.
 //   • Manual: botones de la sección "Desarrollo" en Configuración.
 //   • En release: nunca.
 //
@@ -460,9 +460,12 @@ const sembrar = async tx => {
 };
 
 /**
- * Borra TODOS los datos de la tienda (no la fila `tienda` ni `meta`).
- * Aquí sí es DELETE real, no soft delete: es una herramienta de desarrollo
- * para volver a cero, no un borrado que deba sincronizarse.
+ * Borra TODOS los datos de la tienda (no la fila `tienda` ni `meta`: se
+ * conservan nombre, moneda y umbral). Lo usan "Reiniciar con datos de
+ * ejemplo" (desarrollo) y "Borrar todos los datos" (Configuración).
+ * Aquí sí es DELETE real, no soft delete: el usuario quiere empezar de cero,
+ * no que quede rastro. En V2 (sincronización) habrá que decidir cómo se
+ * propaga a los otros dispositivos.
  */
 const vaciar = async tx => {
   for (const tabla of TABLAS_DE_DATOS) {
@@ -470,7 +473,7 @@ const vaciar = async tx => {
   }
 };
 
-// ─── API pública (la usan StoreContext y la sección "Desarrollo") ─────────────
+// ─── API pública (la usa StoreContext) ────────────────────────────────────────
 // Todas reciben `tx`: se llaman dentro de persistir().
 
 // Siembra automática: solo en desarrollo y una vez por instalación.
@@ -489,5 +492,5 @@ export const reiniciarConSemilla = async tx => {
   await sembrar(tx);
 };
 
-// Botón "Vaciar datos".
+// Botón "Borrar todos los datos".
 export const vaciarDatos = vaciar;

@@ -258,6 +258,27 @@ const tieneDatos = async () => {
   return !!rows[0]?.hay;
 };
 
+// ─── Borrar todos los datos ───────────────────────────────────────────────────
+
+// Lo que se perdería al borrar, para la advertencia de ConfigView.
+// `vacia`: no hay nada que borrar (mismo criterio que tieneDatos).
+export const resumenDatos = async () => {
+  const uno = async sql => Object.values((await getDB().execute(sql)).rows[0] ?? {})[0] ?? 0;
+  const [productos, ventas, clientes, compras, vacia] = await Promise.all([
+    uno('SELECT COUNT(*) FROM productos WHERE deleted_at IS NULL'),
+    uno('SELECT COUNT(*) FROM ventas WHERE deleted_at IS NULL'),
+    uno('SELECT COUNT(*) FROM clientes WHERE deleted_at IS NULL'),
+    uno('SELECT COUNT(*) FROM compras WHERE deleted_at IS NULL'),
+    tieneDatos().then(hay => !hay),
+  ]);
+  return { productos, ventas, clientes, compras, vacia };
+};
+
+// Al borrar todo también se va el "antes" de la última importación: si no,
+// "Deshacer última importación" seguiría ofreciendo los datos que el usuario
+// acaba de borrar a propósito.
+export const borrarAntesDeImportar = () => borrarSiExiste(RUTA_ANTES_DE_IMPORTAR);
+
 /**
  * Reemplaza TODOS los datos por los de una copia ya revisada (revisarCopia).
  * Quien llama debe recargar el estado después (StoreContext lo hace).

@@ -14,11 +14,12 @@ import Share from 'react-native-share';
 import { StoreContext, LOG_TIPOS } from '../context/StoreContext';
 import {
   exportarCopia, revisarCopia, descartarCopia, fechaAntesDeImportar,
-  RUTA_ANTES_DE_IMPORTAR, ErrorCopia, estadoCopia, registrarCopiaHecha,
+  RUTA_ANTES_DE_IMPORTAR, ErrorCopia, estadoCopia, registrarCopiaHecha, resumenDatos,
 } from '../data/respaldo';
 import { crearConsultaViva } from '../data/consultaViva';
 import { colors, spacing, radius, fontSize } from '../config/theme';
 import Toast from './Toast';
+import BorrarDatosModal from './BorrarDatosModal';
 import {
   IconStore, IconTrendingUp, IconCoffee, IconClipboard,
   IconSave, IconFile, IconChevron, IconBack, IconShoppingBag, IconPlus,
@@ -47,6 +48,21 @@ const textoUltimaCopia = dias => {
   return `Última copia: hace ${dias} días`;
 };
 
+const cuantos = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
+
+// "12 productos, 340 ventas y 5 clientes" (omite lo que está en cero).
+const listaDatos = ({ productos, ventas, clientes, compras }) => {
+  const partes = [
+    productos && cuantos(productos, 'producto', 'productos'),
+    ventas    && cuantos(ventas, 'venta', 'ventas'),
+    clientes  && cuantos(clientes, 'cliente', 'clientes'),
+    compras   && cuantos(compras, 'compra', 'compras'),
+  ].filter(Boolean);
+  return partes.length > 1
+    ? `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`
+    : partes[0] ?? 'tus categorías';
+};
+
 export default class ConfigView extends Component {
   static contextType = StoreContext;
 
@@ -54,6 +70,7 @@ export default class ConfigView extends Component {
     ocupado: null,          // texto del indicador mientras se prepara/revisa una copia
     antesDeImportar: null,  // Date de los datos guardados antes de la última importación
     copia: null,            // estadoCopia(): días desde la última, ventas sin respaldar, recordar
+    confirmandoBorrado: false, // modal de "escribe BORRAR" (segundo paso)
   };
 
   componentDidMount() {
@@ -236,6 +253,42 @@ export default class ConfigView extends Component {
     }
   };
 
+  // ─── Borrar todos los datos ────────────────────────────────────────────
+  // Paso 1 (aquí): qué se perdería + ofrecer exportar antes.
+  // Paso 2 (BorrarDatosModal): escribir BORRAR.
+
+  borrarDatos = async () => {
+    let resumen;
+    try {
+      resumen = await resumenDatos();
+    } catch (error) {
+      console.error('resumenDatos', error);
+      Alert.alert('No se pudo continuar', 'Inténtalo de nuevo.');
+      return;
+    }
+    if (resumen.vacia) {
+      Alert.alert('No hay datos que borrar', 'La app ya está como recién instalada.');
+      return;
+    }
+    Alert.alert(
+      '¿Borrar todos los datos?',
+      `Se borrarán ${listaDatos(resumen)}, además del historial de actividad. ` +
+        'Se conservan el nombre de la tienda y la moneda.\n\n' +
+        'Esto no se puede deshacer. Si crees que podrías necesitarlos, exporta una copia antes.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Exportar primero', onPress: this.exportar },
+        { text: 'Continuar', style: 'destructive', onPress: () => this.setState({ confirmandoBorrado: true }) },
+      ],
+    );
+  };
+
+  confirmarBorrado = () => {
+    this.setState({ confirmandoBorrado: false });
+    // Vuelve a PantallaCarga: esta pantalla se desmonta (ver reemplazarDatos).
+    this.context.vaciarTodo();
+  };
+
   // ─── Desarrollo ────────────────────────────────────────────────────────
 
   confirmarDesarrollo = (titulo, mensaje, boton, accion) => {
@@ -265,7 +318,8 @@ export default class ConfigView extends Component {
     );
   }
 
-  renderFila(icono, titulo, subtitulo, onPress = null) {
+  // `peligro`: título en rojo (acciones destructivas).
+  renderFila(icono, titulo, subtitulo, onPress = null, { peligro = false } = {}) {
     const activa = onPress !== null;
     const contenido = (
       <>
@@ -273,7 +327,7 @@ export default class ConfigView extends Component {
           {icono}
         </View>
         <View style={{ flex: 1, marginLeft: spacing.sm }}>
-          <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>
+          <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: peligro ? colors.danger : colors.textPrimary }}>
             {titulo}
           </Text>
           {!!subtitulo && (
@@ -432,6 +486,12 @@ export default class ConfigView extends Component {
                   )}
                 </>
               )}
+              {this.renderDivider()}
+              {this.renderFila(<IconTrash size={20} color={colors.danger} />, 'Borrar todos los datos',
+                'Empezar de cero (conserva el nombre de la tienda y la moneda)',
+                this.borrarDatos,
+                { peligro: true },
+              )}
             </View>,
           )}
 
@@ -449,19 +509,16 @@ export default class ConfigView extends Component {
                   this.context.reiniciarConEjemplos,
                 ),
               )}
-              {this.renderDivider()}
-              {this.renderFila(<IconTrash size={20} />, 'Vaciar datos', 'Deja la app como recién instalada (conserva la tienda)',
-                () => this.confirmarDesarrollo(
-                  '¿Vaciar todos los datos?',
-                  'Se borrarán productos, ventas, clientes, compras y el registro de actividad.',
-                  'Vaciar',
-                  this.context.vaciarTodo,
-                ),
-              )}
             </View>,
           )}
 
         </ScrollView>
+
+        <BorrarDatosModal
+          visible={this.state.confirmandoBorrado}
+          onCancel={() => this.setState({ confirmandoBorrado: false })}
+          onConfirmar={this.confirmarBorrado}
+        />
 
         {/* Bloquea la pantalla mientras se prepara o revisa una copia */}
         {!!this.state.ocupado && (

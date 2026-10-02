@@ -6,7 +6,7 @@ import { initDB, getDB, persistir, esperarEscrituras, onErrorPersistencia } from
 import { newId, nowIso } from '../data/ids';
 import { nombreProducto, formatoDinero, formatoCantidad } from '../config/formato';
 import { debeSembrarAutomatico, sembrarAutomatico, reiniciarConSemilla, vaciarDatos } from '../data/seed';
-import { reemplazarConCopia, limpiarTemporales, ErrorCopia } from '../data/respaldo';
+import { reemplazarConCopia, limpiarTemporales, borrarAntesDeImportar, ErrorCopia } from '../data/respaldo';
 import { prepararTienda, cargarConfig, guardarConfig, CONFIG_POR_DEFECTO } from '../data/repositories/tienda';
 import { cargarCategorias, crearCategoria, renombrarCategoria, eliminarCategoria } from '../data/repositories/categorias';
 import {
@@ -84,6 +84,7 @@ export const LOG_TIPOS = {
   CATEGORIA_ELIMINADA:    'categoria_eliminada',
   COPIA_EXPORTADA:        'copia_exportada',
   DATOS_IMPORTADOS:       'datos_importados',
+  DATOS_BORRADOS:         'datos_borrados',
 };
 
 export const LOG_META = {
@@ -111,6 +112,7 @@ export const LOG_META = {
   categoria_eliminada:    { icono: '🗑️', filtro: 'otros',      label: 'Categoría eliminada' },
   copia_exportada:        { icono: '💾', filtro: 'otros',      label: 'Copia de seguridad' },
   datos_importados:       { icono: '📥', filtro: 'otros',      label: 'Datos importados' },
+  datos_borrados:         { icono: '🧹', filtro: 'otros',      label: 'Datos borrados' },
 };
 
 // ─── Utilidad: normalizar presentación con defaults de nuevos campos ──────────
@@ -248,8 +250,8 @@ export class StoreProvider extends Component {
   };
 
   // ─── Reemplazar todos los datos ───────────────────────────────────────────
-  // Importar una copia, deshacer una importación y (en desarrollo) reiniciar
-  // o vaciar cambian TODO. En vez de avisar pantalla por pantalla, se vuelve
+  // Importar una copia, deshacer una importación, borrar todos los datos y
+  // (en desarrollo) reiniciar con ejemplos cambian TODO. En vez de avisar pantalla por pantalla, se vuelve
   // a PantallaCarga: eso desmonta el árbol de navegación completo, y al
   // recargar se monta de cero (carrito vacío, pestañas en su raíz, ninguna
   // pantalla con ids que ya no existen). Por lo mismo, quien llama no debe
@@ -317,10 +319,20 @@ export class StoreProvider extends Component {
     }
   };
 
+  // "Borrar todos los datos" (Configuración). Conserva la tienda (nombre,
+  // moneda, umbral). La advertencia y la confirmación viven en ConfigView.
   vaciarTodo = async () => {
-    if (await this.reemplazarDatos('Vaciando datos…', () => getDB().transaction(vaciarDatos))) {
-      Toast.show('Datos vaciados', 'success');
-    }
+    const ok = await this.reemplazarDatos('Borrando datos…', async () => {
+      await getDB().transaction(vaciarDatos);
+      // Solo si el borrado salió bien (si falla, transaction lanza antes). Y
+      // sin lanzar: los datos YA se borraron, el aviso de reemplazarDatos
+      // ("tus datos no cambiaron") sería falso.
+      await borrarAntesDeImportar().catch(error => console.warn('borrarAntesDeImportar', error));
+    });
+    if (!ok) return;
+    // El registro de actividad también se borró: este es su primer evento.
+    this.logEvent(LOG_TIPOS.DATOS_BORRADOS, 'Se borraron todos los datos para empezar de cero');
+    Toast.show('Datos borrados', 'success');
   };
 
   // ─── Log ──────────────────────────────────────────────────────────────────
