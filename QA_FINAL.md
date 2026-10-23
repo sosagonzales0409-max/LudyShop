@@ -20,12 +20,12 @@ Orden recomendado de principio a fin. Cada paso enlaza a su sección, donde est�
 |---|---|---|---|
 | 1 | **Antes de empezar** | Node 22 o superior (`node --version`) · `adb devices` muestra el teléfono · Metro corriendo (`npx react-native start`) | 5 min |
 | 2 | **Pruebas automáticas** | Los 4 comandos de la [Parte A](#parte-a--pruebas-automáticas) desde `mitienda/`. Todos deben terminar en ✅ | 3 min |
-| 3 | **Preparar "desde 0"** | `SEED_AUTOMATICO = false` en `src/data/seed.js` → `adb shell pm clear com.mitienda` → abrir la app ([B·Preparación](#bpreparación)) | 3 min |
+| 3 | **Preparar "desde 0"** | `SEED_AUTOMATICO = false` en `src/data/seed.js` → `adb shell pm clear com.ludyshop.app` → abrir la app ([B·Preparación](#bpreparación)) | 3 min |
 | 4 | **Escenario desde 0** | [B0](#b0--primer-arranque-todo-vacío) → [B9](#b9--estado-final-esperado-desde-0), en orden y **el mismo día** | 60–90 min |
 | 5 | **Transversales con los datos de B9** | [D1](#d1--persistencia-checklist-10) persistencia · [D2](#d2--moneda-y-umbral-checklist-1-21) moneda y umbral (al terminar, regresa a $ y 5) · [D3](#d3--teclado-checklist-14-23--android-16-borde-a-borde) teclado | 20 min |
 | 6 | **Verificar la base real** | [B10](#b10--verificación-con-la-base-real-del-teléfono): `qa\extraer-bd.cmd` → integridad y cruce en ✅ → comparar la hoja con B9 | 5 min |
 | 7 | **Pruebas extra** | [B11](#b11--prueba-extra-cambia-los-valores-de-b9-hazla-al-final) (venta de 7.5 kg) y [B12](#b12--cambios-del-3009-después-de-b11-cambian-los-valores) (marca opcional, bulto, granel con decimales, modal con teclado) | 15 min |
-| 8 | **Preparar la semilla** | `SEED_AUTOMATICO = true` → `adb shell pm clear com.mitienda` → abrir la app y esperar la siembra (~20–25 s) → copiar de Metro los logs `[semilla]` y `[rendimiento] arranque` ([C·Preparación](#cpreparación)) | 5 min |
+| 8 | **Preparar la semilla** | `SEED_AUTOMATICO = true` → `adb shell pm clear com.ludyshop.app` → abrir la app y esperar la siembra (~20–25 s) → copiar de Metro los logs `[semilla]` y `[rendimiento] arranque` ([C·Preparación](#cpreparación)) | 5 min |
 | 9 | **Generar la hoja** | **Sin tocar nada en la app**: `qa\extraer-bd.cmd` → abrir `qa/datos/VALORES_ESPERADOS.md` → volver a abrir la app | 3 min |
 | 10 | **Validar pantallas** | [C1](#c1--validar-pantallas-contra-la-hoja), sección por sección de la hoja | 30 min |
 | 11 | **Pruebas con volumen y rendimiento** | [C2](#c2--pruebas-funcionales-con-volumen) · [D4](#d4--rendimiento-con-semilla-build-de-desarrollo) · repetir [D1](#d1--persistencia-checklist-10) | 30 min |
@@ -73,7 +73,7 @@ Qué cubren. Corren el código real de `src/data` y `StoreContext` (acciones, co
 ### B·Preparación
 
 1. En `src/data/seed.js` cambia `export const SEED_AUTOMATICO = true;` → **`false`**.
-2. Borra los datos: `adb shell pm clear com.mitienda`.
+2. Borra los datos: `adb shell pm clear com.ludyshop.app`.
 3. Con Metro corriendo, abre la app (o `npx react-native run-android`).
 4. Al terminar la Parte B y la Parte D, **regresa `SEED_AUTOMATICO` a `true`** antes de la Parte C.
 
@@ -94,7 +94,7 @@ Qué cubren. Corren el código real de `src/data` y `StoreContext` (acciones, co
   - Flujo en $0.00, **sin** la sección "INVERSIÓN EN COMPRAS".
 - [ ] **Inventario**: "Valor total: **$0.00**", sin badge en ⚠️, en el encabezado solo ⚠️ y ⚙️ (ya no está 🏷️); chips "Todos" y, fijo a la derecha, un chip **+**; "**No hay productos**".
 - [ ] Inventario → ⚠️ **Stock bajo**: "0 Productos", "✅ **¡Todo en orden!**"
-- [ ] **Configuración**: filas Personalizar la tienda, Reportes, Compras, Registrar compra, Consumo propio, Historial de actividad; "Copia de seguridad" y "Exportar reporte" con "🚧 Próximamente".
+- [ ] **Configuración**: filas Personalizar la tienda, Reportes, Compras, Registrar compra, Consumo propio, Historial de actividad; tarjeta de datos con Exportar información, Importar información y "Borrar todos los datos" (en rojo, al final). Sin aviso de copia porque no hay ventas.
 - [ ] Configuración → **Compras**: "🛒 **Sin compras registradas** — Toca "Registrar compra" para registrar tu primera compra." y el botón "Registrar compra".
 - [ ] Configuración → **Historial de actividad**: "**0 eventos**", "Sin actividad registrada".
 - [ ] Configuración → **Consumo propio**: "📦 Sin productos disponibles — Todos los productos tienen stock 0."
@@ -436,7 +436,7 @@ Después de B7:
 ### C·Preparación
 
 1. `SEED_AUTOMATICO = true` en `src/data/seed.js`.
-2. `adb shell pm clear com.mitienda` y abre la app.
+2. `adb shell pm clear com.ludyshop.app` y abre la app.
 3. La pantalla de carga dura unos 20–25 s la primera vez. En Metro debe salir:
    - `[semilla] 365 días · …`, con ~31 000 ventas, ~78 000 ítems, ~6 000 abonos, ~610 compras y ~32 000 eventos;
    - `[rendimiento] arranque · en memoria solo 39 productos y 15 clientes…`.
@@ -523,7 +523,7 @@ La parte SQL ya está verificada en Node con la BD real (20 pruebas: filas e ids
 - [ ] Aparece la fila **Deshacer última importación** con la fecha. Al usarla, vuelve la venta nueva. Usarla otra vez la vuelve a quitar: deshacer guarda los datos actuales.
 
 **Teléfono recién instalado (el caso de pasar los datos a otro teléfono)**
-- [ ] `SEED_AUTOMATICO = false` en `src/data/seed.js` + `adb shell pm clear com.mitienda` → la app abre vacía.
+- [ ] `SEED_AUTOMATICO = false` en `src/data/seed.js` + `adb shell pm clear com.ludyshop.app` → la app abre vacía.
 - [ ] Configuración → Importar → elige la copia (desde Descargas, Drive o WhatsApp) → el diálogo dice "¿Importar estos datos?" (sin el aviso de reemplazar) → **Importar**.
 - [ ] Todos los datos del otro teléfono aparecen: nombre de la tienda, moneda, umbral, productos, créditos, historial y reportes. **No** aparece la fila "Deshacer última importación".
 - [ ] Haz una venta, cierra la app a la fuerza y reábrela: la venta sigue ahí. `qa\extraer-bd.cmd` → **integridad en 0**, y en `meta` `tienda_id_actual` es el id de la tienda de la copia.
@@ -539,16 +539,21 @@ La parte SQL ya está verificada en Node con la BD real (20 pruebas: filas e ids
 - [ ] En un teléfono nuevo, después de importar: **no** hay aviso (cuenta desde la fecha de la copia importada) y la fila dice "Última copia: hace N días" según la copia.
 
 **Limpieza de temporales**
-- [ ] Exporta 2 veces en días distintos (o cambia la fecha del teléfono) → `adb shell run-as com.mitienda ls cache` muestra solo la copia más reciente.
+- [ ] Exporta 2 veces en días distintos (o cambia la fecha del teléfono) → `adb shell run-as com.ludyshop.app ls cache` muestra solo la copia más reciente.
 - [ ] Importa una copia → tras reiniciar la app, en `cache` no quedan `importando.db` ni carpetas con nombre UUID.
 
+**Borrar todos los datos** (Configuración → tarjeta de datos, fila roja al final; checklist 33)
+- [ ] Con la app vacía → "**No hay datos que borrar** — La app ya está como recién instalada."
+- [ ] Con datos → "**¿Borrar todos los datos?**" con los conteos (productos, ventas, clientes, compras) y los botones Cancelar · Exportar primero · Continuar. **Exportar primero** inicia la exportación normal.
+- [ ] **Continuar** → modal donde hay que escribir **BORRAR** (mayúsculas o minúsculas da igual); hasta entonces "Borrar todo" está deshabilitado.
+- [ ] "Borrar todo" → la app vuelve a Ventas vacía, pero conserva el nombre de la tienda, la moneda y el umbral. Desaparece "Deshacer última importación". El registro de actividad empieza con 🧹 "**Datos borrados**".
+
 **Desarrollo (solo build de desarrollo)**
-- [ ] Al final de Configuración aparece la tarjeta "DESARROLLO". En un build release **no** aparece.
-- [ ] **Vaciar datos** → confirmación → "Vaciando datos…" → app vacía, pero conserva el nombre de la tienda y la moneda.
+- [ ] Al final de Configuración aparece la tarjeta "DESARROLLO" con solo "Reiniciar con datos de ejemplo" ("Vaciar datos" se quitó: lo reemplaza "Borrar todos los datos"). En un build release **no** aparece.
 - [ ] **Reiniciar con datos de ejemplo** → confirmación → "Generando datos de ejemplo…" (unos segundos) → vuelve el año de tienda.
 
 ### D1 · Persistencia (checklist 10)
-- [ ] Después de B9 (y otra vez al final de C2): cierra la app a la fuerza (deslizar en recientes o `adb shell am force-stop com.mitienda`) y ábrela. **Todos** los valores de B9 siguen iguales, incluidos la moneda, el umbral, las categorías y el nombre de la tienda.
+- [ ] Después de B9 (y otra vez al final de C2): cierra la app a la fuerza (deslizar en recientes o `adb shell am force-stop com.ludyshop.app`) y ábrela. **Todos** los valores de B9 siguen iguales, incluidos la moneda, el umbral, las categorías y el nombre de la tienda.
 - [ ] Haz una venta y **en menos de 1 segundo** cierra la app a la fuerza. Al reabrir, la venta está completa (con sus productos y su stock descontado) o no está en absoluto. Nunca a medias. Confírmalo con la integridad (`qa\extraer-bd.cmd`).
 
 ### D2 · Moneda y umbral (checklist 1, 21)
@@ -599,7 +604,7 @@ Copia los logs `[rendimiento]` de Metro a la Parte G.
 
 ---
 
-## Parte E — Checklist acumulado (1–32)
+## Parte E — Checklist acumulado (1–33)
 
 | # | Punto | Dónde se prueba |
 |---|---|---|
@@ -633,8 +638,9 @@ Copia los logs `[rendimiento]` de Metro a la Parte G.
 | 28 | Fase 5: Compras y detalle de producto | B3, B8, C1 |
 | 29 | Fase 6: acciones leen de la BD; arranque liviano | A, B6, B7, B8, D4 |
 | 30 | Copia de seguridad: exportar / importar / deshacer, también en un teléfono recién instalado | D5 |
-| 31 | Sección Desarrollo (reiniciar con ejemplos / vaciar) | D5 |
+| 31 | Sección Desarrollo (reiniciar con ejemplos) | D5 |
 | 32 | Recordatorio de copia (punto en el engrane + aviso) y limpieza de temporales | D5 |
+| 33 | Borrar todos los datos (conteos, exportar primero, escribir BORRAR) | D5 |
 
 ---
 
@@ -662,7 +668,9 @@ Encontrados al revisar pantalla por pantalla. **No están corregidos**. Durante 
 
 ## Parte G — Registro de resultados
 
-Fecha: ____ · Teléfono / Android: ____ · Build: debug
+> **Resultado (14 oct 2026): QA CERRADO.** Pasada completa en el teléfono (Android 16, build de desarrollo) sin errores, incluidos el teclado en los modales (D3), la copia de seguridad (D5) y "Borrar todos los datos". La V1 queda lista en funciones; lo que sigue es la publicación (ver `PUBLICAR_PLAY_STORE.md`).
+
+Fecha: 14 oct 2026 · Teléfono / Android: Android 16 · Build: debug
 
 | Parte / paso | ✅ / ❌ | Valor visto (si ❌) | Esperado | Notas |
 |---|---|---|---|---|

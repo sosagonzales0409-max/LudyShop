@@ -30,7 +30,7 @@ import { formatoDinero } from '../config/formato';
 // hace cientos de veces más rápido. Va dentro de la transacción de persistir().
 
 // Cambiar a false para que la app de desarrollo arranque vacía.
-export const SEED_AUTOMATICO = true;
+export const SEED_AUTOMATICO = false;
 
 // Volumen de la simulación (ajustables para pruebas de carga).
 export const DIAS_SEMILLA = 365;

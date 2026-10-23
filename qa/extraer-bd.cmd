@@ -10,14 +10,14 @@ cd /d "%~dp0"
 if not exist datos mkdir datos
 
 echo Cerrando la app para que no escriba mientras se copia...
-adb shell am force-stop com.mitienda
+adb shell am force-stop com.ludyshop.app
 
 del /q datos\mitienda.db datos\mitienda.db-wal datos\mitienda.db-shm 2>nul
 echo Copiando databases/mitienda.db ...
-adb exec-out run-as com.mitienda cat databases/mitienda.db > datos\mitienda.db
+adb exec-out run-as com.ludyshop.app cat databases/mitienda.db > datos\mitienda.db
 REM El WAL guarda las ultimas escrituras que aun no pasan al archivo principal:
 REM hay que copiarlo tambien (si no existe, queda vacio y SQLite lo ignora).
-adb exec-out run-as com.mitienda sh -c "test -f databases/mitienda.db-wal && cat databases/mitienda.db-wal" > datos\mitienda.db-wal
+adb exec-out run-as com.ludyshop.app sh -c "test -f databases/mitienda.db-wal && cat databases/mitienda.db-wal" > datos\mitienda.db-wal
 
 for %%A in (datos\mitienda.db) do if %%~zA LSS 4096 (
   echo.
