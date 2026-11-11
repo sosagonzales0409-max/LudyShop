@@ -23,7 +23,9 @@ const STUBS = {
   'react-native': 'stubs/react-native.mjs',
   'uuid': 'stubs/uuid.mjs',
   '@op-engineering/op-sqlite': 'stubs/op-sqlite.mjs',
+  '@dr.pogodin/react-native-fs': 'stubs/react-native-fs.mjs',
   '../components/PantallaCarga': 'stubs/PantallaCarga.mjs',
+  '../components/Toast': 'stubs/Toast.mjs',
 };
 
 export const construir = () => {
