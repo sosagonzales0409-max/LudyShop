@@ -5,8 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  SafeAreaView,
-  Dimensions,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -16,12 +14,11 @@ import { crearConsultaViva } from '../data/consultaViva';
 import { normalizarNombre } from '../data/nombres';
 import EditAbonoModal from './EditAbonoModal';
 import DevolucionModal from './DevolucionModal';
-import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
 import { formatoDinero, nombreProducto } from '../config/formato';
-import { IconEdit, IconBack, IconClose, IconTrash } from './Icon';
-
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+import { IconEdit, IconClose, IconTrash, IconCornerUp, IconCheckCircle } from './Icon';
+import Encabezado from './Encabezado';
+import { ChipEstado, EstadoVacio } from './Estados';
 
 export default class ClientDebtDetailView extends Component {
   static contextType = StoreContext;
@@ -139,7 +136,7 @@ export default class ClientDebtDetailView extends Component {
     const saldada   = pendiente <= 0.009;
 
     return (
-      <View style={{ backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.sm, elevation: 2, shadowOpacity: 0.06, shadowOffset: { width: 0, height: 1 } }}>
+      <View style={{ ...tarjeta, padding: spacing.lg, marginBottom: spacing.sm }}>
 
         {/* Fila: fecha + badge + eliminar */}
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
@@ -153,8 +150,8 @@ export default class ClientDebtDetailView extends Component {
           </View>
 
           {saldada ? (
-            <View style={{ backgroundColor: colors.success, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, marginRight: spacing.sm }}>
-              <Text style={{ color: colors.white, fontSize: fontSize.small, fontWeight: 'bold' }}>Saldada</Text>
+            <View style={{ marginRight: spacing.sm }}>
+              <ChipEstado tono="ok" texto="Saldada" />
             </View>
           ) : (
             <View style={{ alignItems: 'flex-end', marginRight: spacing.sm }}>
@@ -165,9 +162,10 @@ export default class ClientDebtDetailView extends Component {
 
           <TouchableOpacity
             onPress={() => this.confirmarEliminar(venta)}
-            style={{ width: 36, height: 36, borderRadius: radius.sm, backgroundColor: '#fde8e8', justifyContent: 'center', alignItems: 'center' }}
+            accessibilityLabel="Eliminar venta de la deuda"
+            style={{ width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.dangerSoft, justifyContent: 'center', alignItems: 'center' }}
           >
-            <IconTrash size={fontSize.body} color={colors.textPrimary} />
+            <IconTrash size={fontSize.itemTitle} color={colors.dangerDark} />
           </TouchableOpacity>
         </View>
 
@@ -190,11 +188,11 @@ export default class ClientDebtDetailView extends Component {
             </Text>
             <TouchableOpacity
               onPress={() => this.setState({ showEditAbonoModal: true, ventaEditando: venta })}
-              style={{ height: 32, paddingHorizontal: spacing.md, backgroundColor: colors.card, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.chipInactive, justifyContent: 'center', alignItems: 'center' }}
+              style={{ height: 40, paddingHorizontal: spacing.md, backgroundColor: colors.primarySoft, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <IconEdit size={fontSize.caption} color={colors.primary} />
-                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.primary, marginLeft: spacing.xs }}>Editar abono</Text>
+                <IconEdit size={fontSize.body} color={colors.primaryDark} />
+                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.primaryDark, marginLeft: spacing.xs }}>Editar abono</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -211,7 +209,7 @@ export default class ClientDebtDetailView extends Component {
             marginTop: spacing.md,
           }}
         >
-          <Text style={{ fontSize: fontSize.body }}>↩️</Text>
+          <IconCornerUp size={fontSize.label} color={colors.textPrimary} />
           <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>Registrar devolución</Text>
         </TouchableOpacity>
 
@@ -232,7 +230,7 @@ export default class ClientDebtDetailView extends Component {
     const { editandoNombre, nombreInput } = this.state;
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
 
         <EditAbonoModal
           visible={this.state.showEditAbonoModal}
@@ -270,37 +268,35 @@ export default class ClientDebtDetailView extends Component {
           }}
         />
 
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
+        {/* Encabezado azul: el nombre del cliente es el título; el lápiz abre
+            la fila de edición justo debajo (no cabe un campo dentro de la barra). */}
+        <Encabezado
+          titulo={cliente?.cliente ?? '—'}
+          onBack={() => this.props.navigation.goBack()}
+          acciones={editandoNombre ? [] : [{
+            Icono: IconEdit,
+            etiqueta: 'Editar nombre',
+            onPress: () => this.setState({ editandoNombre: true, nombreInput: cliente?.cliente ?? '' }),
+          }]}
+        />
 
-        {/* Header */}
-        <View style={{ minHeight: 60, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }}>
-          <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}>
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-
-          {editandoNombre ? (
-            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <TextInput
-                style={{ flex: 1, fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, borderBottomWidth: 2, borderBottomColor: colors.primary, paddingVertical: spacing.xs }}
-                autoFocus value={nombreInput}
-                onChangeText={t => this.setState({ nombreInput: t })}
-                onSubmitEditing={this.guardarNombre}
-                returnKeyType="done"
-              />
-              <TouchableOpacity onPress={this.guardarNombre} style={{ height: 36, paddingHorizontal: spacing.md, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.white }}>OK</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => this.setState({ editandoNombre: false, nombreInput: cliente?.cliente ?? '' })} style={{ height: 36, paddingHorizontal: spacing.sm, backgroundColor: colors.chipInactive, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
-                <IconClose size={fontSize.label} color={colors.textPrimary} />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity onPress={() => this.setState({ editandoNombre: true, nombreInput: cliente?.cliente ?? '' })} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }} activeOpacity={0.7}>
-              <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>{cliente?.cliente ?? '—'}</Text>
-              <IconEdit size={fontSize.caption} color={colors.primary} />
+        {editandoNombre && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
+            <TextInput
+              style={{ flex: 1, fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, borderBottomWidth: 2, borderBottomColor: colors.primary, paddingVertical: spacing.xs }}
+              autoFocus value={nombreInput}
+              onChangeText={t => this.setState({ nombreInput: t })}
+              onSubmitEditing={this.guardarNombre}
+              returnKeyType="done"
+            />
+            <TouchableOpacity onPress={this.guardarNombre} style={{ height: 44, paddingHorizontal: spacing.lg, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.white }}>OK</Text>
             </TouchableOpacity>
-          )}
-        </View>
+            <TouchableOpacity onPress={() => this.setState({ editandoNombre: false, nombreInput: cliente?.cliente ?? '' })} accessibilityLabel="Cancelar" style={{ width: 44, height: 44, backgroundColor: colors.chipInactive, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
+              <IconClose size={fontSize.label} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {this.state.cargando ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
@@ -310,9 +306,13 @@ export default class ClientDebtDetailView extends Component {
           </Text>
         ) : !cliente ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ fontSize: 48 }}>✅</Text>
-            <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.lg }}>¡Deuda saldada!</Text>
-            <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm }}>Este cliente ya no tiene saldo pendiente.</Text>
+            <EstadoVacio
+              Icono={IconCheckCircle}
+              tono="ok"
+              titulo="¡Deuda saldada!"
+              texto="Este cliente ya no tiene saldo pendiente."
+              style={{ marginTop: 0 }}
+            />
             <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ marginTop: spacing.xl, height: buttonHeight.action, paddingHorizontal: spacing.xxl, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
               <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>Volver a Créditos</Text>
             </TouchableOpacity>
@@ -328,7 +328,7 @@ export default class ClientDebtDetailView extends Component {
             ListHeaderComponent={() => (
               <View>
                 {/* Resumen */}
-                <View style={{ backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.lg, elevation: 3, shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 } }}>
+                <View style={{ ...tarjeta, padding: spacing.lg, marginBottom: spacing.lg }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
                     <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Deuda total</Text>
                     <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>{formatoDinero(cliente.totalDeuda, moneda)}</Text>
@@ -340,7 +340,7 @@ export default class ClientDebtDetailView extends Component {
                   {cliente.totalCondonado > 0.009 && (
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }}>
                       <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Condonado</Text>
-                      <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.warning }}>{formatoDinero(cliente.totalCondonado, moneda)}</Text>
+                      <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.warningDark }}>{formatoDinero(cliente.totalCondonado, moneda)}</Text>
                     </View>
                   )}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm }}>
@@ -355,7 +355,7 @@ export default class ClientDebtDetailView extends Component {
             )}
           />
         )}
-      </SafeAreaView>
+      </View>
     );
   }
 }

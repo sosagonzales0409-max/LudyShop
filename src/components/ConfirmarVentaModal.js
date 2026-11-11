@@ -139,7 +139,7 @@ export default class ConfirmarVentaModal extends Component {
                   marginBottom: spacing.sm,
                 }}
                 placeholder="¿Cuánto paga? 0.00"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.placeholder}
                 keyboardType="decimal-pad"
                 autoFocus
                 value={abonoInput}
@@ -150,7 +150,7 @@ export default class ConfirmarVentaModal extends Component {
             {/* Preview saldo resultante */}
             <View
               style={{
-                backgroundColor: saldada ? '#e8f8ee' : '#fff3e0',
+                backgroundColor: saldada ? colors.successSoft : colors.warningSoft,
                 borderRadius: radius.sm,
                 padding: spacing.md,
                 marginBottom: spacing.lg,
@@ -159,11 +159,11 @@ export default class ConfirmarVentaModal extends Component {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, flex: 1 }}>
-                {saldada ? '¡Quedará saldado! 🎉' : 'Quedará debiendo'}
+              <Text style={{ fontSize: fontSize.body, color: saldada ? colors.successDark : colors.textSecondary, fontWeight: saldada ? 'bold' : 'normal', flex: 1 }}>
+                {saldada ? '¡Quedará saldado!' : 'Quedará debiendo'}
               </Text>
               {!saldada && (
-                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.danger }}>
+                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.dangerDark }}>
                   {formatoDinero(pendiente, moneda)}
                 </Text>
               )}

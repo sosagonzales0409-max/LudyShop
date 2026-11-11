@@ -4,8 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -15,12 +13,11 @@ import { resumenPeriodo } from '../data/consultas/historial';
 import { crearConsultaViva } from '../data/consultaViva';
 import CorteModal from './CorteModal';
 import DevolucionModal from './DevolucionModal';
-import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
 import { formatoDinero, nombreProducto } from '../config/formato';
-import { IconBack, IconReceipt, IconTrendingUp, IconTrash } from './Icon';
-
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+import { IconReceipt, IconTrendingUp, IconTrash, IconCornerUp, IconChevronUp, IconChevronDown, IconInbox } from './Icon';
+import Encabezado from './Encabezado';
+import { ChipEstado, EstadoVacio } from './Estados';
 
 const TIPOS_PAGO = ['Todos', 'Contado', 'Credito'];
 const PERIODOS = [
@@ -234,9 +231,8 @@ export default class HistorialView extends Component {
     return (
       <View
         style={{
+          ...tarjeta,
           marginHorizontal: spacing.lg, marginBottom: spacing.sm,
-          backgroundColor: colors.card, borderRadius: radius.md,
-          elevation: 2, shadowOpacity: 0.06, shadowOffset: { width: 0, height: 1 },
         }}
       >
         {/* Fila principal — toca para expandir */}
@@ -253,18 +249,18 @@ export default class HistorialView extends Component {
                   {' '}{this.formatHora(venta.fecha)}
                 </Text>
               </Text>
-              <View style={{ alignSelf: 'flex-start', marginTop: spacing.xs, backgroundColor: esCredito ? colors.warning : colors.success, borderRadius: radius.sm, paddingVertical: 2, paddingHorizontal: spacing.sm }}>
-                <Text style={{ color: colors.white, fontSize: fontSize.small, fontWeight: 'bold' }}>
-                  {esCredito ? 'Crédito' : 'Contado'}
-                </Text>
+              <View style={{ alignSelf: 'flex-start', marginTop: spacing.xs }}>
+                <ChipEstado tono={esCredito ? 'warn' : 'ok'} texto={esCredito ? 'Crédito' : 'Contado'} />
               </View>
             </View>
             <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>
               {formatoDinero(venta.total, moneda)}
             </Text>
-            <Text style={{ fontSize: fontSize.itemTitle, color: colors.textMuted, marginLeft: spacing.sm }}>
-              {expandido ? '▴' : '▾'}
-            </Text>
+            <View style={{ marginLeft: spacing.sm }}>
+              {expandido
+                ? <IconChevronUp size={fontSize.itemTitle} color={colors.placeholder} />
+                : <IconChevronDown size={fontSize.itemTitle} color={colors.placeholder} />}
+            </View>
           </View>
         </TouchableOpacity>
 
@@ -327,7 +323,7 @@ export default class HistorialView extends Component {
                   flexDirection: 'row', gap: spacing.xs,
                 }}
               >
-                <Text style={{ fontSize: fontSize.body }}>↩️</Text>
+                <IconCornerUp size={fontSize.label} color={colors.textPrimary} />
                 <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>
                   Devolución
                 </Text>
@@ -339,14 +335,14 @@ export default class HistorialView extends Component {
                 style={{
                   height: buttonHeight.chip,
                   paddingHorizontal: spacing.lg,
-                  backgroundColor: '#fde8e8',
+                  backgroundColor: colors.dangerSoft,
                   borderRadius: radius.lg,
                   justifyContent: 'center', alignItems: 'center',
                   flexDirection: 'row', gap: spacing.xs,
                 }}
               >
-                <IconTrash size={fontSize.body} color={colors.danger} />
-                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.danger }}>
+                <IconTrash size={fontSize.body} color={colors.dangerDark} />
+                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.dangerDark }}>
                   Eliminar
                 </Text>
               </TouchableOpacity>
@@ -388,7 +384,7 @@ export default class HistorialView extends Component {
         )}
 
         {/* Resumen del período */}
-        <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.lg, backgroundColor: colors.card, borderRadius: radius.md, elevation: 3, shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 } }}>
+        <View style={{ ...tarjeta, marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.lg }}>
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, textAlign: 'center' }}>INGRESOS DEL PERÍODO (contado + abonos)</Text>
           <Text style={{ fontSize: 28, fontWeight: 'bold', color: colors.success, textAlign: 'center', marginVertical: spacing.xs }}>{formatoDinero(totalIngresos, moneda)}</Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.xs }}>
@@ -407,7 +403,7 @@ export default class HistorialView extends Component {
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs }}>
                 <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>POR COBRAR (de esas ventas)</Text>
-                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.warning }}>{formatoDinero(totalPendiente, moneda)}</Text>
+                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.warningDark }}>{formatoDinero(totalPendiente, moneda)}</Text>
               </View>
             </>
           )}
@@ -448,7 +444,7 @@ export default class HistorialView extends Component {
     const { ventas, cargando } = this.state;
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
 
         <CorteModal
           visible={this.state.showCorteModal}
@@ -481,24 +477,24 @@ export default class HistorialView extends Component {
           }}
         />
 
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
-        {/* Header */}
-        <View style={{ height: 60, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }}>
-          <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}>
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>Historial</Text>
-          <TouchableOpacity onPress={() => this.setState({ showCorteModal: true })} style={{ height: 36, paddingHorizontal: spacing.md, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <IconReceipt size={15} color={colors.white} />
-              <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.white, marginLeft: spacing.xs }}>Corte</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => this.props.navigation.navigate('Reportes')} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginLeft: spacing.xs }} hitSlop={8}>
-            <IconTrendingUp size={28} color={colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
+        {/* Encabezado azul: "Corte" como etiqueta blanca tocable y Reportes como ícono */}
+        <Encabezado
+          titulo="Historial"
+          onBack={() => this.props.navigation.goBack()}
+          derecha={(
+            <TouchableOpacity
+              onPress={() => this.setState({ showCorteModal: true })}
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="Corte del día"
+              style={{ height: 36, paddingHorizontal: spacing.md, marginHorizontal: spacing.xs, backgroundColor: colors.white, borderRadius: radius.lg, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}
+            >
+              <IconReceipt size={15} color={colors.primaryDark} />
+              <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.primaryDark, marginLeft: spacing.xs }}>Corte</Text>
+            </TouchableOpacity>
+          )}
+          acciones={[{ Icono: IconTrendingUp, etiqueta: 'Reportes', onPress: () => this.props.navigation.navigate('Reportes') }]}
+        />
 
         <FlatList
           data={ventas}
@@ -513,14 +509,15 @@ export default class HistorialView extends Component {
           ListEmptyComponent={() => (cargando ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
           ) : (
-            <View style={{ alignItems: 'center', marginTop: 60 }}>
-              <Text style={{ fontSize: 48 }}>🗒️</Text>
-              <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', marginTop: spacing.md, color: colors.textPrimary }}>Sin ventas</Text>
-              <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>No hay ventas en el período seleccionado.</Text>
-            </View>
+            <EstadoVacio
+              Icono={IconInbox}
+              tono="info"
+              titulo="Sin ventas"
+              texto="No hay ventas en el período seleccionado."
+            />
           ))}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 }

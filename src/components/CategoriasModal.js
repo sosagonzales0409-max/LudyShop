@@ -164,7 +164,8 @@ export default class CategoriasModal extends Component {
             <TouchableOpacity
               onPress={() => this.setState({ editandoId: cat.id, editandoNombre: cat.nombre })}
               style={{
-                height: 36,
+                height: 40,
+                minWidth: 40,
                 paddingHorizontal: spacing.md,
                 backgroundColor: colors.chipInactive,
                 borderRadius: radius.sm,
@@ -179,15 +180,16 @@ export default class CategoriasModal extends Component {
             <TouchableOpacity
               onPress={() => this.handleDelete(cat)}
               style={{
-                height: 36,
+                height: 40,
+                minWidth: 40,
                 paddingHorizontal: spacing.md,
-                backgroundColor: '#fde8e8',
+                backgroundColor: colors.dangerSoft,
                 borderRadius: radius.sm,
                 justifyContent: 'center',
                 alignItems: 'center',
               }}
             >
-              <IconTrash size={fontSize.body} color={colors.textPrimary} />
+              <IconTrash size={fontSize.body} color={colors.dangerDark} />
             </TouchableOpacity>
           </>
         )}
@@ -243,7 +245,7 @@ export default class CategoriasModal extends Component {
               <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
                 Categorías
               </Text>
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={onClose} accessibilityLabel="Cerrar" style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: -spacing.md }}>
                 <IconClose size={fontSize.heading} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
@@ -268,7 +270,7 @@ export default class CategoriasModal extends Component {
                 paddingHorizontal: spacing.xl,
                 paddingTop: spacing.lg,
                 borderTopWidth: 1,
-                borderTopColor: colors.border,
+                borderTopColor: colors.cardBorder,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: spacing.sm,
@@ -278,7 +280,7 @@ export default class CategoriasModal extends Component {
                 style={{
                   flex: 1,
                   borderWidth: 1,
-                  borderColor: colors.chipInactive,
+                  borderColor: colors.inputBorder,
                   borderRadius: radius.sm,
                   paddingHorizontal: spacing.md,
                   paddingVertical: spacing.sm,
@@ -286,7 +288,7 @@ export default class CategoriasModal extends Component {
                   color: colors.textPrimary,
                 }}
                 placeholder="Nueva categoría..."
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.placeholder}
                 value={this.state.nuevaNombre}
                 onChangeText={t => this.setState({ nuevaNombre: t })}
                 onSubmitEditing={this.handleAdd}

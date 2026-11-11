@@ -4,8 +4,6 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
-  Dimensions,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -17,17 +15,15 @@ import {
   RUTA_ANTES_DE_IMPORTAR, ErrorCopia, estadoCopia, registrarCopiaHecha, resumenDatos,
 } from '../data/respaldo';
 import { crearConsultaViva } from '../data/consultaViva';
-import { colors, spacing, radius, fontSize } from '../config/theme';
+import { colors, spacing, radius, fontSize, tarjeta } from '../config/theme';
 import Toast from './Toast';
 import BorrarDatosModal from './BorrarDatosModal';
+import Encabezado from './Encabezado';
 import {
   IconStore, IconTrendingUp, IconCoffee, IconClipboard,
-  IconSave, IconFile, IconChevron, IconBack, IconShoppingBag, IconPlus,
+  IconSave, IconFile, IconChevron, IconShoppingBag, IconPlus,
   IconHistory, IconWarning, IconTrash,
 } from './Icon';
-
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
 
 // Tipo genérico a propósito: con 'application/vnd.sqlite3' algunos destinos
 // (Drive, el diálogo de Guardar) cambian la extensión o rechazan el archivo.
@@ -302,15 +298,10 @@ export default class ConfigView extends Component {
     return (
       <View
         style={{
-          backgroundColor: colors.card,
-          borderRadius: radius.md,
+          ...tarjeta,
           paddingHorizontal: spacing.lg,
           marginHorizontal: spacing.lg,
           marginBottom: spacing.lg,
-          elevation: 3,
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
         }}
       >
         {children}
@@ -348,7 +339,7 @@ export default class ConfigView extends Component {
             }}
           >
             <Text style={{ fontSize: fontSize.small, fontWeight: 'bold', color: colors.textSecondary }}>
-              🚧 Próximamente
+              Próximamente
             </Text>
           </View>
         )}
@@ -381,32 +372,8 @@ export default class ConfigView extends Component {
     const { copia } = this.state;
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
-        {/* Header */}
-        <View
-          style={{
-            height: 60,
-            paddingHorizontal: spacing.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.card,
-            elevation: 4,
-            shadowOpacity: 0.1,
-            shadowOffset: { width: 0, height: 2 },
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => nav.goBack()}
-            style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}
-          >
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
-            Configuración
-          </Text>
-        </View>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Encabezado titulo="Configuración" onBack={() => nav.goBack()} />
 
         <ScrollView contentContainerStyle={{ paddingVertical: spacing.lg, paddingBottom: spacing.xxl }}>
 
@@ -418,10 +385,10 @@ export default class ConfigView extends Component {
                 flexDirection: 'row', alignItems: 'center',
                 marginHorizontal: spacing.lg, marginBottom: spacing.lg, padding: spacing.lg,
                 borderRadius: radius.md, borderWidth: 1, borderColor: colors.warning,
-                backgroundColor: 'rgba(252,158,58,0.12)',
+                backgroundColor: colors.warningSoft,
               }}
             >
-              <IconWarning size={22} color={colors.warning} />
+              <IconWarning size={22} color={colors.warningDark} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textPrimary }}>
                   Haz una copia de tus datos
@@ -536,7 +503,7 @@ export default class ConfigView extends Component {
             </View>
           </View>
         )}
-      </SafeAreaView>
+      </View>
     );
   }
 }

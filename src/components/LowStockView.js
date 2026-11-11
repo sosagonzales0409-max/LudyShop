@@ -4,16 +4,13 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { colors, spacing, radius, fontSize, iconButton } from '../config/theme';
+import { colors, spacing, radius, fontSize, tarjeta } from '../config/theme';
 import { formatoDinero, formatoCantidad } from '../config/formato';
-import { IconBack, IconShoppingBag } from './Icon';
-
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+import { IconShoppingBag, IconCheckCircle } from './Icon';
+import Encabezado, { EtiquetaEncabezado } from './Encabezado';
+import { ChipEstado, EstadoVacio } from './Estados';
 
 /**
  * LowStockView — pantalla con todas las presentaciones cuyo stock
@@ -49,9 +46,9 @@ export default class LowStockView extends Component {
     const { stock } = pres;
     // A granel lleva su unidad ("2.5 kg"); si no, piezas ("3 uds").
     const label = pres.esGranel ? formatoCantidad(stock, true, pres.unidadGranel || 'kg') : `${formatoCantidad(stock)} uds`;
-    if (stock === 0) return { bg: colors.danger, label: 'Sin stock' };
-    if (stock <= 2) return { bg: colors.danger, label };
-    return { bg: colors.warning, label };
+    if (stock === 0) return { tono: 'bad', label: 'Sin stock' };
+    if (stock <= 2) return { tono: 'bad', label };
+    return { tono: 'warn', label };
   }
 
   renderItem({ product, presentacion }) {
@@ -63,33 +60,16 @@ export default class LowStockView extends Component {
         activeOpacity={0.8}
         onPress={() => this.props.navigation.navigate('EditarProducto', { productId: product.id, presentacionId: presentacion.id })}
         style={{
-          backgroundColor: colors.card,
-          borderRadius: radius.md,
+          ...tarjeta,
           padding: spacing.lg,
           marginBottom: spacing.sm,
           flexDirection: 'row',
           alignItems: 'center',
-          elevation: 3,
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
         }}
       >
-        {/* Badge de stock */}
-        <View
-          style={{
-            backgroundColor: chip.bg,
-            borderRadius: radius.sm,
-            paddingVertical: spacing.sm,
-            paddingHorizontal: spacing.md,
-            marginRight: spacing.lg,
-            minWidth: 68,
-            alignItems: 'center',
-          }}
-        >
-          <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.body }}>
-            {chip.label}
-          </Text>
+        {/* Insignia de stock: tono suave (rojo si 2 o menos, naranja el resto) */}
+        <View style={{ marginRight: spacing.md }}>
+          <ChipEstado grande punto={false} tono={chip.tono} texto={chip.label} />
         </View>
 
         {/* Info */}
@@ -98,7 +78,7 @@ export default class LowStockView extends Component {
             {product.nombre} {presentacion.tamano}
           </Text>
           {!!product.marca && (
-            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic' }}>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>
               {product.marca}
             </Text>
           )}
@@ -112,16 +92,17 @@ export default class LowStockView extends Component {
           {/* Registrar compra — pre-carga este producto/presentación */}
           <TouchableOpacity
             onPress={() => this.props.navigation.navigate('RegistrarCompra', { productId: product.id, presentacionId: presentacion.id })}
+            accessibilityLabel="Registrar compra"
             style={{
-              width: iconButton.size + 8,
-              height: iconButton.size + 8,
-              borderRadius: radius.sm,
-              backgroundColor: colors.primary,
+              width: 44,
+              height: 44,
+              borderRadius: radius.md,
+              backgroundColor: colors.primarySoft,
               justifyContent: 'center',
               alignItems: 'center',
             }}
           >
-            <IconShoppingBag size={fontSize.itemTitle} color={colors.white} />
+            <IconShoppingBag size={20} color={colors.primaryDark} />
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -132,45 +113,12 @@ export default class LowStockView extends Component {
     const items = this.getLowStockItems();
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* Barra verde superior */}
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
-        {/* Header */}
-        <View
-          style={{
-            paddingHorizontal: spacing.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.card,
-            height: 60,
-            elevation: 4,
-            shadowOpacity: 0.1,
-            shadowOffset: { width: 0, height: 2 },
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => this.props.navigation.goBack()}
-            style={{ marginRight: spacing.md }}
-          >
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
-            Stock bajo
-          </Text>
-          <View
-            style={{
-              backgroundColor: colors.warning,
-              borderRadius: radius.lg,
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.md,
-            }}
-          >
-            <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>
-              {items.length} {items.length === 1 ? 'Producto' : 'Productos'}
-            </Text>
-          </View>
-        </View>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Encabezado
+          titulo="Stock bajo"
+          onBack={() => this.props.navigation.goBack()}
+          derecha={<EtiquetaEncabezado texto={`${items.length} ${items.length === 1 ? 'Producto' : 'Productos'}`} color={colors.warningDark} />}
+        />
 
         {/* Descripción */}
         <View style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
@@ -186,18 +134,15 @@ export default class LowStockView extends Component {
           renderItem={({ item }) => this.renderItem(item)}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
           ListEmptyComponent={() => (
-            <View style={{ alignItems: 'center', marginTop: 60 }}>
-              <Text style={{ fontSize: 48 }}>✅</Text>
-              <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', marginTop: spacing.md, color: colors.textPrimary }}>
-                ¡Todo en orden!
-              </Text>
-              <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>
-                Ningún producto tiene stock bajo el umbral de {this.threshold} unidades.
-              </Text>
-            </View>
+            <EstadoVacio
+              Icono={IconCheckCircle}
+              tono="ok"
+              titulo="¡Todo en orden!"
+              texto={`Ningún producto tiene stock bajo el umbral de ${this.threshold} unidades.`}
+            />
           )}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 }

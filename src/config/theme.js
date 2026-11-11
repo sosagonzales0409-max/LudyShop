@@ -14,19 +14,39 @@
 //   body (15)      -> texto normal, precios, stock
 //   caption (13)   -> marca, subtítulos secundarios, ayudas
 //   small (12)     -> badges chicos, texto de íconos inline
+//
+// Paleta (rediseño nov 2026): la misma familia de colores de siempre,
+// afinada para que se lea bien con sol (contraste AA sobre blanco):
+//   - primary un poco más profundo: el texto blanco encima pasa de 3.5:1 a 4.7:1.
+//   - grises con un toque azul para que combinen con el primario.
+//   - success/danger más oscuros para usarse también como texto.
+//   - warning es solo RELLENO (2:1 como texto); para texto usar warningDark.
+//   - *Soft: fondos claros de las etiquetas de estado (ver Estados.js).
 
 export const colors = {
-  primary: '#0088ff',
-  success: '#2E9E5B',
-  danger: '#D9534F',
-  warning: '#FC9E3A',
-  background: '#F5F5F5',
+  primary: '#0A72E0',
+  primaryDark: '#0A5FBF',   // texto azul pequeño sobre blanco
+  primarySoft: '#E6F0FC',   // fondo de botones tonales, pestaña activa
+  success: '#1E8449',
+  successDark: '#17693A',   // texto verde sobre successSoft
+  successSoft: '#E3F3E9',
+  danger: '#C9372C',
+  dangerDark: '#A32B22',    // texto rojo sobre dangerSoft (deudas, agotado)
+  dangerSoft: '#FBE7E5',
+  warning: '#F29A2E',       // solo relleno (puntos, barras); nunca texto
+  warningDark: '#9A560B',   // texto de aviso sobre warningSoft
+  warningSoft: '#FDF0DE',
+  background: '#F2F5F9',
   card: '#FFFFFF',
-  border: '#EEEEEE',
-  chipInactive: '#E5E5E5',
-  textPrimary: '#1A1A1A',
-  textSecondary: '#7A7C80',
-  textMuted: '#999999',
+  border: '#ECF0F4',        // divisores dentro de tarjetas
+  cardBorder: '#DFE5EC',    // borde de tarjetas y barras
+  chipInactive: '#E4E9F0',
+  textPrimary: '#16202B',
+  textSecondary: '#5C6773',
+  textMuted: '#6B7480',     // antes #999 (2.8:1); ahora cumple AA
+  label: '#3A4552',         // etiquetas de campo
+  placeholder: '#6B7480',   // placeholders, ayudas y sufijos
+  inputBorder: '#D3D9E1',   // borde de campos de texto
   white: '#FFFFFF',
   overlay: 'rgba(0, 0, 0, 0.5)',
 };
@@ -69,4 +89,16 @@ export const iconButton = {
   radius: radius.sm,
 };
 
-export default { colors, spacing, radius, fontSize, buttonHeight, iconButton };
+// Encabezado azul compartido (Encabezado.js): alto de la fila del título,
+// sin contar la barra de estado del sistema (se suma aparte).
+export const HEADER_ALTO = 56;
+
+// Tarjeta estándar: borde fino en vez de sombra (una sola forma de elevar).
+export const tarjeta = {
+  backgroundColor: colors.card,
+  borderWidth: 1,
+  borderColor: colors.cardBorder,
+  borderRadius: radius.md,
+};
+
+export default { colors, spacing, radius, fontSize, buttonHeight, iconButton, HEADER_ALTO, tarjeta };

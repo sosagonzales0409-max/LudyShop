@@ -78,11 +78,19 @@ function AppTabs() {
   return (
     <Tab.Navigator
       initialRouteName="MainTab"
+      // El SafeAreaView de Navigator ya deja libre la barra de navegación de
+      // Android. Desde que App.tsx tiene SafeAreaProvider, la barra de
+      // pestañas también recibía ese margen inferior y lo sumaba OTRA vez
+      // dentro de sus 70 de alto (íconos y etiquetas aplastados).
+      safeAreaInsets={{ bottom: 0 }}
       screenOptions={{
         tabBarStyle: { height: TAB_BAR_HEIGHT },
-        tabBarActiveBackgroundColor: '#CDFEF9',
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        // Azul muy claro del mismo tono que primary (antes cian #CDFEF9, que
+        // no combinaba). El tinte colorea ícono Y etiqueta, así que la
+        // etiqueta activa se distingue de la inactiva por color.
+        tabBarActiveBackgroundColor: colors.primarySoft,
+        tabBarActiveTintColor: colors.primaryDark,
+        tabBarInactiveTintColor: colors.placeholder,
         tabBarIconStyle: { marginBottom: -8 },
       }}
     >
@@ -95,7 +103,6 @@ function AppTabs() {
           tabBarIcon: ({ color }) => <IconShoppingCart color={color} size={30} />,
           tabBarLabelStyle: {
             fontSize: fontSize.label,
-            color: 'black',
             fontWeight: 'bold',
             marginBottom: 12,
           },
@@ -111,7 +118,6 @@ function AppTabs() {
           tabBarIcon: ({ color }) => <IconBoxes color={color} size={30} />,
           tabBarLabelStyle: {
             fontSize: fontSize.label,
-            color: 'black',
             fontWeight: 'bold',
             marginBottom: 12,
           },

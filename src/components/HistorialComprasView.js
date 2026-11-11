@@ -1,18 +1,18 @@
 import React, { Component } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList,
-  SafeAreaView, Dimensions, Alert, ActivityIndicator,
+  Alert, ActivityIndicator,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import { cargarComprasPagina } from '../data/repositories/compras';
 import { resumenCompras, vendidasDespuesDe } from '../data/consultas/compras';
 import { crearConsultaViva } from '../data/consultaViva';
-import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
 import { nombreProducto, formatoCantidad } from '../config/formato';
-import { IconBack, IconTrash, IconEdit } from './Icon';
+import { IconTrash, IconEdit, IconTruck } from './Icon';
+import Encabezado from './Encabezado';
+import { EstadoVacio } from './Estados';
 
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
 const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 
 // Compras por página (se piden más al llegar al final de la lista).
@@ -189,13 +189,9 @@ export default class HistorialComprasView extends Component {
         activeOpacity={0.85}
         onPress={() => this.setState(prev => ({ expandidaId: prev.expandidaId === compra.id ? null : compra.id }))}
         style={{
-          backgroundColor: colors.card,
-          borderRadius: radius.md,
+          ...tarjeta,
           padding: spacing.lg,
           marginBottom: spacing.sm,
-          elevation: 2,
-          shadowOpacity: 0.06,
-          shadowOffset: { width: 0, height: 1 },
         }}
       >
         {/* Fila principal */}
@@ -220,16 +216,20 @@ export default class HistorialComprasView extends Component {
 
           <TouchableOpacity
             onPress={() => this.props.navigation.navigate('RegistrarCompra', { compraId: compra.id })}
-            style={{ width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.chipInactive, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm }}
+            accessibilityRole="button"
+            accessibilityLabel="Editar compra"
+            style={{ width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.primarySoft, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm }}
           >
-            <IconEdit size={fontSize.body} color={colors.textPrimary} />
+            <IconEdit size={fontSize.label} color={colors.primaryDark} />
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={() => this.confirmarEliminar(compra)}
-            style={{ width: 36, height: 36, borderRadius: radius.sm, backgroundColor: '#fde8e8', justifyContent: 'center', alignItems: 'center' }}
+            accessibilityRole="button"
+            accessibilityLabel="Eliminar compra"
+            style={{ width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.dangerSoft, justifyContent: 'center', alignItems: 'center' }}
           >
-            <IconTrash size={fontSize.body} color={colors.danger} />
+            <IconTrash size={fontSize.label} color={colors.dangerDark} />
           </TouchableOpacity>
         </View>
 
@@ -285,29 +285,19 @@ export default class HistorialComprasView extends Component {
     const { compras, cargando, error } = this.state; // ya vienen ordenadas (más recientes primero)
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
-        {/* Header */}
-        <View style={{ height: 60, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }}>
-          <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}>
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
-            Compras
-          </Text>
-        </View>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Encabezado titulo="Compras" onBack={() => this.props.navigation.goBack()} />
 
         {/* Resumen */}
         {count > 0 && (
           <View style={{ flexDirection: 'row', padding: spacing.lg, gap: spacing.sm }}>
-            <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, elevation: 2 }}>
+            <View style={{ flex: 1, ...tarjeta, padding: spacing.md }}>
               <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>Total invertido</Text>
               <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, marginTop: 2 }}>
                 {moneda}{total.toFixed(2)}
               </Text>
             </View>
-            <View style={{ flex: 1, backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.md, elevation: 2 }}>
+            <View style={{ flex: 1, ...tarjeta, padding: spacing.md }}>
               <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>Compras registradas</Text>
               <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, marginTop: 2 }}>
                 {count}
@@ -332,14 +322,13 @@ export default class HistorialComprasView extends Component {
               No se pudieron cargar las compras: {error}
             </Text>
           ) : (
-            <View style={{ alignItems: 'center', marginTop: 60 }}>
-              <Text style={{ fontSize: 48 }}>🛒</Text>
-              <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.md }}>
-                Sin compras registradas
-              </Text>
-              <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>
-                Toca "Registrar compra" para registrar tu primera compra.
-              </Text>
+            <View style={{ alignItems: 'center' }}>
+              <EstadoVacio
+                Icono={IconTruck}
+                tono="info"
+                titulo="Sin compras registradas"
+                texto={'Toca "Registrar compra" para registrar tu primera compra.'}
+              />
               <TouchableOpacity
                 onPress={() => this.props.navigation.navigate('RegistrarCompra')}
                 style={{ marginTop: spacing.xl, height: buttonHeight.action, paddingHorizontal: spacing.xxl, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}
@@ -349,7 +338,7 @@ export default class HistorialComprasView extends Component {
             </View>
           ))}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 }

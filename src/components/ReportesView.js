@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
@@ -12,12 +11,15 @@ import { BarChart } from 'react-native-gifted-charts';
 import { StoreContext } from '../context/StoreContext';
 import { cargarReportes, armarBarras, ordenarTop, verificarZonaHoraria } from '../data/consultas/reportes';
 import { crearConsultaViva } from '../data/consultaViva';
-import { colors, spacing, radius, fontSize } from '../config/theme';
+import { colors, spacing, radius, fontSize, tarjeta } from '../config/theme';
 import { formatoDinero, formatoCantidad } from '../config/formato';
-import { IconBack } from './Icon';
+import {
+  IconMoney, IconReceipt, IconWarning, IconShoppingBag, IconChart, IconShoppingCart,
+  IconCreditCard, IconInbox, IconPackage,
+} from './Icon';
+import Encabezado from './Encabezado';
 
 const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
 
 // Ancho disponible para la gráfica dentro de la tarjeta.
 // ScrollView tiene padding:spacing.lg en cada lado,
@@ -45,6 +47,9 @@ const PERIODOS = [
 // (Los nombres de día/mes de las barras viven en consultas/reportes.js.)
 const MESES =['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const COLORES_PUESTO = [colors.success, colors.primary, colors.warning, colors.textSecondary, colors.textMuted];
+// Mismo orden, pero para TEXTO (el % de cada puesto): warning no se lee como
+// texto, así que se usa su versión oscura.
+const TINTAS_PUESTO = [colors.successDark, colors.primaryDark, colors.warningDark, colors.textSecondary, colors.textMuted];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -235,8 +240,24 @@ export default class ReportesView extends Component {
 
   renderCard(children, key) {
     return (
-      <View key={key} style={{ backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.lg, elevation: 3, shadowOpacity: 0.07, shadowRadius: 4, shadowOffset: { width:0, height:2 } }}>
+      <View key={key} style={{ ...tarjeta, padding: spacing.lg, marginBottom: spacing.lg }}>
         {children}
+      </View>
+    );
+  }
+
+  // Mini tarjeta de color del flujo de dinero: ícono + etiqueta, monto y explicación.
+  // t = { Icono, label, sub, valor, color (tinta del título), bg (fondo suave) }
+  renderMiniTarjeta(t, moneda) {
+    const { Icono } = t;
+    return (
+      <View key={t.label} style={{ flex:1, backgroundColor:t.bg, borderRadius:radius.md, padding:spacing.md, marginHorizontal:spacing.xs/2 }}>
+        <View style={{ flexDirection:'row', alignItems:'center', gap:spacing.xs }}>
+          <Icono size={14} color={t.color} />
+          <Text style={{ flex:1, fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.label}</Text>
+        </View>
+        <Text style={{ fontSize:fontSize.itemTitle, fontWeight:'bold', color:colors.textPrimary, marginTop:spacing.xs }}>{fmt(moneda, t.valor)}</Text>
+        <Text style={{ fontSize:fontSize.small, color:colors.textSecondary, marginTop:2 }} numberOfLines={2}>{t.sub}</Text>
       </View>
     );
   }
@@ -337,8 +358,8 @@ export default class ReportesView extends Component {
         <View style={{ flexDirection:'row', alignItems:'baseline', marginBottom:spacing.lg }}>
           <Text style={{ fontSize:28, fontWeight:'bold', color:colors.primary }}>{fmt(moneda, datos.total)}</Text>
           {varComp && (
-            <View style={{ flexDirection:'row', alignItems:'center', marginLeft:spacing.sm, backgroundColor:varComp.sube?'#edfaf3':'#fdf0f0', borderRadius:radius.sm, paddingHorizontal:spacing.sm, paddingVertical:2 }}>
-              <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:varComp.sube?colors.success:colors.danger }}>{varComp.sube?'▲':'▼'} {varComp.pct}%</Text>
+            <View style={{ flexDirection:'row', alignItems:'center', marginLeft:spacing.sm, backgroundColor:varComp.sube?colors.successSoft:colors.dangerSoft, borderRadius:radius.sm, paddingHorizontal:spacing.sm, paddingVertical:2 }}>
+              <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:varComp.sube?colors.successDark:colors.dangerDark }}>{varComp.sube?'▲':'▼'} {varComp.pct}%</Text>
               <Text style={{ fontSize:fontSize.small, color:colors.textMuted, marginLeft:spacing.xs }}>vs {labAnt}</Text>
             </View>
           )}
@@ -356,7 +377,7 @@ export default class ReportesView extends Component {
         {/* Gráfica o vacío */}
         {datos.sinVentas ? (
           <View style={{ height:CHART_HEIGHT, backgroundColor:colors.background, borderRadius:radius.sm, justifyContent:'center', alignItems:'center' }}>
-            <Text style={{ fontSize:36 }}>📭</Text>
+            <IconInbox size={36} color={colors.textMuted} />
             <Text style={{ fontSize:fontSize.body, color:colors.textMuted, marginTop:spacing.sm, textAlign:'center' }}>Sin {modoVentas==='ingresoReal' ? 'ingresos' : 'ventas'}{'\n'}en este período</Text>
           </View>
         ) : esAnual ? (
@@ -414,7 +435,7 @@ export default class ReportesView extends Component {
         </View>
         {top.length === 0 ? (
           <View style={{ alignItems:'center', paddingVertical:spacing.xl }}>
-            <Text style={{ fontSize:36 }}>📦</Text>
+            <IconPackage size={36} color={colors.textMuted} />
             <Text style={{ fontSize:fontSize.body, color:colors.textMuted, marginTop:spacing.sm, textAlign:'center' }}>
               {criterio === 'margen' ? 'Sin datos de costo registrados\nen las ventas de este período' : 'Sin ventas en este período'}
             </Text>
@@ -450,7 +471,7 @@ export default class ReportesView extends Component {
               <View style={{ flex:1, height:8, backgroundColor:colors.chipInactive, borderRadius:4, overflow:'hidden', marginRight:spacing.sm }}>
                 <View style={{ height:8, width:`${Math.min(100,Math.round(item.porcentaje))}%`, backgroundColor:COLORES_PUESTO[idx], borderRadius:4 }} />
               </View>
-              <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:COLORES_PUESTO[idx], minWidth:36, textAlign:'right' }}>
+              <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:TINTAS_PUESTO[idx], minWidth:36, textAlign:'right' }}>
                 {item.porcentaje < 1 ? '<1' : Math.round(item.porcentaje)}%
               </Text>
             </View>
@@ -482,9 +503,12 @@ export default class ReportesView extends Component {
         {this.renderTitulo('Flujo de dinero')}
 
         {/* Ingreso real — protagonista */}
-        <View style={{ backgroundColor:'#edfaf3', borderRadius:radius.md, padding:spacing.lg, marginBottom:spacing.lg, borderLeftWidth:4, borderLeftColor:colors.success }}>
-          <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:colors.success, letterSpacing:0.5 }}>💰 INGRESO REAL</Text>
-          <Text style={{ fontSize:28, fontWeight:'bold', color:colors.success, marginTop:spacing.xs }}>{fmt(moneda, ingresoReal)}</Text>
+        <View style={{ backgroundColor:colors.successSoft, borderRadius:radius.md, padding:spacing.lg, marginBottom:spacing.lg, borderLeftWidth:4, borderLeftColor:colors.success }}>
+          <View style={{ flexDirection:'row', alignItems:'center', gap:spacing.xs }}>
+            <IconMoney size={14} color={colors.successDark} />
+            <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:colors.successDark, letterSpacing:0.5 }}>INGRESO REAL</Text>
+          </View>
+          <Text style={{ fontSize:28, fontWeight:'bold', color:colors.successDark, marginTop:spacing.xs }}>{fmt(moneda, ingresoReal)}</Text>
           <Text style={{ fontSize:fontSize.caption, color:colors.textSecondary, marginTop:spacing.xs }}>Contado cobrado + abonos recibidos</Text>
         </View>
 
@@ -492,15 +516,9 @@ export default class ReportesView extends Component {
         <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:colors.textMuted, marginBottom:spacing.sm, letterSpacing:0.4 }}>DINERO QUE ENTRÓ</Text>
         <View style={{ flexDirection:'row', marginBottom:spacing.lg }}>
           {[
-            { icono:'💵', label:'Contado cobrado',  sub:'Ventas pagadas al momento', valor:contado,          color:colors.primary, bg:'#e8f4ff' },
-            { icono:'🤝', label:'Abonos recibidos', sub:'Pagos de deudas',           valor:abonosRecibidos,  color:colors.success, bg:'#edfaf3' },
-          ].map(t => (
-            <View key={t.label} style={{ flex:1, backgroundColor:t.bg, borderRadius:radius.md, padding:spacing.md, marginHorizontal:spacing.xs/2 }}>
-              <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.icono} {t.label}</Text>
-              <Text style={{ fontSize:fontSize.itemTitle, fontWeight:'bold', color:colors.textPrimary, marginTop:spacing.xs }}>{fmt(moneda, t.valor)}</Text>
-              <Text style={{ fontSize:fontSize.small, color:colors.textSecondary, marginTop:2 }} numberOfLines={2}>{t.sub}</Text>
-            </View>
-          ))}
+            { Icono:IconMoney,      label:'Contado cobrado',  sub:'Ventas pagadas al momento', valor:contado,          color:colors.primaryDark, bg:colors.primarySoft },
+            { Icono:IconCreditCard, label:'Abonos recibidos', sub:'Pagos de deudas',           valor:abonosRecibidos,  color:colors.successDark, bg:colors.successSoft },
+          ].map(t => this.renderMiniTarjeta(t, moneda))}
         </View>
 
         <View style={{ height:1, backgroundColor:colors.border, marginBottom:spacing.lg }} />
@@ -509,15 +527,9 @@ export default class ReportesView extends Component {
         <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:colors.textMuted, marginBottom:spacing.sm, letterSpacing:0.4 }}>DINERO QUE SE DEBE</Text>
         <View style={{ flexDirection:'row' }}>
           {[
-            { icono:'🧾', label:'Crédito otorgado', sub:'Ventas a crédito en el período', valor:creditoGenerado,  color:colors.warning, bg:'#fff8ed' },
-            { icono:'⚠️', label:'Pendiente total',  sub:'Todas las deudas sin saldar',     valor:pendienteGlobal, color:colors.danger,  bg:'#fdf0f0' },
-          ].map(t => (
-            <View key={t.label} style={{ flex:1, backgroundColor:t.bg, borderRadius:radius.md, padding:spacing.md, marginHorizontal:spacing.xs/2 }}>
-              <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.icono} {t.label}</Text>
-              <Text style={{ fontSize:fontSize.itemTitle, fontWeight:'bold', color:colors.textPrimary, marginTop:spacing.xs }}>{fmt(moneda, t.valor)}</Text>
-              <Text style={{ fontSize:fontSize.small, color:colors.textSecondary, marginTop:2 }} numberOfLines={2}>{t.sub}</Text>
-            </View>
-          ))}
+            { Icono:IconReceipt, label:'Crédito otorgado', sub:'Ventas a crédito en el período', valor:creditoGenerado,  color:colors.warningDark, bg:colors.warningSoft },
+            { Icono:IconWarning, label:'Pendiente total',  sub:'Todas las deudas sin saldar',     valor:pendienteGlobal, color:colors.dangerDark,  bg:colors.dangerSoft },
+          ].map(t => this.renderMiniTarjeta(t, moneda))}
         </View>
 
         {hayCompras && (
@@ -526,15 +538,9 @@ export default class ReportesView extends Component {
             <Text style={{ fontSize:fontSize.caption, fontWeight:'bold', color:colors.textMuted, marginBottom:spacing.sm, letterSpacing:0.4 }}>INVERSIÓN EN COMPRAS</Text>
             <View style={{ flexDirection:'row' }}>
               {[
-                { icono:'🛍️', label:'Invertido en compras',  sub:subCompras,                              valor:invertidoCompras, color:colors.warning, bg:'#fff8ed' },
-                { icono:'📊', label:'Balance del período',    sub:'Cobrado − gastado en compras',         valor:margenBruto,      color: margenBruto >= 0 ? colors.success : colors.danger, bg: margenBruto >= 0 ? '#edfaf3' : '#fdf0f0' },
-              ].map(t => (
-                <View key={t.label} style={{ flex:1, backgroundColor:t.bg, borderRadius:radius.md, padding:spacing.md, marginHorizontal:spacing.xs/2 }}>
-                  <Text style={{ fontSize:fontSize.small, fontWeight:'bold', color:t.color }} numberOfLines={1}>{t.icono} {t.label}</Text>
-                  <Text style={{ fontSize:fontSize.itemTitle, fontWeight:'bold', color:colors.textPrimary, marginTop:spacing.xs }}>{fmt(moneda, t.valor)}</Text>
-                  <Text style={{ fontSize:fontSize.small, color:colors.textSecondary, marginTop:2 }} numberOfLines={2}>{t.sub}</Text>
-                </View>
-              ))}
+                { Icono:IconShoppingBag, label:'Invertido en compras',  sub:subCompras,                              valor:invertidoCompras, color:colors.warningDark, bg:colors.warningSoft },
+                { Icono:IconChart,       label:'Balance del período',    sub:'Cobrado − gastado en compras',         valor:margenBruto,      color: margenBruto >= 0 ? colors.successDark : colors.dangerDark, bg: margenBruto >= 0 ? colors.successSoft : colors.dangerSoft },
+              ].map(t => this.renderMiniTarjeta(t, moneda))}
             </View>
           </React.Fragment>
         )}
@@ -552,20 +558,23 @@ export default class ReportesView extends Component {
     const { numVentas, ticketPromedio } = this.getVentasStats();
 
     const kpis = [
-      { icono:'💰', label:'Ingreso real',    sub:'Dinero que ya cobraste',        valor: fmt(moneda, ingresoReal) },
-      { icono:'🧾', label:'Venta promedio',  sub:'Monto promedio por venta',      valor: fmt(moneda, ticketPromedio) },
-      { icono:'🛒', label:'Ventas',          sub:'Número de ventas del período',  valor: `${numVentas}` },
+      { Icono:IconMoney,        label:'Ingreso real',    sub:'Dinero que ya cobraste',        valor: fmt(moneda, ingresoReal) },
+      { Icono:IconReceipt,      label:'Venta promedio',  sub:'Monto promedio por venta',      valor: fmt(moneda, ticketPromedio) },
+      { Icono:IconShoppingCart, label:'Ventas',          sub:'Número de ventas del período',  valor: `${numVentas}` },
       // No es "margen bruto" (precio − costo de lo vendido): es flujo de caja,
       // lo cobrado menos lo gastado en compras. Puede ser negativo si se compró
       // mercancía que aún no se vende. El margen real está en "Más rentables".
-      { icono:'📊', label:'Balance',         sub:'Cobrado − gastado en compras',  valor: fmt(moneda, margenBruto) },
+      { Icono:IconChart,        label:'Balance',         sub:'Cobrado − gastado en compras',  valor: fmt(moneda, margenBruto) },
     ];
 
     return (
       <View style={{ flexDirection:'row', flexWrap:'wrap', marginBottom:spacing.lg, gap:spacing.sm }}>
-        {kpis.map(k => (
-          <View key={k.label} style={{ flexBasis:'48%', flexGrow:1, backgroundColor:colors.card, borderRadius:radius.md, padding:spacing.md, elevation:2, shadowOpacity:0.06, shadowOffset:{ width:0, height:1 } }}>
-            <Text style={{ fontSize:fontSize.small, color:colors.textMuted, fontWeight:'bold' }} numberOfLines={1}>{k.icono} {k.label}</Text>
+        {kpis.map(({ Icono, ...k }) => (
+          <View key={k.label} style={{ flexBasis:'48%', flexGrow:1, ...tarjeta, padding:spacing.md }}>
+            <View style={{ flexDirection:'row', alignItems:'center', gap:spacing.xs }}>
+              <Icono size={14} color={colors.primaryDark} />
+              <Text style={{ flex:1, fontSize:fontSize.small, color:colors.textMuted, fontWeight:'bold' }} numberOfLines={1}>{k.label}</Text>
+            </View>
             <Text style={{ fontSize:fontSize.itemTitle, fontWeight:'bold', color:colors.textPrimary, marginTop:2 }}>{k.valor}</Text>
             <Text style={{ fontSize:fontSize.small, color:colors.textSecondary, marginTop:1 }} numberOfLines={1}>{k.sub}</Text>
           </View>
@@ -592,16 +601,12 @@ export default class ReportesView extends Component {
     if (__DEV__) this.tRender = global.performance.now();
     const { datos, error } = this.state;
     return (
-      <SafeAreaView style={{ flex:1, backgroundColor:colors.background }}>
-        <View style={{ width:_window.width, height:GREEN_BAR_HEIGHT, backgroundColor:'green' }} />
-
-        <View style={{ height:60, paddingHorizontal:spacing.lg, flexDirection:'row', alignItems:'center', backgroundColor:colors.card, elevation:4, shadowOpacity:0.1, shadowOffset:{ width:0, height:2 } }}>
-          <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ width:44, height:44, justifyContent:'center', alignItems:'center', marginRight:spacing.xs }}>
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize:fontSize.heading, fontWeight:'bold', color:colors.textPrimary, flex:1 }}>Reportes</Text>
-          <Text style={{ fontSize:fontSize.small, color:colors.textMuted }}>Actualizado {horaActual()}</Text>
-        </View>
+      <View style={{ flex:1, backgroundColor:colors.background }}>
+        <Encabezado
+          titulo="Reportes"
+          subtitulo={`Actualizado ${horaActual()}`}
+          onBack={() => this.props.navigation.goBack()}
+        />
 
         <ScrollView contentContainerStyle={{ padding:spacing.lg, paddingBottom:spacing.xxl }} showsVerticalScrollIndicator={false}>
           {this.renderSelectorPeriodo()}
@@ -623,7 +628,7 @@ export default class ReportesView extends Component {
             </>
           )}
         </ScrollView>
-      </SafeAreaView>
+      </View>
     );
   }
 }

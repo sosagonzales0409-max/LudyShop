@@ -187,7 +187,7 @@ export default class DevolucionModal extends Component {
                 return (
                   <View
                     style={{
-                      backgroundColor: cantidad > 0 ? '#eef6ff' : colors.background,
+                      backgroundColor: cantidad > 0 ? colors.primarySoft : colors.background,
                       borderRadius: radius.md,
                       padding: spacing.lg,
                       marginBottom: spacing.sm,
@@ -210,10 +210,10 @@ export default class DevolucionModal extends Component {
                     {p.esGranel ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <TextInput
-                          style={{ width: 76, height: 40, borderRadius: radius.sm, borderWidth: 1, borderColor: cantidad > 0 ? colors.primary : colors.chipInactive, backgroundColor: colors.card, textAlign: 'center', fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, paddingHorizontal: spacing.sm }}
+                          style={{ width: 76, height: 40, borderRadius: radius.sm, borderWidth: 1, borderColor: cantidad > 0 ? colors.primary : colors.inputBorder, backgroundColor: colors.card, textAlign: 'center', fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, paddingHorizontal: spacing.sm }}
                           keyboardType="decimal-pad"
                           placeholder="0.000"
-                          placeholderTextColor={colors.textMuted}
+                          placeholderTextColor={colors.placeholder}
                           value={this.state.textos[`${p.productId}::${p.presentacionId}`] ?? ''}
                           onChangeText={t => this.setCantidadGranel(p.productId, p.presentacionId, t)}
                         />
@@ -253,7 +253,7 @@ export default class DevolucionModal extends Component {
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={this.handleConfirmar}
-                  style={{ flex: 2, height: buttonHeight.action, borderRadius: radius.lg, backgroundColor: haySeleccion ? colors.warning : colors.chipInactive, justifyContent: 'center', alignItems: 'center' }}
+                  style={{ flex: 2, height: buttonHeight.action, borderRadius: radius.lg, backgroundColor: haySeleccion ? colors.warningDark : colors.chipInactive, justifyContent: 'center', alignItems: 'center' }}
                 >
                   <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: haySeleccion ? colors.white : colors.textMuted }}>
                     Confirmar devolución

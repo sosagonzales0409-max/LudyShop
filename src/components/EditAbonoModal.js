@@ -131,7 +131,7 @@ export default class EditAbonoModal extends Component {
                 }}
               >
                 <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Condonado</Text>
-                <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.warning }}>
+                <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.warningDark }}>
                   {formatoDinero(condonado, moneda)}
                 </Text>
               </View>
@@ -157,7 +157,7 @@ export default class EditAbonoModal extends Component {
                 marginBottom: spacing.sm,
               }}
               placeholder="0.00"
-              placeholderTextColor={colors.chipInactive}
+              placeholderTextColor={colors.placeholder}
               keyboardType="decimal-pad"
               autoFocus
               value={this.state.montoInput}
@@ -166,11 +166,11 @@ export default class EditAbonoModal extends Component {
 
             {/* Preview */}
             {nuevoPendiente !== null && (
-              <Text style={{ fontSize: fontSize.caption, color: colors.primary, textAlign: 'center', marginBottom: spacing.lg }}>
+              <Text style={{ fontSize: fontSize.caption, color: colors.primaryDark, textAlign: 'center', marginBottom: spacing.lg }}>
                 Pendiente resultante:{' '}
                 <Text style={{ fontWeight: 'bold' }}>
                   {formatoDinero(nuevoPendiente, moneda)}
-                  {nuevoPendiente === 0 ? ' — Venta saldada 🎉' : ''}
+                  {nuevoPendiente === 0 ? ' — Venta saldada' : ''}
                 </Text>
               </Text>
             )}

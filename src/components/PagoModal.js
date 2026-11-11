@@ -136,7 +136,7 @@ export default class PagoModal extends Component {
             <TextInput
               style={{
                 borderWidth: 1,
-                borderColor: colors.chipInactive,
+                borderColor: colors.inputBorder,
                 borderRadius: radius.sm,
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.md,
@@ -147,7 +147,7 @@ export default class PagoModal extends Component {
                 marginBottom: spacing.sm,
               }}
               placeholder="0.00"
-              placeholderTextColor={colors.chipInactive}
+              placeholderTextColor={colors.placeholder}
               keyboardType="decimal-pad"
               autoFocus
               value={this.state.monto}
@@ -156,11 +156,11 @@ export default class PagoModal extends Component {
 
             {/* Vista previa del nuevo saldo */}
             {nuevoSaldo !== null && (
-              <Text style={{ fontSize: fontSize.caption, color: colors.primary, textAlign: 'center', marginBottom: spacing.md }}>
+              <Text style={{ fontSize: fontSize.caption, color: colors.primaryDark, textAlign: 'center', marginBottom: spacing.md }}>
                 Nuevo saldo:{' '}
                 <Text style={{ fontWeight: 'bold' }}>
                   {formatoDinero(nuevoSaldo, this.moneda)}
-                  {nuevoSaldo === 0 ? ' — ¡Deuda saldada! 🎉' : ''}
+                  {nuevoSaldo === 0 ? ' — ¡Deuda saldada!' : ''}
                 </Text>
               </Text>
             )}

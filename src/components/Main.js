@@ -5,7 +5,6 @@ import {
   Dimensions,
   Text,
   TextInput,
-  FlatList,
   ScrollView,
   Alert,
 } from 'react-native';
@@ -17,7 +16,10 @@ import ProductsModal from './ProductsModal.js';
 import ConfirmarVentaModal from './ConfirmarVentaModal.js';
 import NumericStepper from './NumericStepper.js';
 import Toast from './Toast';
-import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import ScrollViewTeclado from './ScrollViewTeclado';
+import Encabezado from './Encabezado';
+import { SelectorSegmentado, BarraGuardar } from './Formulario';
+import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
 import { formatoDinero, nombreProducto } from '../config/formato';
 import {
   IconClose, IconClipboard, IconCreditCard, IconSettings,
@@ -25,16 +27,15 @@ import {
 } from './Icon';
 
 const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
-const HEADER_HEIGHT = 60;
 const CLIENTES_LIST_MAX_HEIGHT = Math.round(_window.height * 0.35);
 
 const clienteInputStyle = {
-  borderColor: colors.chipInactive,
+  borderColor: colors.inputBorder,
   borderWidth: 1,
   borderRadius: radius.sm,
+  backgroundColor: colors.card,
   paddingHorizontal: spacing.md,
-  paddingVertical: spacing.sm,
+  minHeight: 44,
   fontSize: fontSize.body,
   color: colors.textPrimary,
 };
@@ -217,109 +218,58 @@ class Main extends Component {
     }
   };
 
-  // Pie de la FlatList: total + botón confirmar (solo si hay productos)
-  renderListFooter() {
+  // Fila de un producto del carrito (dentro de una sola tarjeta con
+  // divisores; antes cada fila tenía su propia sombra y bordes redondeados).
+  renderCartItem(item, index) {
     const moneda = this.context.config?.moneda ?? '$';
-    if (this.state.cartProducts.length === 0) return null;
-
+    const ultimo = index === this.state.cartProducts.length - 1;
     return (
       <View
-        style={{
-          marginHorizontal: spacing.lg, marginTop: spacing.sm,
-          marginBottom: spacing.xxl, padding: spacing.lg,
-          backgroundColor: colors.primary, borderRadius: radius.md,
-          elevation: 3, shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 },
-        }}
+        key={`${item.productId}::${item.presentacionId}::${index}`}
+        style={{ paddingVertical: spacing.md, borderBottomWidth: ultimo ? 0 : 1, borderBottomColor: colors.border, gap: spacing.sm }}
       >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.white }}>
-            Total
-          </Text>
-          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.white }}>
-            {formatoDinero(Number(this.getTotalCart()), moneda)}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={this.confirmCompleteSale}
-          style={{
-            height: buttonHeight.action, backgroundColor: colors.white,
-            borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center',
-          }}
-        >
-          <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.primary }}>
-            Completar Venta
-          </Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  renderCartItem({ item, index }) {
-    const moneda = this.context.config?.moneda ?? '$';
-    return (
-      <View
-        style={{
-          marginHorizontal: spacing.lg,
-          paddingVertical: spacing.md,
-          paddingHorizontal: spacing.lg,
-          backgroundColor: colors.card,
-          // Bordes redondeados solo en el primer y último elemento
-          borderTopLeftRadius: index === 0 ? radius.md : 0,
-          borderTopRightRadius: index === 0 ? radius.md : 0,
-          borderBottomLeftRadius: index === this.state.cartProducts.length - 1 ? radius.md : 0,
-          borderBottomRightRadius: index === this.state.cartProducts.length - 1 ? radius.md : 0,
-          borderBottomWidth: index === this.state.cartProducts.length - 1 ? 0 : 1,
-          borderBottomColor: colors.border,
-          elevation: index === 0 ? 3 : 0,
-          shadowOpacity: index === 0 ? 0.08 : 0,
-          shadowOffset: { width: 0, height: 2 },
-        }}
-      >
-        {/* Nombre + botón eliminar */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View style={{ flex: 1, marginRight: spacing.md }}>
+        {/* Nombre (+ marca) + quitar */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+          <View style={{ flex: 1 }}>
             <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
-              {item.nombre} {item.tamano}
+              {nombreProducto(item.nombre, item.tamano)}
             </Text>
             {!!item.marca && (
-              <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic' }}>
-                {item.marca}
-              </Text>
+              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted }}>{item.marca}</Text>
             )}
           </View>
           <TouchableOpacity
             onPress={() => this.deleteProductFromCart(index)}
-            style={{
-              width: 32, height: 32, borderRadius: radius.sm,
-              backgroundColor: colors.danger,
-              justifyContent: 'center', alignItems: 'center',
-            }}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`Quitar ${item.nombre} del carrito`}
+            style={{ width: 36, height: 36, marginTop: -6, marginRight: -6, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}
           >
-            <IconClose size={fontSize.caption} color={colors.white} />
+            <IconClose size={20} color={colors.dangerDark} />
           </TouchableOpacity>
         </View>
 
-        {/* Precio unitario + stepper + subtotal */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
-          <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, flex: 1 }}>
+        {/* Precio unitario + cantidad + subtotal */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Text style={{ fontSize: fontSize.caption + 1, color: colors.textMuted, flex: 1 }}>
             {formatoDinero(item.precio, moneda)} c/u
           </Text>
           {item.esGranel ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
               <TextInput
                 style={{
-                  width: 76, height: 44, borderRadius: radius.md,
-                  backgroundColor: colors.background, textAlign: 'center',
-                  fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary,
+                  width: 84, height: 40, borderRadius: radius.sm,
+                  borderWidth: 1, borderColor: colors.inputBorder, backgroundColor: colors.card,
+                  textAlign: 'center', fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary,
                   paddingHorizontal: spacing.sm,
                 }}
                 keyboardType="decimal-pad"
                 placeholder="0.000"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.placeholder}
                 value={item.cantidadTexto}
                 onChangeText={text => this.updateGranelAmount(index, text)}
               />
-              <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginLeft: spacing.xs }}>
+              <Text style={{ fontSize: fontSize.body, color: colors.textMuted }}>
                 {item.unidadGranel || 'kg'}
               </Text>
             </View>
@@ -331,7 +281,7 @@ class Main extends Component {
               max={item.stock}
             />
           )}
-          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, minWidth: 72, textAlign: 'right' }}>
+          <Text style={{ fontSize: fontSize.label + 1, fontWeight: 'bold', color: colors.textPrimary, minWidth: 66, textAlign: 'right' }}>
             {formatoDinero(item.totalPrice, moneda)}
           </Text>
         </View>
@@ -339,20 +289,143 @@ class Main extends Component {
     );
   }
 
+  // Selector de cliente para ventas a crédito (mismo comportamiento de siempre:
+  // campo directo si no hay deudores; si los hay, lista desplegable + "Nuevo cliente").
+  renderSelectorCliente(clientesDeuda, clienteSeleccionado) {
+    const moneda = this.context.config?.moneda ?? '$';
+    return (
+      <View style={{ marginTop: spacing.lg }}>
+        <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.sm }}>
+          Cliente
+        </Text>
+
+        {clientesDeuda.length === 0 ? (
+          /* ── Sin deudores → campo de texto directo ── */
+          <TextInput
+            style={clienteInputStyle}
+            placeholder="Nombre del cliente nuevo"
+            placeholderTextColor={colors.placeholder}
+            value={this.state.clienteNombre}
+            onChangeText={text => this.setState({ clienteNombre: text })}
+            autoCorrect={false}
+            returnKeyType="done"
+          />
+        ) : this.state.estaNuevoCliente ? (
+          /* ── Cliente nuevo: campo de texto + volver al selector ── */
+          <View>
+            <TextInput
+              style={clienteInputStyle}
+              placeholder="Nombre del cliente nuevo"
+              placeholderTextColor={colors.placeholder}
+              value={this.state.clienteNombre}
+              onChangeText={text => this.setState({ clienteNombre: text })}
+              autoCorrect={false}
+              returnKeyType="done"
+            />
+            <TouchableOpacity
+              onPress={() => this.setState({ estaNuevoCliente: false, clienteNombre: '', seleccionClienteAbierto: false })}
+              style={{ alignSelf: 'flex-start', marginTop: spacing.xs, minHeight: 40, justifyContent: 'center' }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <IconBack size={fontSize.caption} color={colors.primaryDark} />
+                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.primaryDark, marginLeft: spacing.xs }}>
+                  Volver al selector
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          /* ── Lista desplegable ── */
+          <View>
+            <TouchableOpacity
+              onPress={() => this.setState({ seleccionClienteAbierto: !this.state.seleccionClienteAbierto })}
+              style={{ ...clienteInputStyle, flexDirection: 'row', alignItems: 'center' }}
+            >
+              <Text style={{ flex: 1, fontSize: fontSize.body, color: clienteSeleccionado ? colors.textPrimary : colors.placeholder }}>
+                {clienteSeleccionado ? clienteSeleccionado.cliente : 'Selecciona un cliente'}
+              </Text>
+              {this.state.seleccionClienteAbierto
+                ? <IconChevronUp size={fontSize.body} color={colors.textPrimary} />
+                : <IconChevronDown size={fontSize.body} color={colors.textPrimary} />}
+            </TouchableOpacity>
+
+            {this.state.seleccionClienteAbierto && (
+              <View
+                style={{
+                  borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm,
+                  marginTop: spacing.xs, maxHeight: CLIENTES_LIST_MAX_HEIGHT, overflow: 'hidden',
+                }}
+              >
+                {/* nestedScrollEnabled: la lista vive dentro del scroll de la pantalla */}
+                <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                  <TouchableOpacity
+                    onPress={() => this.setState({ estaNuevoCliente: true, clienteNombre: '', seleccionClienteAbierto: false })}
+                    style={{ paddingHorizontal: spacing.md, minHeight: 48, justifyContent: 'center' }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <IconPlus size={fontSize.body} color={colors.primaryDark} />
+                      <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.primaryDark, marginLeft: spacing.xs }}>
+                        Nuevo cliente
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {clientesDeuda.map(c => {
+                    const activo = c.cliente === this.state.clienteNombre.trim();
+                    return (
+                      <TouchableOpacity
+                        key={c.cliente}
+                        onPress={() => this.setState({ clienteNombre: c.cliente, seleccionClienteAbierto: false })}
+                        style={{
+                          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                          paddingHorizontal: spacing.md, minHeight: 48,
+                          borderTopWidth: 1, borderTopColor: colors.border,
+                          backgroundColor: activo ? colors.primarySoft : colors.card,
+                        }}
+                      >
+                        <Text style={{ fontSize: fontSize.body, color: colors.textPrimary, flex: 1, fontWeight: activo ? 'bold' : 'normal' }}>
+                          {c.cliente}
+                        </Text>
+                        <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.dangerDark }}>
+                          {formatoDinero(c.saldo, moneda)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+          </View>
+        )}
+
+        {clienteSeleccionado && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
+            <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, flex: 1 }}>
+              Cliente: <Text style={{ fontWeight: 'bold', color: colors.textPrimary }}>{clienteSeleccionado.cliente}</Text>
+            </Text>
+            <View style={{ backgroundColor: colors.warningSoft, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.xs }}>
+              <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.dangerDark }}>
+                Pendiente: {formatoDinero(clienteSeleccionado.saldo, moneda)}
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }
+
   render() {
     const moneda = this.context.config?.moneda ?? '$';
     const { sellableItems, categories, config } = this.context;
+    const { cartProducts } = this.state;
     const clientesDeuda = this.getClientesConDeuda();
-    const clientesConDeudaCount = clientesDeuda.length;
     const clienteSeleccionado = this.state.clienteNombre.trim()
       ? clientesDeuda.find(c => c.cliente === this.state.clienteNombre.trim()) || null
       : null;
+    const total = formatoDinero(Number(this.getTotalCart()), moneda);
 
     return (
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-        {/* Barra verde */}
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
         <ProductsModal
           visible={this.state.showProductModal}
           listProducts={sellableItems}
@@ -363,7 +436,7 @@ class Main extends Component {
             this.addProductToCart(product);
             this.setState({ showProductModal: false });
           }}
-          cartProducts={this.state.cartProducts}
+          cartProducts={cartProducts}
         />
 
         <ConfirmarVentaModal
@@ -374,302 +447,65 @@ class Main extends Component {
           onConfirmar={abono => this.finalizarVenta(abono)}
         />
 
-        {/* ── Header ── */}
-        <View
-          style={{
-            height: HEADER_HEIGHT, paddingHorizontal: spacing.lg,
-            flexDirection: 'row', alignItems: 'center',
-            backgroundColor: colors.card, elevation: 4,
-            shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 },
-          }}
+        <Encabezado
+          titulo="Nueva Venta"
+          acciones={[
+            { Icono: IconClipboard, etiqueta: 'Historial de ventas', onPress: () => this.props.navigation.navigate('Historial') },
+            { Icono: IconCreditCard, etiqueta: 'Créditos', badge: clientesDeuda.length, onPress: () => this.props.navigation.navigate('Creditos') },
+            { Icono: IconSettings, etiqueta: 'Configuración', punto: this.state.recordarCopia, onPress: () => this.props.navigation.navigate('ConfigView') },
+          ]}
+        />
+
+        {/* Toda la pantalla se desplaza junta (antes Tipo de pago quedaba fijo
+            arriba y solo se movía el carrito). ScrollViewTeclado además evita
+            que el teclado tape el nombre del cliente nuevo o una cantidad a
+            granel. El carrito ya no es una FlatList: son pocos productos y así
+            el TextInput del cliente nunca se desmonta al escribir. */}
+        <ScrollViewTeclado
+          contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
-            Nueva Venta
-          </Text>
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 0 }}>
-            {/* Historial */}
-            <TouchableOpacity
-              onPress={() => this.props.navigation.navigate('Historial')}
-              hitSlop={8}
-              style={{ width: 44, height: 44, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}
-            >
-              <IconClipboard size={28} color={colors.textPrimary} />
-            </TouchableOpacity>
-
-            {/* Créditos con badge */}
-            <TouchableOpacity
-              onPress={() => this.props.navigation.navigate('Creditos')}
-              hitSlop={8}
-              style={{ width: 44, height: 44, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}
-            >
-              <IconCreditCard size={28} color={colors.textPrimary} />
-              {clientesConDeudaCount > 0 && (
-                <View
-                  style={{
-                    position: 'absolute', top: 2, right: 2,
-                    backgroundColor: colors.danger,
-                    borderRadius: 9, minWidth: 18, height: 18,
-                    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
-                    borderWidth: 2, borderColor: colors.card,
-                  }}
-                >
-                  <Text style={{ color: colors.white, fontSize: 10, fontWeight: 'bold' }}>
-                    {clientesConDeudaCount}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Configuración */}
-            <TouchableOpacity
-              onPress={() => this.props.navigation.navigate('ConfigView')}
-              hitSlop={8}
-              style={{ width: 44, height: 44, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}
-            >
-              <IconSettings size={28} color={colors.textPrimary} />
-              {this.state.recordarCopia && (
-                <View
-                  style={{
-                    position: 'absolute', top: 6, right: 6,
-                    width: 12, height: 12, borderRadius: 6,
-                    backgroundColor: colors.warning,
-                    borderWidth: 2, borderColor: colors.card,
-                  }}
-                />
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* ── Tipo de pago — fuera del FlatList para que el TextInput no se desmonte ── */}
-        <View style={{ paddingHorizontal: spacing.lg }}>
-          <View
-            style={{
-              marginTop: spacing.lg, padding: spacing.lg,
-              backgroundColor: colors.card, borderRadius: radius.md,
-              elevation: 3, shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 },
-            }}
-          >
+          {/* ── Tipo de pago ── */}
+          <View style={{ ...tarjeta, padding: spacing.lg }}>
             <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.md }}>
               Tipo de pago
             </Text>
-            <View style={{ flexDirection: 'row' }}>
-              {['Contado', 'Credito'].map(tipo => (
-                <TouchableOpacity
-                  key={tipo}
-                  onPress={() => this.setState({ paymentType: tipo, estaNuevoCliente: false, seleccionClienteAbierto: false })}
-                  style={{
-                    flex: 1,
-                    height: buttonHeight.chip,
-                    backgroundColor: this.state.paymentType === tipo ? colors.primary : colors.chipInactive,
-                    borderRadius: radius.lg,
-                    marginHorizontal: spacing.xs,
-                    justifyContent: 'center', alignItems: 'center',
-                  }}
-                >
-                  <Text style={{
-                    fontSize: fontSize.label, fontWeight: 'bold',
-                    color: this.state.paymentType === tipo ? colors.white : colors.textPrimary,
-                  }}>
-                    {tipo === 'Credito' ? 'Crédito' : tipo}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            {this.state.paymentType === 'Credito' && (
-              <View style={{ marginTop: spacing.lg }}>
-                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginBottom: spacing.sm }}>
-                  Cliente
-                </Text>
-
-                {clientesDeuda.length === 0 ? (
-                  /* ── Sin deudores → campo de texto directo ── */
-                  <TextInput
-                    style={clienteInputStyle}
-                    placeholder="Nombre del cliente nuevo"
-                    placeholderTextColor={colors.textMuted}
-                    value={this.state.clienteNombre}
-                    onChangeText={text => this.setState({ clienteNombre: text })}
-                    autoCorrect={false}
-                    returnKeyType="done"
-                  />
-                ) : this.state.estaNuevoCliente ? (
-                  /* ── Cliente nuevo: campo de texto + volver al selector ── */
-                  <View>
-                    <TextInput
-                      style={clienteInputStyle}
-                      placeholder="Nombre del cliente nuevo"
-                      placeholderTextColor={colors.textMuted}
-                      value={this.state.clienteNombre}
-                      onChangeText={text => this.setState({ clienteNombre: text })}
-                      autoCorrect={false}
-                      returnKeyType="done"
-                    />
-                    <TouchableOpacity
-                      onPress={() => this.setState({ estaNuevoCliente: false, clienteNombre: '', seleccionClienteAbierto: false })}
-                      style={{ alignSelf: 'flex-start', marginTop: spacing.sm, paddingVertical: spacing.xs }}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <IconBack size={fontSize.caption} color={colors.primary} />
-                        <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.primary, marginLeft: spacing.xs }}>
-                          Volver al selector
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
-                  /* ── Dropdown desplegable ── */
-                  <View>
-                    <TouchableOpacity
-                      onPress={() => this.setState({ seleccionClienteAbierto: !this.state.seleccionClienteAbierto })}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        borderWidth: 1,
-                        borderColor: colors.chipInactive,
-                        borderRadius: radius.sm,
-                        paddingHorizontal: spacing.md,
-                        paddingVertical: spacing.sm,
-                        backgroundColor: colors.card,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          flex: 1,
-                          fontSize: fontSize.body,
-                          color: clienteSeleccionado ? colors.textPrimary : colors.textMuted,
-                        }}
-                      >
-                        {clienteSeleccionado ? clienteSeleccionado.cliente : 'Selecciona un cliente'}
-                      </Text>
-                      {this.state.seleccionClienteAbierto
-                        ? <IconChevronUp size={fontSize.body} color={colors.textPrimary} />
-                        : <IconChevronDown size={fontSize.body} color={colors.textPrimary} />}
-                    </TouchableOpacity>
-
-                    {this.state.seleccionClienteAbierto && (
-                      <View
-                        style={{
-                          borderWidth: 1,
-                          borderColor: colors.chipInactive,
-                          borderRadius: radius.sm,
-                          marginTop: spacing.xs,
-                          maxHeight: CLIENTES_LIST_MAX_HEIGHT,
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <ScrollView>
-                          <TouchableOpacity
-                            onPress={() => this.setState({ estaNuevoCliente: true, clienteNombre: '', seleccionClienteAbierto: false })}
-                            style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.md }}
-                          >
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                              <IconPlus size={fontSize.body} color={colors.primary} />
-                              <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.primary, marginLeft: spacing.xs }}>
-                                Nuevo cliente
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
-
-                          {clientesDeuda.map(c => {
-                            const activo = c.cliente === this.state.clienteNombre.trim();
-                            return (
-                              <TouchableOpacity
-                                key={c.cliente}
-                                onPress={() => this.setState({ clienteNombre: c.cliente, seleccionClienteAbierto: false })}
-                                style={{
-                                  flexDirection: 'row',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  paddingHorizontal: spacing.md,
-                                  paddingVertical: spacing.sm,
-                                  borderTopWidth: 1,
-                                  borderTopColor: colors.border,
-                                  backgroundColor: activo ? '#e8f4ff' : colors.card,
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    fontSize: fontSize.body,
-                                    color: colors.textPrimary,
-                                    flex: 1,
-                                    fontWeight: activo ? 'bold' : 'normal',
-                                  }}
-                                >
-                                  {c.cliente}
-                                </Text>
-                                <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.danger }}>
-                                  {formatoDinero(c.saldo, moneda)} 💳
-                                </Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        </ScrollView>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {clienteSeleccionado && (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
-                    <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, flex: 1 }}>
-                      Cliente: <Text style={{ fontWeight: 'bold', color: colors.textPrimary }}>{clienteSeleccionado.cliente}</Text>
-                    </Text>
-                    <View
-                      style={{
-                        backgroundColor: '#fff3e0',
-                        borderRadius: radius.sm,
-                        paddingHorizontal: spacing.md,
-                        paddingVertical: spacing.xs,
-                      }}
-                    >
-                      <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.danger }}>
-                        Pendiente: {formatoDinero(clienteSeleccionado.saldo, moneda)}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-              </View>
-            )}
+            <SelectorSegmentado
+              opciones={['Contado', 'Credito']}
+              valor={this.state.paymentType}
+              etiqueta={tipo => (tipo === 'Credito' ? 'Crédito' : tipo)}
+              alto={44}
+              onChange={tipo => this.setState({ paymentType: tipo, estaNuevoCliente: false, seleccionClienteAbierto: false })}
+            />
+            {this.state.paymentType === 'Credito' && this.renderSelectorCliente(clientesDeuda, clienteSeleccionado)}
           </View>
 
-          {/* Fila: "Productos" + botón Agregar */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xl, marginBottom: spacing.sm }}>
-            <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
-              Productos
+          {/* ── Productos + Agregar (arriba de la lista) ── */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ flex: 1, fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Productos{cartProducts.length > 0 ? ` · ${cartProducts.length}` : ''}
             </Text>
             <TouchableOpacity
               onPress={() => this.setState({ showProductModal: true })}
+              accessibilityRole="button"
               style={{
-                height: buttonHeight.action, paddingHorizontal: spacing.xl,
+                height: buttonHeight.action, paddingHorizontal: spacing.lg, gap: spacing.xs,
                 backgroundColor: colors.primary, borderRadius: radius.lg,
-                justifyContent: 'center', alignItems: 'center',
+                flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
               }}
             >
+              <IconPlus size={fontSize.itemTitle} color={colors.white} />
               <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
                 Agregar
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* ── Lista del carrito + estado vacío + total ── */}
-        <FlatList
-          data={this.state.cartProducts}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={({ item, index }) => this.renderCartItem({ item, index })}
-          ListEmptyComponent={
-            <View
-              style={{
-                marginHorizontal: spacing.lg,
-                backgroundColor: colors.card, borderRadius: radius.md,
-                alignItems: 'center', paddingVertical: spacing.xxl,
-                elevation: 3, shadowOpacity: 0.08, shadowOffset: { width: 0, height: 2 },
-              }}
-            >
-              <IconShoppingCart size={80} color={colors.chipInactive} />
+          {/* ── Carrito ── */}
+          {cartProducts.length === 0 ? (
+            <View style={{ ...tarjeta, alignItems: 'center', paddingVertical: spacing.xxl }}>
+              <IconShoppingCart size={64} color={colors.inputBorder} />
               <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.md }}>
                 Carrito vacío
               </Text>
@@ -677,11 +513,27 @@ class Main extends Component {
                 Toca "Agregar" para comenzar
               </Text>
             </View>
-          }
-          ListFooterComponent={() => this.renderListFooter()}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        />
+          ) : (
+            <View style={{ ...tarjeta, paddingHorizontal: spacing.lg }}>
+              {cartProducts.map((item, index) => this.renderCartItem(item, index))}
+            </View>
+          )}
+        </ScrollViewTeclado>
+
+        {/* Total + cobrar, fijos abajo (antes al final de la lista: había que
+            bajar hasta el final para cobrar). Solo con productos; BarraGuardar
+            se oculta sola mientras el teclado está abierto. */}
+        {cartProducts.length > 0 && (
+          <BarraGuardar
+            texto={this.state.paymentType === 'Credito' ? 'Cobrar a crédito' : `Cobrar ${total}`}
+            onPress={this.confirmCompleteSale}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <Text style={{ fontSize: fontSize.body, color: colors.label }}>Total</Text>
+              <Text style={{ fontSize: fontSize.splash, fontWeight: 'bold', color: colors.textPrimary }}>{total}</Text>
+            </View>
+          </BarraGuardar>
+        )}
       </View>
     );
   }

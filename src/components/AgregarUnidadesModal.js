@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { IconClose } from './Icon';
+import { IconClose, IconWarning } from './Icon';
 import { formatoCantidad } from '../config/formato';
 
 /**
@@ -106,10 +106,13 @@ export default class AgregarUnidadesModal extends Component {
               </Text>
             </View>
 
-            <View style={{ backgroundColor: '#fff8ed', borderWidth: 1, borderColor: colors.warning, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.lg }}>
-              <Text style={{ fontSize: fontSize.caption, color: colors.warning, fontWeight: 'bold' }}>
-                ⚠️ Estas unidades no se registran como compra ni como inversión.
-              </Text>
+            <View style={{ backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, borderRadius: radius.sm, padding: spacing.md, marginBottom: spacing.lg }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs }}>
+                <IconWarning size={fontSize.body} color={colors.warningDark} />
+                <Text style={{ flex: 1, fontSize: fontSize.caption, color: colors.warningDark, fontWeight: 'bold' }}>
+                  Estas unidades no se registran como compra ni como inversión.
+                </Text>
+              </View>
               <Text style={{ fontSize: fontSize.small, color: colors.textSecondary, marginTop: 2 }}>
                 Solo ajustan el stock. Si compraste mercancía, usa "Registrar compra" para llevar el costo y el historial al día.
               </Text>
@@ -121,7 +124,7 @@ export default class AgregarUnidadesModal extends Component {
             <TextInput
               style={{
                 borderWidth: 1,
-                borderColor: colors.chipInactive,
+                borderColor: colors.inputBorder,
                 borderRadius: radius.sm,
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.md,
@@ -132,7 +135,7 @@ export default class AgregarUnidadesModal extends Component {
                 marginBottom: spacing.sm,
               }}
               placeholder={esGranel ? '0.000' : '0'}
-              placeholderTextColor={colors.chipInactive}
+              placeholderTextColor={colors.placeholder}
               keyboardType="decimal-pad"
               autoFocus
               value={this.state.cantidad}
@@ -140,7 +143,7 @@ export default class AgregarUnidadesModal extends Component {
             />
 
             {cantidadNum > 0 && (
-              <Text style={{ fontSize: fontSize.caption, color: colors.primary, textAlign: 'center', marginBottom: spacing.lg }}>
+              <Text style={{ fontSize: fontSize.caption, color: colors.primaryDark, textAlign: 'center', marginBottom: spacing.lg }}>
                 Nuevo stock:{' '}
                 <Text style={{ fontWeight: 'bold' }}>
                   {formatoCantidad(presentacion.stock + cantidadNum)} {unidad}

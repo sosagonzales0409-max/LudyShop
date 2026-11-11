@@ -1,17 +1,19 @@
 import React, { Component } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, SafeAreaView, Dimensions, Switch, Alert,
+  View, Text, TouchableOpacity, Alert,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import { proveedoresRecientes } from '../data/consultas/compras';
 import { crearConsultaViva } from '../data/consultaViva';
 import ScrollViewTeclado from './ScrollViewTeclado';
-import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { colors, spacing, radius, fontSize } from '../config/theme';
 import { nombreProducto, formatoDinero } from '../config/formato';
-import { IconBack } from './Icon';
-
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+import Encabezado from './Encabezado';
+import { IconClose } from './Icon';
+import {
+  Seccion, Campo, FilaCampos, FilaInterruptor, Casilla, SelectorSegmentado,
+  BadgeGanancia, BarraGuardar, NotaConfirmacion, Etiqueta,
+} from './Formulario';
 
 // ─── Normalización de tamaños ──────────────────────────────────────────────────
 const UNIDADES_MAP = {
@@ -302,35 +304,12 @@ export default class AgregarProductoView extends Component {
 
   // ─── Render helpers ───────────────────────────────────────────────────────
 
-  renderSeccion(titulo) {
-    return (
-      <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: spacing.xl, marginBottom: spacing.md }}>
-        {titulo}
-      </Text>
-    );
-  }
-
-  renderLabel(texto) {
-    return <Text style={{ fontSize: fontSize.label, color: colors.textPrimary, marginBottom: spacing.xs, marginTop: spacing.md }}>{texto}</Text>;
-  }
-
-  renderInput(props) {
-    return (
-      <TextInput
-        style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }}
-        placeholderTextColor={colors.textMuted}
-        autoCorrect={false}
-        {...props}
-      />
-    );
-  }
-
   renderSugerencias(lista, onSelect) {
     if (!lista.length) return null;
     return (
-      <View style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, marginTop: 2, backgroundColor: colors.card, elevation: 6, shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } }}>
+      <View style={{ borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm, marginTop: -spacing.sm, backgroundColor: colors.card }}>
         {lista.map((item, idx) => (
-          <TouchableOpacity key={item} onPress={() => onSelect(item)} style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderBottomWidth: idx < lista.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
+          <TouchableOpacity key={item} onPress={() => onSelect(item)} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.md, borderBottomWidth: idx < lista.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
             <Text style={{ fontSize: fontSize.body, color: colors.textPrimary }}>{item}</Text>
           </TouchableOpacity>
         ))}
@@ -342,38 +321,26 @@ export default class AgregarProductoView extends Component {
     const moneda = this.context.config?.moneda ?? '$';
     const costoEfectivo = this.state.compraEsPaquete ? this.getPaqueteCompra().costo : this.state.precioCompra;
     const g = calcGanancia(costoEfectivo, this.state.precioVenta);
-    if (g === null) return null;
     const unidad = this.state.esGranel ? this.state.unidadGranel : 'unidad';
-    const color = g.pct > 15 ? colors.success : g.pct > 0 ? colors.warning : colors.danger;
-    const icono = g.pct > 15 ? '✅' : g.pct > 0 ? '⚠️' : '🔴';
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm }}>
-        <View style={{ backgroundColor: color + '22', borderRadius: radius.sm, paddingVertical: spacing.xs, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: fontSize.caption }}>{icono} </Text>
-          <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color }}>
-            Ganancia: {formatoDinero(g.ganancia, moneda)} por {unidad} ({g.pct}% del precio)
-          </Text>
-        </View>
-      </View>
-    );
+    return <BadgeGanancia g={g} unidad={unidad} moneda={moneda} />;
   }
 
   renderAvisoSimilitud() {
     const { productoSimilar, ignorarSimilitud, nombre } = this.state;
     if (!productoSimilar || ignorarSimilitud || nombre.trim().length < 3) return null;
     return (
-      <View style={{ backgroundColor: '#fff8ed', borderWidth: 1, borderColor: colors.warning, borderRadius: radius.sm, padding: spacing.md, marginTop: spacing.sm }}>
-        <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.warning, marginBottom: spacing.xs }}>⚠️ ¿Es el mismo producto?</Text>
-        <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginBottom: spacing.sm }}>
+      <View style={{ backgroundColor: colors.warningSoft, borderWidth: 1, borderColor: colors.warning, borderRadius: radius.sm, padding: spacing.md, marginTop: -spacing.sm }}>
+        <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.warningDark, marginBottom: spacing.xs }}>¿Es el mismo producto?</Text>
+        <Text style={{ fontSize: fontSize.caption, color: colors.label, marginBottom: spacing.sm }}>
           Ya existe: <Text style={{ fontWeight: 'bold', color: colors.textPrimary }}>{productoSimilar.nombre}</Text>{productoSimilar.marca ? ` · ${productoSimilar.marca}` : ''}
         </Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <TouchableOpacity onPress={() => this.setState({ nombre: productoSimilar.nombre, marca: productoSimilar.marca, productoSimilar: null, ignorarSimilitud: false, sugerenciasNombre: [], sugeringNombre: false })}
-            style={{ flex: 1, height: 36, backgroundColor: colors.warning, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}>
-            <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.white }}>Sí, usar ese</Text>
+            style={{ flex: 1, height: 44, backgroundColor: colors.warning, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>Sí, usar ese</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => this.setState({ productoSimilar: null, ignorarSimilitud: true })}
-            style={{ flex: 1, height: 36, backgroundColor: colors.chipInactive, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}>
+            style={{ flex: 1, height: 44, backgroundColor: colors.chipInactive, borderRadius: radius.sm, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>No, crear nuevo</Text>
           </TouchableOpacity>
         </View>
@@ -381,15 +348,24 @@ export default class AgregarProductoView extends Component {
     );
   }
 
-  renderToggle(label, value, onChange, sublabel = '') {
+  // Chip de categoría / proveedor (mismo estilo que antes).
+  renderChip({ key, texto, sel, onPress, punteado = false, chico = false }) {
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, marginTop: spacing.md }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: fontSize.body, fontWeight: '600', color: colors.textPrimary }}>{label}</Text>
-          {!!sublabel && <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: 2 }}>{sublabel}</Text>}
-        </View>
-        <Switch value={value} onValueChange={onChange} trackColor={{ false: colors.chipInactive, true: colors.primary + '88' }} thumbColor={value ? colors.primary : '#f4f3f4'} />
-      </View>
+      <TouchableOpacity key={key} onPress={onPress} hitSlop={chico ? 4 : undefined}
+        style={{
+          backgroundColor: sel ? colors.primary : (punteado ? 'transparent' : colors.chipInactive),
+          borderWidth: punteado ? 1 : 0, borderStyle: 'dashed',
+          borderColor: sel ? colors.primary : (chico ? colors.placeholder : colors.primary),
+          borderRadius: radius.lg, paddingHorizontal: spacing.md,
+          minHeight: chico ? 36 : 40, justifyContent: 'center',
+        }}>
+        <Text style={{
+          fontSize: chico ? fontSize.caption : fontSize.body,
+          fontWeight: chico ? '500' : 'bold',
+          fontStyle: chico && punteado ? 'italic' : 'normal',
+          color: sel ? colors.white : (punteado && !chico ? colors.primaryDark : colors.textPrimary),
+        }}>{texto}</Text>
+      </TouchableOpacity>
     );
   }
 
@@ -414,267 +390,226 @@ export default class AgregarProductoView extends Component {
     const aplicaPaqueteCompra = compraEsPaquete;
     // En granel el "paquete" es un bulto/costal (kilos por bulto × bultos).
     const txtPaquete = esGranel
-      ? { casilla: `¿Lo compraste por bulto/costal? (calcula costo por ${unidadGranel} y stock)`, piezas: `${unidadGranel} por bulto`, precio: 'Precio del bulto', cuantos: '¿Cuántos bultos compraste?' }
-      : { casilla: '¿Lo compraste por paquete/reja? (calcula costo y stock)', piezas: 'Piezas por paquete', precio: 'Precio del paquete', cuantos: '¿Cuántos paquetes/rejas compraste?' };
+      ? { casilla: 'Lo compré por bulto o costal', piezas: `${unidadGranel} por bulto`, precio: 'Precio del bulto', cuantos: '¿Cuántos bultos compraste?' }
+      : { casilla: 'Lo compré por paquete o reja', piezas: 'Piezas por paquete', precio: 'Precio del paquete', cuantos: '¿Cuántos paquetes/rejas compraste?' };
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Encabezado titulo="Agregar producto" onBack={() => this.props.navigation.goBack()} />
 
-        {/* Header */}
-        <View style={{ height: 60, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }}>
-          <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}>
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>Agregar producto</Text>
-        </View>
-
-        <ScrollViewTeclado contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollViewTeclado contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           {/* ── IDENTIFICACIÓN ── */}
-          {this.renderSeccion('Identificación')}
-
-          {this.renderLabel('Nombre')}
-          {this.renderInput({ placeholder: 'Ej. Arroz', value: nombre, onChangeText: this.onNombreChange, returnKeyType: 'next' })}
-          {sugeringNombre && this.renderSugerencias(sugerenciasNombre, s => {
-            const products = this.context.products || [];
-            const coincidentes = products.filter(p => p.nombre.toLowerCase() === s.toLowerCase());
-            const marcaAuto = coincidentes.length === 1 ? coincidentes[0].marca : marca;
-            this.setState({ nombre: s, marca: marcaAuto, sugerenciasNombre: [], sugeringNombre: false, productoSimilar: null });
-          })}
-          {this.renderAvisoSimilitud()}
-
-          {this.renderLabel('Marca — opcional')}
-          {this.renderInput({ placeholder: 'Ej. Verde Valle', value: marca, onChangeText: this.onMarcaChange, returnKeyType: 'next' })}
-          {sugeringMarca && this.renderSugerencias(sugerenciasMarca, s => this.setState({ marca: s, sugerenciasMarca: [], sugeringMarca: false }))}
-
-          {this.renderLabel('Categoría')}
-          {categories.length === 0 && !this.state.creandoCategoria && (
-            <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.sm }}>Aún no hay categorías. Crea la primera:</Text>
-          )}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {categories.map(cat => {
-              const sel = categoriaId === cat.id;
-              return (
-                <TouchableOpacity key={cat.id} onPress={() => this.setState({ categoriaId: cat.id })}
-                  style={{ backgroundColor: sel ? colors.primary : colors.chipInactive, borderRadius: radius.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, marginRight: spacing.sm, marginBottom: spacing.sm, minHeight: 40, justifyContent: 'center' }}>
-                  <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: sel ? colors.white : colors.textPrimary }}>{cat.nombre}</Text>
-                </TouchableOpacity>
-              );
+          <Seccion titulo="Identificación">
+            <Campo label="Nombre" placeholder="Ej. Arroz" value={nombre} onChangeText={this.onNombreChange} returnKeyType="next" />
+            {sugeringNombre && this.renderSugerencias(sugerenciasNombre, s => {
+              const products = this.context.products || [];
+              const coincidentes = products.filter(p => p.nombre.toLowerCase() === s.toLowerCase());
+              const marcaAuto = coincidentes.length === 1 ? coincidentes[0].marca : marca;
+              this.setState({ nombre: s, marca: marcaAuto, sugerenciasNombre: [], sugeringNombre: false, productoSimilar: null });
             })}
-            {!this.state.creandoCategoria && (
-              <TouchableOpacity onPress={() => this.setState({ creandoCategoria: true, nuevaCategoria: '' })}
-                style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, marginRight: spacing.sm, marginBottom: spacing.sm, minHeight: 40, justifyContent: 'center' }}>
-                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.primary }}>+ Nueva categoría</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          {this.state.creandoCategoria && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                {this.renderInput({ placeholder: 'Nombre de la categoría', value: this.state.nuevaCategoria, onChangeText: t => this.setState({ nuevaCategoria: t }), autoFocus: true, returnKeyType: 'done', onSubmitEditing: this.crearCategoria })}
-              </View>
-              <TouchableOpacity onPress={this.crearCategoria} style={{ height: 40, paddingHorizontal: spacing.md, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>Crear</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => this.setState({ creandoCategoria: false, nuevaCategoria: '' })} style={{ height: 40, paddingHorizontal: spacing.md, backgroundColor: colors.chipInactive, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>✕</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+            {this.renderAvisoSimilitud()}
 
-          {/* ── PRESENTACIÓN ── */}
-          {this.renderSeccion('Presentación')}
+            <Campo label="Marca" opcional placeholder="Ej. Verde Valle" value={marca} onChangeText={this.onMarcaChange} returnKeyType="next" />
+            {sugeringMarca && this.renderSugerencias(sugerenciasMarca, s => this.setState({ marca: s, sugerenciasMarca: [], sugeringMarca: false }))}
 
-          {this.renderToggle(
-            '¿Es producto a granel?',
-            esGranel,
-            v => this.setState({ esGranel: v }),
-            'Se vende y stockea por peso o volumen, no por un tamaño fijo',
-          )}
-
-          {esGranel ? (
-            <View style={{ marginTop: spacing.md }}>
-              <Text style={{ fontSize: fontSize.label, color: colors.textPrimary, marginBottom: spacing.sm }}>Unidad de medida</Text>
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                {UNIDADES_GRANEL.map(u => {
-                  const sel = unidadGranel === u;
-                  return (
-                    <TouchableOpacity key={u} onPress={() => this.setState({ unidadGranel: u })}
-                      style={{ flex: 1, height: 44, backgroundColor: sel ? colors.primary : colors.chipInactive, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
-                      <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: sel ? colors.white : colors.textPrimary }}>{u}</Text>
-                    </TouchableOpacity>
-                  );
+            <View style={{ gap: 6 }}>
+              <Etiqueta texto="Categoría" />
+              {categories.length === 0 && !this.state.creandoCategoria && (
+                <Text style={{ fontSize: fontSize.caption, color: colors.placeholder }}>Aún no hay categorías. Crea la primera:</Text>
+              )}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {categories.map(cat => this.renderChip({
+                  key: cat.id, texto: cat.nombre, sel: categoriaId === cat.id,
+                  onPress: () => this.setState({ categoriaId: cat.id }),
+                }))}
+                {!this.state.creandoCategoria && this.renderChip({
+                  key: 'nueva', texto: '+ Nueva categoría', punteado: true,
+                  onPress: () => this.setState({ creandoCategoria: true, nuevaCategoria: '' }),
                 })}
               </View>
-              <Text style={{ fontSize: fontSize.small, color: colors.primary, marginTop: spacing.sm }}>
-                Se guardará como: <Text style={{ fontWeight: 'bold' }}>por {unidadGranel}</Text>
-              </Text>
-            </View>
-          ) : (
-            <>
-              {/* "Presentación única" (Gansito, Chocorroles…): encendido, la
-                  presentación se guarda vacía de verdad y en la app se ve solo
-                  el nombre (y "Presentación única" donde va el tamaño). Apagado
-                  por defecto: casi todos los abarrotes llevan tamaño. El
-                  subtítulo aclara que NO es para "solo lo vendo en 600 ml". */}
-              {this.renderToggle(
-                'Presentación única',
-                this.state.sinPresentacion,
-                this.setPresentacionUnica,
-                'Actívalo si no hace falta indicar tamaño (Gansito, Chocorroles). Se verá solo el nombre.',
-              )}
-              {this.state.sinPresentacion ? (
-                <Text style={{ fontSize: fontSize.small, color: colors.primary, marginTop: spacing.xs }}>
-                  Se verá como: <Text style={{ fontWeight: 'bold' }}>{nombreProducto(this.state.nombre, '') || 'el nombre del producto'}</Text>
-                </Text>
-              ) : (
-                <View style={{ marginTop: spacing.xs }}>
-                  {this.renderLabel('Tamaño / Presentación')}
-                  {this.renderInput({ placeholder: 'Ej. 1 kg, 600 ml, Chico', value: tamano, onChangeText: this.onTamanoChange, returnKeyType: 'next' })}
-                  {!!tamanoNormalizado && (
-                    <Text style={{ fontSize: fontSize.small, color: colors.primary, marginTop: 4 }}>
-                      Se guardará como: <Text style={{ fontWeight: 'bold' }}>{tamanoNormalizado}</Text>
-                    </Text>
-                  )}
+              {this.state.creandoCategoria && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
+                  <Campo style={{ flex: 1 }} placeholder="Nombre de la categoría" value={this.state.nuevaCategoria} onChangeText={t => this.setState({ nuevaCategoria: t })} autoFocus returnKeyType="done" onSubmitEditing={this.crearCategoria} />
+                  <TouchableOpacity onPress={this.crearCategoria} style={{ height: 48, paddingHorizontal: spacing.md, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>Crear</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => this.setState({ creandoCategoria: false, nuevaCategoria: '' })} accessibilityLabel="Cancelar nueva categoría" style={{ width: 48, height: 48, backgroundColor: colors.chipInactive, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
+                    <IconClose size={fontSize.label} color={colors.textPrimary} />
+                  </TouchableOpacity>
                 </View>
               )}
-            </>
-          )}
+            </View>
+          </Seccion>
+
+          {/* ── PRESENTACIÓN ── */}
+          <Seccion titulo="Presentación">
+            <FilaInterruptor
+              label="¿Es producto a granel?"
+              sublabel="Se vende y stockea por peso o volumen, no por un tamaño fijo"
+              value={esGranel}
+              onValueChange={v => this.setState({ esGranel: v })}
+            />
+
+            {esGranel ? (
+              <View style={{ gap: spacing.sm }}>
+                <Etiqueta texto="Unidad de medida" />
+                <SelectorSegmentado opciones={UNIDADES_GRANEL} valor={unidadGranel} onChange={u => this.setState({ unidadGranel: u })} />
+                <NotaConfirmacion>Se guardará como <Text style={{ fontWeight: 'bold' }}>por {unidadGranel}</Text></NotaConfirmacion>
+              </View>
+            ) : (
+              <>
+                {/* "Presentación única" (Gansito, Chocorroles…): encendido, la
+                    presentación se guarda vacía de verdad y en la app se ve solo
+                    el nombre (y "Presentación única" donde va el tamaño). Apagado
+                    por defecto: casi todos los abarrotes llevan tamaño. El
+                    subtítulo aclara que NO es para "solo lo vendo en 600 ml". */}
+                <FilaInterruptor
+                  separador
+                  label="Presentación única"
+                  sublabel="Actívalo si no hace falta indicar tamaño (Gansito, Chocorroles). Se verá solo el nombre."
+                  value={this.state.sinPresentacion}
+                  onValueChange={this.setPresentacionUnica}
+                />
+                {this.state.sinPresentacion ? (
+                  <NotaConfirmacion>
+                    Se verá como <Text style={{ fontWeight: 'bold' }}>{nombreProducto(this.state.nombre, '') || 'el nombre del producto'}</Text>
+                  </NotaConfirmacion>
+                ) : (
+                  <Campo label="Tamaño / Presentación" placeholder="Ej. 1 kg, 600 ml, Chico" value={tamano} onChangeText={this.onTamanoChange} returnKeyType="next">
+                    {!!tamanoNormalizado && (
+                      <NotaConfirmacion>Se guardará como <Text style={{ fontWeight: 'bold' }}>{tamanoNormalizado}</Text></NotaConfirmacion>
+                    )}
+                  </Campo>
+                )}
+              </>
+            )}
+          </Seccion>
 
           {/* ── PRECIOS ── */}
-          {this.renderSeccion('Precios')}
-
-          {this.renderLabel(
-            `Precio de compra (costo por ${esGranel ? unidadGranel : 'unidad'})` +
-            (registrarComoCompra ? '' : ' — opcional'),
-          )}
-          {!aplicaPaqueteCompra && this.renderInput({ placeholder: '0.00', value: precioCompra, onChangeText: t => this.setState({ precioCompra: t }), keyboardType: 'decimal-pad' })}
-
-          {/* Paquete/reja, o bulto/costal si es a granel */}
-          <TouchableOpacity
-            onPress={() => this.setState({ compraEsPaquete: !compraEsPaquete })}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs, marginTop: compraEsPaquete ? 0 : spacing.sm }}
-          >
-            <View style={{ width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: compraEsPaquete ? colors.primary : colors.chipInactive, backgroundColor: compraEsPaquete ? colors.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm }}>
-              {compraEsPaquete && <Text style={{ fontSize: 12, color: colors.white, fontWeight: 'bold' }}>✓</Text>}
-            </View>
-            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>{txtPaquete.casilla}</Text>
-          </TouchableOpacity>
-
-          {aplicaPaqueteCompra && (
-            <View style={{ backgroundColor: colors.background, borderRadius: radius.sm, padding: spacing.md, marginTop: spacing.sm }}>
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>{txtPaquete.piezas}</Text>
-                  {this.renderInput({ placeholder: esGranel ? 'Ej. 25' : 'Ej. 24', value: compraPiezasPaquete, onChangeText: t => this.setState({ compraPiezasPaquete: t }), keyboardType: 'decimal-pad' })}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>{txtPaquete.precio}</Text>
-                  {this.renderInput({ placeholder: '0.00', value: compraPrecioPaquete, onChangeText: t => this.setState({ compraPrecioPaquete: t }), keyboardType: 'decimal-pad' })}
-                </View>
-              </View>
-              <View style={{ marginTop: spacing.sm }}>
-                <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>{txtPaquete.cuantos}</Text>
-                {this.renderInput({ placeholder: 'Ej. 1', value: compraNumPaquetes, onChangeText: t => this.setState({ compraNumPaquetes: t }), keyboardType: 'decimal-pad' })}
-              </View>
-              {paqueteCompra.costo != null && (
-                <Text style={{ fontSize: fontSize.caption, color: colors.primary, marginTop: spacing.sm, fontWeight: 'bold' }}>
-                  → Costo por {esGranel ? unidadGranel : 'unidad'}: {formatoDinero(paqueteCompra.costo, moneda)}
-                </Text>
+          <Seccion titulo="Precios">
+            <FilaCampos>
+              {!aplicaPaqueteCompra && (
+                <Campo
+                  style={{ flex: 1 }}
+                  label={`Costo por ${esGranel ? unidadGranel : 'unidad'}`}
+                  opcional={!registrarComoCompra}
+                  prefijo={moneda}
+                  placeholder="0.00"
+                  value={precioCompra}
+                  onChangeText={t => this.setState({ precioCompra: t })}
+                  keyboardType="decimal-pad"
+                />
               )}
-              {paqueteCompra.stock != null && (
-                <Text style={{ fontSize: fontSize.caption, color: colors.primary, marginTop: spacing.xs, fontWeight: 'bold' }}>
-                  → Stock inicial: {paqueteCompra.stock} {unidadStock}
-                </Text>
-              )}
-            </View>
-          )}
+              <Campo
+                style={{ flex: 1 }}
+                label={esGranel ? `Venta por ${unidadGranel}` : 'Precio de venta'}
+                prefijo={moneda}
+                placeholder="0.00"
+                value={precioVenta}
+                onChangeText={t => this.setState({ precioVenta: t })}
+                keyboardType="decimal-pad"
+              />
+            </FilaCampos>
 
-          {this.renderLabel(esGranel ? `Precio de venta (por ${unidadGranel})` : 'Precio de venta')}
-          {this.renderInput({ placeholder: '0.00', value: precioVenta, onChangeText: t => this.setState({ precioVenta: t }), keyboardType: 'decimal-pad' })}
-          {this.renderBadgeMargen()}
+            {/* Paquete/reja, o bulto/costal si es a granel */}
+            <Casilla label={txtPaquete.casilla} value={compraEsPaquete} onChange={v => this.setState({ compraEsPaquete: v })} />
+
+            {aplicaPaqueteCompra && (
+              <View style={{ backgroundColor: colors.background, borderRadius: radius.sm, padding: spacing.md, gap: spacing.md, marginTop: -spacing.sm }}>
+                <FilaCampos>
+                  <Campo style={{ flex: 1 }} label={txtPaquete.piezas} placeholder={esGranel ? 'Ej. 25' : 'Ej. 24'} value={compraPiezasPaquete} onChangeText={t => this.setState({ compraPiezasPaquete: t })} keyboardType="decimal-pad" />
+                  <Campo style={{ flex: 1 }} label={txtPaquete.precio} prefijo={moneda} placeholder="0.00" value={compraPrecioPaquete} onChangeText={t => this.setState({ compraPrecioPaquete: t })} keyboardType="decimal-pad" />
+                </FilaCampos>
+                <Campo label={txtPaquete.cuantos} placeholder="Ej. 1" value={compraNumPaquetes} onChangeText={t => this.setState({ compraNumPaquetes: t })} keyboardType="decimal-pad" />
+                {(paqueteCompra.costo != null || paqueteCompra.stock != null) && (
+                  <NotaConfirmacion>
+                    {paqueteCompra.costo != null && <>Costo por {esGranel ? unidadGranel : 'unidad'} <Text style={{ fontWeight: 'bold' }}>{formatoDinero(paqueteCompra.costo, moneda)}</Text></>}
+                    {paqueteCompra.costo != null && paqueteCompra.stock != null && ' · '}
+                    {paqueteCompra.stock != null && <>Stock <Text style={{ fontWeight: 'bold' }}>{paqueteCompra.stock} {unidadStock}</Text></>}
+                  </NotaConfirmacion>
+                )}
+              </View>
+            )}
+
+            {this.renderBadgeMargen()}
+          </Seccion>
 
           {/* ── INVENTARIO ── */}
-          {this.renderSeccion('Inventario')}
-
-          {this.renderLabel(`Stock inicial (${unidadStock})`)}
-          {aplicaPaqueteCompra ? (
-            <View style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.background }}>
-              <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: paqueteCompra.stock != null ? colors.textPrimary : colors.textMuted }}>
-                {paqueteCompra.stock != null ? `${paqueteCompra.stock} ${unidadStock}` : 'Completa los datos del paquete arriba'}
-              </Text>
-            </View>
-          ) : (
-            <>
-              {this.renderInput({
-                placeholder: esGranel ? '0.000' : '0',
-                value: stock,
-                onChangeText: t => this.setState({ stock: t }),
-                keyboardType: 'decimal-pad',
-              })}
-              {!esGranel && <Text style={{ fontSize: fontSize.small, color: colors.textMuted, marginTop: 4 }}>Los decimales se redondean automáticamente.</Text>}
-            </>
-          )}
-
-          {this.renderToggle(
-            '¿Registrar como compra?',
-            registrarComoCompra,
-            v => this.setState({ registrarComoCompra: v }),
-            'Se guardará en el historial de compras y actualizará el costo',
-          )}
-
-          {registrarComoCompra && (
-            <View style={{ backgroundColor: colors.background, borderRadius: radius.md, padding: spacing.lg, marginTop: spacing.md, borderWidth: 1, borderColor: colors.primary + '44' }}>
-              <Text style={{ fontSize: fontSize.label, color: colors.textPrimary, marginBottom: spacing.sm }}>Proveedor</Text>
-              {this.renderInput({
-                placeholder: this.state.sinProveedor ? 'Sin proveedor' : 'Nombre del proveedor',
-                value: proveedor, onChangeText: t => this.setState({ proveedor: t, sinProveedor: false }),
-              })}
-
-              {/* Sugerencias: "Sin proveedor" siempre primero, luego los usados */}
-              {proveedor.trim().length === 0 && (
-                <View style={{ marginTop: spacing.sm }}>
-                  <Text style={{ fontSize: fontSize.small, color: colors.textMuted, marginBottom: spacing.xs }}>Usados anteriormente:</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                    {/* Borde punteado y cursiva: no es un proveedor real */}
-                    <TouchableOpacity
-                      onPress={() => this.setState(prev => ({ sinProveedor: !prev.sinProveedor, proveedor: '' }))}
-                      style={{ backgroundColor: this.state.sinProveedor ? colors.primary : colors.card, borderWidth: 1, borderStyle: 'dashed', borderColor: this.state.sinProveedor ? colors.primary : colors.textMuted, borderRadius: radius.lg, paddingVertical: spacing.xs, paddingHorizontal: spacing.md }}>
-                      <Text style={{ fontSize: fontSize.caption, fontStyle: 'italic', color: this.state.sinProveedor ? colors.white : colors.textSecondary }}>
-                        {this.state.sinProveedor ? '✓ ' : ''}Sin proveedor
-                      </Text>
-                    </TouchableOpacity>
-                    {proveedores.slice(0, 4).map(p => (
-                      <TouchableOpacity key={p} onPress={() => this.setState({ proveedor: p, sinProveedor: false })}
-                        style={{ backgroundColor: colors.chipInactive, borderRadius: radius.lg, paddingVertical: spacing.xs, paddingHorizontal: spacing.md }}>
-                        <Text style={{ fontSize: fontSize.caption, color: colors.textPrimary }}>{p}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {precioCompraNum != null && precioCompraNum > 0 && stockNum != null && stockNum > 0 && (
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.lg, backgroundColor: colors.card, borderRadius: radius.sm, padding: spacing.md }}>
-                  <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Total de la compra</Text>
-                  <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
-                    {moneda}{(precioCompraNum * stockNum).toFixed(2)}
+          <Seccion titulo="Inventario">
+            {aplicaPaqueteCompra ? (
+              <View style={{ gap: 6 }}>
+                <Etiqueta texto="Stock inicial" />
+                <View style={{ height: 48, borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm, paddingHorizontal: spacing.md, justifyContent: 'center', backgroundColor: colors.background }}>
+                  <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: paqueteCompra.stock != null ? colors.textPrimary : colors.placeholder }}>
+                    {paqueteCompra.stock != null ? `${paqueteCompra.stock} ${unidadStock}` : 'Completa los datos del paquete arriba'}
                   </Text>
                 </View>
-              )}
-            </View>
-          )}
+              </View>
+            ) : (
+              <Campo
+                label="Stock inicial"
+                placeholder={esGranel ? '0.000' : '0'}
+                sufijo={unidadStock}
+                value={stock}
+                onChangeText={t => this.setState({ stock: t })}
+                keyboardType="decimal-pad"
+                ayuda={esGranel ? null : 'Los decimales se redondean automáticamente.'}
+              />
+            )}
 
-          {/* Botón guardar al final del scroll */}
-          <TouchableOpacity
-            onPress={this.handleGuardar}
-            style={{ height: buttonHeight.action, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center', marginTop: spacing.xl }}
-          >
-            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>Guardar producto</Text>
-          </TouchableOpacity>
+            <FilaInterruptor
+              separador
+              label="¿Registrar como compra?"
+              sublabel="Se guardará en el historial de compras y actualizará el costo"
+              value={registrarComoCompra}
+              onValueChange={v => this.setState({ registrarComoCompra: v })}
+            />
+
+            {registrarComoCompra && (
+              <View style={{ gap: spacing.md }}>
+                <Campo
+                  label="Proveedor"
+                  placeholder={this.state.sinProveedor ? 'Sin proveedor' : 'Nombre del proveedor'}
+                  value={proveedor}
+                  onChangeText={t => this.setState({ proveedor: t, sinProveedor: false })}
+                />
+
+                {/* Sugerencias: "Sin proveedor" siempre primero, luego los usados */}
+                {proveedor.trim().length === 0 && (
+                  <View style={{ gap: spacing.xs }}>
+                    <Text style={{ fontSize: fontSize.small, color: colors.placeholder }}>Usados anteriormente:</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                      {/* Borde punteado y cursiva: no es un proveedor real */}
+                      {this.renderChip({
+                        key: 'sin', chico: true, punteado: true, sel: this.state.sinProveedor,
+                        texto: `${this.state.sinProveedor ? '✓ ' : ''}Sin proveedor`,
+                        onPress: () => this.setState(prev => ({ sinProveedor: !prev.sinProveedor, proveedor: '' })),
+                      })}
+                      {proveedores.slice(0, 4).map(p => this.renderChip({
+                        key: p, chico: true, texto: p,
+                        onPress: () => this.setState({ proveedor: p, sinProveedor: false }),
+                      }))}
+                    </View>
+                  </View>
+                )}
+
+                {precioCompraNum != null && precioCompraNum > 0 && stockNum != null && stockNum > 0 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md }}>
+                    <Text style={{ fontSize: fontSize.body, color: colors.label }}>Total de la compra</Text>
+                    <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>
+                      {formatoDinero(precioCompraNum * stockNum, moneda)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </Seccion>
         </ScrollViewTeclado>
-      </SafeAreaView>
+
+        {/* Guardar siempre a la vista (fuera del scroll) */}
+        <BarraGuardar texto="Guardar producto" onPress={this.handleGuardar} />
+      </View>
     );
   }
 }

@@ -3,20 +3,17 @@ import {
   View,
   TouchableOpacity,
   Text,
-  Dimensions,
-  SafeAreaView,
-  TextInput,
   FlatList,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import CategoriasModal from './CategoriasModal';
-import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { IconSettings, IconPlus, IconChevron, IconShoppingBag, IconWarning } from './Icon';
+import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
+import { IconSettings, IconPlus, IconChevron, IconShoppingBag, IconWarning, IconSearch } from './Icon';
+import { CampoBusqueda } from './Formulario';
+import Encabezado from './Encabezado';
+import { ChipEstado, EstadoVacio } from './Estados';
 
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
-const HEADER_HEIGHT = 60;
-const CATEGORY_CHIP_HEIGHT = 32;
+const CATEGORY_CHIP_HEIGHT = 36;
 
 class Inventory extends Component {
   static contextType = StoreContext;
@@ -99,9 +96,7 @@ class Inventory extends Component {
         activeOpacity={0.7}
         onPress={() => this.props.navigation.navigate('ProductDetail', { productId: product.id })}
         style={{
-          marginTop: spacing.md, padding: spacing.lg,
-          backgroundColor: colors.card, borderRadius: radius.md,
-          elevation: 3, shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 },
+          ...tarjeta, marginTop: spacing.md, padding: spacing.lg,
         }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs }}>
@@ -110,7 +105,7 @@ class Inventory extends Component {
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {!!product.marca && (
-              <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic', marginRight: spacing.xs }}>
+              <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginRight: spacing.xs }}>
                 {product.marca}
               </Text>
             )}
@@ -138,12 +133,16 @@ class Inventory extends Component {
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-              <Text style={{
-                fontSize: fontSize.body, fontWeight: 'bold',
-                color: pres.stock < this.threshold ? colors.danger : colors.success,
-              }}>
-                {pres.stock}{pres.esGranel ? ` ${pres.unidadGranel ?? ''}` : ' u'}
-              </Text>
+              {/* Stock: número verde si está bien; etiqueta de estado si está bajo o agotado */}
+              {pres.stock <= 0 ? (
+                <ChipEstado tono="bad" texto="Agotado" />
+              ) : pres.stock < this.threshold ? (
+                <ChipEstado tono="warn" texto={`${pres.stock}${pres.esGranel ? ' ' + (pres.unidadGranel ?? '') : ' u'} · bajo`} />
+              ) : (
+                <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.successDark }}>
+                  {pres.stock}{pres.esGranel ? ` ${pres.unidadGranel ?? ''}` : ' u'}
+                </Text>
+              )}
 
               {/* Registrar compra — precarga este producto/presentación en RegistrarCompraView */}
               <TouchableOpacity
@@ -151,9 +150,10 @@ class Inventory extends Component {
                   e.stopPropagation();
                   this.props.navigation.navigate('RegistrarCompra', { productId: product.id, presentacionId: pres.id });
                 }}
-                style={{ width: 36, height: 36, borderRadius: radius.sm, backgroundColor: colors.success, justifyContent: 'center', alignItems: 'center' }}
+                accessibilityLabel="Registrar compra"
+                style={{ width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.successSoft, justifyContent: 'center', alignItems: 'center' }}
               >
-                <IconShoppingBag size={fontSize.label} color={colors.white} />
+                <IconShoppingBag size={20} color={colors.successDark} />
               </TouchableOpacity>
             </View>
           </View>
@@ -172,7 +172,7 @@ class Inventory extends Component {
     ];
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
 
         {/* Modal: categorías */}
         <CategoriasModal
@@ -185,41 +185,17 @@ class Inventory extends Component {
           onDelete={id => this.context.deleteCategory(id)}
         />
 
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
-        {/* Header */}
-        <View style={{ minHeight: HEADER_HEIGHT, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }}>Inventario</Text>
-            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 1 }}>
-              Valor total: {this.moneda}{this.getTotalValue()}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => this.props.navigation.navigate('LowStock', { threshold: this.threshold })} hitSlop={8} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
-              <IconWarning size={28} color={colors.textPrimary} />
-              {lowStockCount > 0 && (
-                <View
-                  style={{
-                    position: 'absolute', top: 2, right: 2,
-                    backgroundColor: colors.danger,
-                    borderRadius: 9, minWidth: 18, height: 18,
-                    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
-                    borderWidth: 2, borderColor: colors.card,
-                  }}
-                >
-                  <Text style={{ color: colors.white, fontSize: 10, fontWeight: 'bold' }}>{lowStockCount}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => this.props.navigation.navigate('ConfigView')} hitSlop={8} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center' }}>
-              <IconSettings size={28} color={colors.textPrimary} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <Encabezado
+          titulo="Inventario"
+          subtitulo={`Valor total: ${this.moneda}${this.getTotalValue()}`}
+          acciones={[
+            { Icono: IconWarning, etiqueta: 'Stock bajo', badge: lowStockCount, onPress: () => this.props.navigation.navigate('LowStock', { threshold: this.threshold }) },
+            { Icono: IconSettings, etiqueta: 'Configuración', onPress: () => this.props.navigation.navigate('ConfigView') },
+          ]}
+        />
 
         <View style={{ flex: 1, paddingHorizontal: spacing.lg }}>
-          <TextInput style={{ color: colors.textPrimary, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, marginTop: spacing.md, borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm }} placeholder="Buscar por nombre o marca" placeholderTextColor={colors.textMuted} value={this.state.searchText} onChangeText={text => this.updateSearchText(text)} />
+          <CampoBusqueda style={{ marginTop: spacing.md }} placeholder="Buscar por nombre o marca" value={this.state.searchText} onChangeText={text => this.updateSearchText(text)} />
 
           {/* Chips de categoría + botón "+" fijo a la derecha (abre la gestión
               de categorías). Antes era un ícono 🏷️ suelto en el encabezado,
@@ -247,9 +223,9 @@ class Inventory extends Component {
             </View>
           </TouchableOpacity>
 
-          <FlatList ref={this.productListRef} style={{ flex: 1 }} data={filteredProducts} keyExtractor={item => item.id} renderItem={({ item }) => this.renderProductItem(item)} contentContainerStyle={{ paddingBottom: spacing.xl }} ListEmptyComponent={() => (<View style={{ alignItems: 'center', marginTop: spacing.xl }}><Text style={{ fontSize: fontSize.body, color: colors.textMuted }}>No hay productos</Text></View>)} />
+          <FlatList ref={this.productListRef} style={{ flex: 1 }} data={filteredProducts} keyExtractor={item => item.id} renderItem={({ item }) => this.renderProductItem(item)} contentContainerStyle={{ paddingBottom: spacing.xl }} ListEmptyComponent={() => <EstadoVacio Icono={IconSearch} tono="info" titulo="No hay productos" />} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 }

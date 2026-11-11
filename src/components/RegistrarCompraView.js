@@ -1,19 +1,17 @@
 import React, { Component } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  SafeAreaView, Dimensions, Alert, Keyboard,
+  View, Text, TouchableOpacity, Alert,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import { obtenerCompra } from '../data/repositories/compras';
 import { proveedoresRecientes } from '../data/consultas/compras';
 import { crearConsultaViva } from '../data/consultaViva';
 import ScrollViewTeclado from './ScrollViewTeclado';
-import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { colors, spacing, radius, fontSize } from '../config/theme';
 import { nombreProducto, formatoDinero, formatoCantidad } from '../config/formato';
-import { IconBack, IconPlus, IconClose } from './Icon';
-
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+import { IconPlus, IconClose, IconShoppingBag } from './Icon';
+import Encabezado from './Encabezado';
+import { Seccion, Campo, FilaCampos, Casilla, BarraGuardar, NotaConfirmacion } from './Formulario';
 
 /**
  * RegistrarCompraView — pantalla para registrar una compra de mercancía.
@@ -41,20 +39,13 @@ export default class RegistrarCompraView extends Component {
       busqueda: '',
       items: [],             // [{ productId, presentacionId, nombre, tamano, esGranel, unidadGranel, cantidad, costoUnitario, esPaquete, piezasPaquete, precioPaquete }]
       paqueteStates: {},     // { [key]: { esPaquete, piezas, precio } }
-      tecladoVisible: false, // oculta la barra de total mientras se escribe
       sinProveedor: false,   // compra sin proveedor (otra tienda, mercado…): se guarda proveedor ''
       proveedoresUsados: [], // de SQLite, del más reciente al más antiguo (sugerencias)
     };
   }
 
   componentDidMount() {
-    // La barra de total se oculta con el teclado abierto: si no, queda encima
-    // del teclado y tapa los campos de cantidad/costo. Va ANTES del return
-    // del modo edición para que también se registre ahí.
-    this.subsTeclado = [
-      Keyboard.addListener('keyboardDidShow', () => this.setState({ tecladoVisible: true })),
-      Keyboard.addListener('keyboardDidHide', () => this.setState({ tecladoVisible: false })),
-    ];
+    // (La barra de total se oculta sola con el teclado abierto: BarraGuardar.)
     this.montado = true;
     // Proveedores para las sugerencias (bajo demanda; antes StoreContext los
     // recalculaba recorriendo todas las compras en cada dibujado).
@@ -76,9 +67,6 @@ export default class RegistrarCompraView extends Component {
   }
 
   componentWillUnmount() {
-    // Sin esto, los listeners seguirían vivos al salir de la pantalla y
-    // llamarían setState sobre un componente desmontado.
-    this.subsTeclado?.forEach(s => s.remove());
     this.consultaProveedores?.detener();
     this.montado = false;
   }
@@ -165,9 +153,9 @@ export default class RegistrarCompraView extends Component {
       <TouchableOpacity
         key="__sin_proveedor__"
         onPress={() => this.setState({ sinProveedor: !activo, proveedor: '' })}
-        style={{ backgroundColor: activo ? colors.primary : colors.card, borderWidth: 1, borderStyle: 'dashed', borderColor: activo ? colors.primary : colors.textMuted, borderRadius: radius.lg, paddingVertical: spacing.xs, paddingHorizontal: spacing.md }}
+        style={{ backgroundColor: activo ? colors.primary : 'transparent', borderWidth: 1, borderStyle: 'dashed', borderColor: activo ? colors.primary : colors.placeholder, borderRadius: radius.lg, minHeight: 36, justifyContent: 'center', paddingHorizontal: spacing.md }}
       >
-        <Text style={{ fontSize: fontSize.caption, fontStyle: 'italic', color: activo ? colors.white : colors.textSecondary }}>
+        <Text style={{ fontSize: fontSize.caption, fontWeight: '500', fontStyle: 'italic', color: activo ? colors.white : colors.label }}>
           {activo ? '✓ ' : ''}Sin proveedor
         </Text>
       </TouchableOpacity>
@@ -372,95 +360,55 @@ export default class RegistrarCompraView extends Component {
     const unidad = item.esGranel ? (item.unidadGranel ?? '') : 'uds';
 
     return (
-      <View key={key} style={{ backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.md, elevation: 3, shadowOpacity: 0.07, shadowOffset: { width: 0, height: 2 } }}>
+      <View key={key} style={{ backgroundColor: colors.card, borderWidth: 1, borderColor: colors.cardBorder, borderRadius: radius.md, padding: spacing.lg, marginTop: spacing.md, gap: spacing.md }}>
         {/* Nombre + quitar */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>{item.nombre} {item.tamano}</Text>
-          </View>
-          <TouchableOpacity onPress={() => this.removeItem(idx)} style={{ width: 32, height: 32, borderRadius: radius.sm, backgroundColor: '#fde8e8', justifyContent: 'center', alignItems: 'center' }}>
-            <IconClose size={fontSize.caption} color={colors.danger} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Text style={{ flex: 1, fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>{nombreProducto(item.nombre, item.tamano)}</Text>
+          <TouchableOpacity onPress={() => this.removeItem(idx)} hitSlop={8} accessibilityLabel={`Quitar ${item.nombre}`} style={{ width: 40, height: 40, borderRadius: radius.sm, backgroundColor: colors.dangerSoft, justifyContent: 'center', alignItems: 'center' }}>
+            <IconClose size={fontSize.body} color={colors.dangerDark} />
           </TouchableOpacity>
         </View>
 
-        {/* Toggle paquete — decide si se pide "Cantidad" directa o el
-            desglose de paquete/reja (son excluyentes, no se piden juntos).
-            A granel el paquete es un bulto/costal (kilos por bulto). */}
-        <TouchableOpacity
-          onPress={() => this.updatePaquete(key, { esPaquete: !paq.esPaquete })}
-          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs, marginBottom: spacing.sm }}
-        >
-          <View style={{ width: 20, height: 20, borderRadius: 4, borderWidth: 1.5, borderColor: esPaquete ? colors.primary : colors.chipInactive, backgroundColor: esPaquete ? colors.primary : 'transparent', justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm }}>
-            {esPaquete && <Text style={{ fontSize: 12, color: colors.white, fontWeight: 'bold' }}>✓</Text>}
-          </View>
-          <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>
-            {item.esGranel ? `¿Compraste por bulto/costal? (calcula costo por ${unidad} y cantidad total)` : '¿Compraste por paquete/reja? (calcula costo y cantidad totales)'}
-          </Text>
-        </TouchableOpacity>
-
         {/* Cantidad + costo unitario directos — solo si NO es por paquete */}
         {!esPaquete && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>Cantidad ({unidad})</Text>
-              <TextInput
-                style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }}
-                placeholder={item.esGranel ? '0.000' : '0'}
-                placeholderTextColor={colors.textMuted}
-                keyboardType="decimal-pad"
-                value={item.cantidad}
-                onChangeText={t => this.updateItem(idx, { cantidad: t })}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>Costo unitario</Text>
-              <TextInput
-                style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }}
-                placeholder="0.00"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="decimal-pad"
-                value={item.costoUnitario}
-                onChangeText={t => this.updateItem(idx, { costoUnitario: t })}
-              />
-            </View>
-          </View>
+          <FilaCampos>
+            <Campo style={{ flex: 1 }} label="Cantidad" sufijo={unidad} placeholder={item.esGranel ? '0.000' : '0'} keyboardType="decimal-pad" value={item.cantidad} onChangeText={t => this.updateItem(idx, { cantidad: t })} />
+            <Campo style={{ flex: 1 }} label="Costo unitario" prefijo={this.moneda} placeholder="0.00" keyboardType="decimal-pad" value={item.costoUnitario} onChangeText={t => this.updateItem(idx, { costoUnitario: t })} />
+          </FilaCampos>
         )}
+
+        {/* Casilla paquete — decide si se pide "Cantidad" directa o el
+            desglose de paquete/reja (son excluyentes, no se piden juntos).
+            A granel el paquete es un bulto/costal (kilos por bulto). */}
+        <Casilla
+          label={item.esGranel ? 'Lo compré por bulto o costal' : 'Lo compré por paquete o reja'}
+          value={esPaquete}
+          onChange={v => this.updatePaquete(key, { esPaquete: v })}
+        />
 
         {/* Campos paquete */}
         {esPaquete && (
-          <View style={{ backgroundColor: colors.background, borderRadius: radius.sm, padding: spacing.md, marginTop: spacing.sm }}>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>{item.esGranel ? `${unidad} por bulto` : 'Piezas en el paquete'}</Text>
-                <TextInput style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }} placeholder={item.esGranel ? 'Ej. 25' : 'Ej. 24'} placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={paq.piezas} onChangeText={t => this.updatePaquete(key, { piezas: t })} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>{item.esGranel ? 'Precio del bulto' : 'Precio del paquete'}</Text>
-                <TextInput style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }} placeholder="0.00" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={paq.precio} onChangeText={t => this.updatePaquete(key, { precio: t })} />
-              </View>
-            </View>
-            <View style={{ marginTop: spacing.sm }}>
-              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.xs }}>{item.esGranel ? '¿Cuántos bultos compraste?' : '¿Cuántos paquetes/rejas compraste?'}</Text>
-              <TextInput style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }} placeholder="Ej. 2" placeholderTextColor={colors.textMuted} keyboardType="decimal-pad" value={paq.numPaquetes} onChangeText={t => this.updatePaquete(key, { numPaquetes: t })} />
-            </View>
-            {costoCalc != null && (
-              <Text style={{ fontSize: fontSize.caption, color: colors.primary, marginTop: spacing.sm, fontWeight: 'bold' }}>
-                → Costo unitario calculado: {formatoDinero(costoCalc, this.moneda)} {item.esGranel ? `por ${unidad}` : 'c/u'}
-              </Text>
-            )}
-            {cantidadCalc != null && (
-              <Text style={{ fontSize: fontSize.caption, color: colors.primary, marginTop: spacing.xs, fontWeight: 'bold' }}>
-                → Cantidad total: {formatoCantidad(cantidadCalc)} {unidad}
-              </Text>
+          <View style={{ backgroundColor: colors.background, borderRadius: radius.sm, padding: spacing.md, gap: spacing.md, marginTop: -spacing.sm }}>
+            <FilaCampos>
+              <Campo style={{ flex: 1 }} label={item.esGranel ? `${unidad} por bulto` : 'Piezas en el paquete'} placeholder={item.esGranel ? 'Ej. 25' : 'Ej. 24'} keyboardType="decimal-pad" value={paq.piezas} onChangeText={t => this.updatePaquete(key, { piezas: t })} />
+              <Campo style={{ flex: 1 }} label={item.esGranel ? 'Precio del bulto' : 'Precio del paquete'} prefijo={this.moneda} placeholder="0.00" keyboardType="decimal-pad" value={paq.precio} onChangeText={t => this.updatePaquete(key, { precio: t })} />
+            </FilaCampos>
+            <Campo label={item.esGranel ? '¿Cuántos bultos compraste?' : '¿Cuántos paquetes/rejas compraste?'} placeholder="Ej. 2" keyboardType="decimal-pad" value={paq.numPaquetes} onChangeText={t => this.updatePaquete(key, { numPaquetes: t })} />
+            {(costoCalc != null || cantidadCalc != null) && (
+              <NotaConfirmacion>
+                {costoCalc != null && <>Costo <Text style={{ fontWeight: 'bold' }}>{formatoDinero(costoCalc, this.moneda)}</Text> {item.esGranel ? `por ${unidad}` : 'c/u'}</>}
+                {costoCalc != null && cantidadCalc != null && ' · '}
+                {cantidadCalc != null && <>Cantidad <Text style={{ fontWeight: 'bold' }}>{formatoCantidad(cantidadCalc)} {unidad}</Text></>}
+              </NotaConfirmacion>
             )}
           </View>
         )}
 
         {/* Subtotal */}
         {subtotal != null && (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.md, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border }}>
-            <Text style={{ fontSize: fontSize.body, color: colors.textSecondary }}>Subtotal</Text>
-            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>{this.moneda}{subtotal.toFixed(2)}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border }}>
+            <Text style={{ fontSize: fontSize.body, color: colors.label }}>Subtotal</Text>
+            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>{formatoDinero(subtotal, this.moneda)}</Text>
           </View>
         )}
       </View>
@@ -470,131 +418,110 @@ export default class RegistrarCompraView extends Component {
   // ─── Render principal ────────────────────────────────────────────────────────
 
   render() {
-    const { proveedor, notas, busqueda, items, editandoId, tecladoVisible } = this.state;
+    const { proveedor, notas, busqueda, items, editandoId } = this.state;
     const sugerencias = this.getSellableItems();
     const total = this.calcTotal();
     const hayItems = items.length > 0;
     const esEdicion = !!editandoId;
+    const sugerenciasProveedor = this.getSugerenciasProveedor();
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Encabezado titulo={esEdicion ? 'Editar compra' : 'Registrar compra'} onBack={() => this.props.navigation.goBack()} />
 
-        {/* Header */}
-        <View style={{ height: 60, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }}>
-          <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}>
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>{esEdicion ? 'Editar compra' : 'Registrar compra'}</Text>
-        </View>
-
-        <ScrollViewTeclado contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <ScrollViewTeclado contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
           {/* ── PROVEEDOR ── */}
-          <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.md }}>Proveedor</Text>
+          <Seccion titulo="Proveedor">
+            <Campo
+              placeholder={this.state.sinProveedor ? 'Sin proveedor' : 'Nombre del proveedor'}
+              value={proveedor}
+              onChangeText={t => this.setState({ proveedor: t, sinProveedor: false })}
+            />
 
-          <TextInput
-            style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary, marginBottom: spacing.sm }}
-            placeholder={this.state.sinProveedor ? 'Sin proveedor' : 'Nombre del proveedor'}
-            placeholderTextColor={colors.textMuted}
-            value={proveedor}
-            onChangeText={t => this.setState({ proveedor: t, sinProveedor: false })}
-          />
+            {/* Sugerencias: "Sin proveedor" siempre primero (con el campo vacío),
+                luego los proveedores usados o parecidos. */}
+            {(proveedor.trim().length === 0 || sugerenciasProveedor.length > 0) && (
+              <View style={{ gap: spacing.xs, marginTop: -spacing.sm }}>
+                <Text style={{ fontSize: fontSize.small, color: colors.placeholder }}>
+                  {proveedor.trim().length === 0 ? 'Usados anteriormente:' : 'Proveedores parecidos ya registrados:'}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                  {proveedor.trim().length === 0 && this.renderChipSinProveedor()}
+                  {sugerenciasProveedor.map(p => (
+                    <TouchableOpacity key={p} onPress={() => this.setState({ proveedor: p, sinProveedor: false })} style={{ backgroundColor: colors.chipInactive, borderRadius: radius.lg, minHeight: 36, justifyContent: 'center', paddingHorizontal: spacing.md }}>
+                      <Text style={{ fontSize: fontSize.caption, fontWeight: '500', color: colors.textPrimary }}>{p}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
 
-          {/* Sugerencias: "Sin proveedor" siempre primero (con el campo vacío),
-              luego los proveedores usados o parecidos. */}
-          {(proveedor.trim().length === 0 || this.getSugerenciasProveedor().length > 0) && (
-            <View style={{ marginBottom: spacing.md }}>
-              <Text style={{ fontSize: fontSize.small, color: colors.textMuted, marginBottom: spacing.xs }}>
-                {proveedor.trim().length === 0 ? 'Usados anteriormente:' : 'Proveedores parecidos ya registrados:'}
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                {proveedor.trim().length === 0 && this.renderChipSinProveedor()}
-                {this.getSugerenciasProveedor().map(p => (
-                  <TouchableOpacity key={p} onPress={() => this.setState({ proveedor: p, sinProveedor: false })} style={{ backgroundColor: colors.chipInactive, borderRadius: radius.lg, paddingVertical: spacing.xs, paddingHorizontal: spacing.md }}>
-                    <Text style={{ fontSize: fontSize.caption, color: colors.textPrimary }}>{p}</Text>
+            <Campo label="Notas" opcional placeholder="Ej. Pedido de la semana" value={notas} onChangeText={t => this.setState({ notas: t })} />
+          </Seccion>
+
+          {/* ── PRODUCTOS ── */}
+          <Seccion titulo="Productos comprados">
+            <Campo
+              placeholder="Buscar producto del inventario..."
+              value={busqueda}
+              onChangeText={t => this.setState({ busqueda: t })}
+            />
+
+            {/* Sugerencias de búsqueda */}
+            {sugerencias.length > 0 && (
+              <View style={{ borderWidth: 1, borderColor: colors.inputBorder, borderRadius: radius.sm, marginTop: -spacing.sm, backgroundColor: colors.card }}>
+                {sugerencias.map((item, idx) => (
+                  <TouchableOpacity key={item.id} onPress={() => this.agregarItemPorId(item.productId, item.presentacionId)}
+                    style={{ flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: idx < sugerencias.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: fontSize.body, fontWeight: '600', color: colors.textPrimary }}>{nombreProducto(item.nombre, item.tamano)}</Text>
+                      {!!item.marca && <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>{item.marca}</Text>}
+                    </View>
+                    <IconPlus size={fontSize.label} color={colors.primary} />
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
-          )}
+            )}
 
-          {/* Notas */}
-          <TextInput
-            style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary, marginBottom: spacing.xl }}
-            placeholder="Notas opcionales"
-            placeholderTextColor={colors.textMuted}
-            value={notas}
-            onChangeText={t => this.setState({ notas: t })}
-          />
-
-          {/* ── PRODUCTOS ── */}
-          <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.md }}>Productos comprados</Text>
-
-          {/* Buscador */}
-          <TextInput
-            style={{ borderWidth: 1, borderColor: colors.primary, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary, marginBottom: spacing.xs }}
-            placeholder="Buscar producto del inventario..."
-            placeholderTextColor={colors.textMuted}
-            value={busqueda}
-            onChangeText={t => this.setState({ busqueda: t })}
-          />
-
-          {/* Sugerencias de búsqueda */}
-          {sugerencias.length > 0 && (
-            <View style={{ borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, marginBottom: spacing.md, backgroundColor: colors.card, elevation: 4 }}>
-              {sugerencias.map((item, idx) => (
-                <TouchableOpacity key={item.id} onPress={() => this.agregarItemPorId(item.productId, item.presentacionId)}
-                  style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.md, borderBottomWidth: idx < sugerencias.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: fontSize.body, fontWeight: '600', color: colors.textPrimary }}>{item.nombre} {item.tamano}</Text>
-                    {!!item.marca && <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }}>{item.marca}</Text>}
-                  </View>
-                  <IconPlus size={fontSize.label} color={colors.primary} />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* Botón agregar producto nuevo */}
-          <TouchableOpacity
-            onPress={() => this.props.navigation.navigate('AgregarProducto')}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, marginBottom: spacing.lg }}
-          >
-            <IconPlus size={fontSize.label} color={colors.primary} />
-            <Text style={{ fontSize: fontSize.label, color: colors.primary, fontWeight: 'bold', marginLeft: spacing.sm }}>Registrar producto nuevo</Text>
-          </TouchableOpacity>
+            {/* Botón agregar producto nuevo */}
+            <TouchableOpacity
+              onPress={() => this.props.navigation.navigate('AgregarProducto')}
+              style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44, marginTop: -spacing.xs }}
+            >
+              <IconPlus size={fontSize.label} color={colors.primaryDark} />
+              <Text style={{ fontSize: fontSize.body, color: colors.primaryDark, fontWeight: 'bold', marginLeft: spacing.sm }}>Registrar producto nuevo</Text>
+            </TouchableOpacity>
+          </Seccion>
 
           {/* Ítems de la compra */}
           {items.map((item, idx) => this.renderItem(item, idx))}
 
           {items.length === 0 && (
-            <View style={{ alignItems: 'center', paddingVertical: spacing.xxl }}>
-              <Text style={{ fontSize: 40 }}>🛍️</Text>
+            <View style={{ alignItems: 'center', paddingVertical: spacing.xxl, paddingHorizontal: spacing.lg }}>
+              <IconShoppingBag size={40} color={colors.placeholder} strokeWidth={1.5} />
               <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.md }}>Sin productos</Text>
-              <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>Usa el buscador para agregar productos a esta compra.</Text>
+              <Text style={{ fontSize: fontSize.body, color: colors.placeholder, marginTop: spacing.sm, textAlign: 'center' }}>Usa el buscador para agregar productos a esta compra.</Text>
             </View>
           )}
         </ScrollViewTeclado>
 
         {/* Barra de total + confirmar. Ocupa su lugar debajo del ScrollView
             (antes era absolute: subía con el teclado, tapaba los campos y el
-            ScrollView no sabía que debía desplazarse). Se oculta mientras el
-            teclado está abierto para dejar espacio al campo que se edita. */}
-        {hayItems && !tecladoVisible && (
-          <View style={{ backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xl, elevation: 8 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
-              <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>Total de la compra</Text>
-              <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.primary }}>{this.moneda}{total.toFixed(2)}</Text>
+            ScrollView no sabía que debía desplazarse). BarraGuardar se oculta
+            sola mientras el teclado está abierto. */}
+        {hayItems && (
+          <BarraGuardar
+            texto={esEdicion ? 'Guardar cambios' : `Confirmar compra · ${items.length} ${items.length === 1 ? 'producto' : 'productos'}`}
+            onPress={this.handleConfirmar}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <Text style={{ fontSize: fontSize.body, color: colors.label }}>Total de la compra</Text>
+              <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.textPrimary }}>{formatoDinero(total, this.moneda)}</Text>
             </View>
-            <TouchableOpacity onPress={this.handleConfirmar} style={{ height: buttonHeight.action, backgroundColor: colors.primary, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
-                {esEdicion ? 'Guardar cambios' : `Confirmar compra · ${items.length} ${items.length === 1 ? 'producto' : 'productos'}`}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </BarraGuardar>
         )}
-      </SafeAreaView>
+      </View>
     );
   }
 }

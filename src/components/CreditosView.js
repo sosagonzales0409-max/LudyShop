@@ -4,8 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
@@ -13,12 +11,11 @@ import { StoreContext } from '../context/StoreContext';
 import { clientesConSaldo } from '../data/consultas/creditos';
 import { crearConsultaViva } from '../data/consultaViva';
 import PagoModal from './PagoModal';
-import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
+import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
 import { formatoDinero } from '../config/formato';
-import { IconBack, IconChevron } from './Icon';
-
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+import { IconChevron, IconCheckCircle } from './Icon';
+import Encabezado, { EtiquetaEncabezado } from './Encabezado';
+import { ChipEstado, EstadoVacio } from './Estados';
 
 /**
  * CreditosView — lista de clientes con saldo pendiente.
@@ -96,11 +93,13 @@ export default class CreditosView extends Component {
     return Math.max(0, dias);
   }
 
+  // Etiqueta de antigüedad: texto + tono de <ChipEstado> (verde hasta 1 día,
+  // naranja hasta 7, rojo después).
   chipAntiguedad(dias) {
-    if (dias === 0) return { label: 'Hoy', bg: colors.success };
-    if (dias === 1) return { label: '1 día', bg: colors.success };
-    if (dias <= 7) return { label: `${dias} días`, bg: colors.warning };
-    return { label: `+${dias} días`, bg: colors.danger };
+    if (dias === 0) return { label: 'Hoy', tono: 'ok' };
+    if (dias === 1) return { label: '1 día', tono: 'ok' };
+    if (dias <= 7) return { label: `${dias} días`, tono: 'warn' };
+    return { label: `+${dias} días`, tono: 'bad' };
   }
 
   renderCliente(item) {
@@ -109,25 +108,10 @@ export default class CreditosView extends Component {
     const chip = this.chipAntiguedad(dias);
 
     return (
-      <View
-        style={{
-          backgroundColor: colors.card,
-          borderRadius: radius.md,
-          padding: spacing.lg,
-          marginBottom: spacing.sm,
-          elevation: 3,
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
-        }}
-      >
-        {/* Fila tocable → detalle */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => this.props.navigation.navigate('ClientDebtDetail', { clienteData: { cliente: item.cliente, clienteId: item.clienteId } })}
-          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}
-        >
-          <View style={{ flex: 1 }}>
+      <View style={{ ...tarjeta, padding: spacing.lg, marginBottom: spacing.sm }}>
+        {/* Fila 1: nombre, nº de ventas y antigüedad de la deuda */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1, marginRight: spacing.sm }}>
             <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>
               {item.cliente}
             </Text>
@@ -135,25 +119,20 @@ export default class CreditosView extends Component {
               {item.numVentas} {item.numVentas === 1 ? 'venta' : 'ventas'} a crédito
             </Text>
           </View>
+          <ChipEstado tono={chip.tono} texto={chip.label} />
+        </View>
 
-          <View
-            style={{
-              backgroundColor: chip.bg,
-              borderRadius: radius.sm,
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.sm,
-              marginRight: spacing.sm,
-            }}
-          >
-            <Text style={{ color: colors.white, fontSize: fontSize.small, fontWeight: 'bold' }}>
-              {chip.label}
-            </Text>
-          </View>
-
-          <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.danger }}>
+        {/* Fila 2 (tocable → detalle): saldo grande en su propia línea para
+            que no compita con el nombre en pantallas angostas. */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => this.props.navigation.navigate('ClientDebtDetail', { clienteData: { cliente: item.cliente, clienteId: item.clienteId } })}
+          style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44, marginTop: spacing.xs, marginBottom: spacing.sm }}
+        >
+          <Text style={{ flex: 1, fontSize: fontSize.itemTitle, fontWeight: 'bold', color: colors.dangerDark }}>
             {formatoDinero(item.saldo, moneda)}
           </Text>
-          <IconChevron size={fontSize.itemTitle} color={colors.textMuted} style={{ marginLeft: spacing.xs }} />
+          <IconChevron size={fontSize.itemTitle} color={colors.placeholder} style={{ marginLeft: spacing.xs }} />
         </TouchableOpacity>
 
         {/* Botón registrar pago */}
@@ -185,7 +164,7 @@ export default class CreditosView extends Component {
     const totalGeneral = clientes.reduce((s, c) => s + c.saldo, 0);
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
 
         <PagoModal
           visible={this.state.showPagoModal}
@@ -198,46 +177,13 @@ export default class CreditosView extends Component {
           }}
         />
 
-        {/* Barra verde */}
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
-        {/* Header */}
-        <View
-          style={{
-            height: 60,
-            paddingHorizontal: spacing.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.card,
-            elevation: 4,
-            shadowOpacity: 0.1,
-            shadowOffset: { width: 0, height: 2 },
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => this.props.navigation.goBack()}
-            style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}
-          >
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
-            Créditos
-          </Text>
-          {clientes.length > 0 && (
-            <View
-              style={{
-                backgroundColor: colors.danger,
-                borderRadius: radius.lg,
-                paddingVertical: spacing.xs,
-                paddingHorizontal: spacing.md,
-              }}
-            >
-              <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>
-                {formatoDinero(totalGeneral, moneda)} total
-              </Text>
-            </View>
-          )}
-        </View>
+        <Encabezado
+          titulo="Créditos"
+          onBack={() => this.props.navigation.goBack()}
+          derecha={clientes.length > 0
+            ? <EtiquetaEncabezado texto={`${formatoDinero(totalGeneral, moneda)} total`} color={colors.dangerDark} />
+            : null}
+        />
 
         <View style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.md }}>
@@ -294,18 +240,15 @@ export default class CreditosView extends Component {
               No se pudieron cargar los créditos: {this.state.error}
             </Text>
           ) : (
-            <View style={{ alignItems: 'center', marginTop: 60 }}>
-              <Text style={{ fontSize: 48 }}>✅</Text>
-              <Text style={{ fontSize: fontSize.itemTitle, fontWeight: 'bold', marginTop: spacing.md, color: colors.textPrimary }}>
-                Sin deudas pendientes
-              </Text>
-              <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>
-                Todos los clientes están al corriente.
-              </Text>
-            </View>
+            <EstadoVacio
+              Icono={IconCheckCircle}
+              tono="ok"
+              titulo="Sin deudas pendientes"
+              texto="Todos los clientes están al corriente."
+            />
           ))}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 }

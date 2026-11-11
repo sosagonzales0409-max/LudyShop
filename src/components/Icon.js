@@ -4,6 +4,7 @@ import {
   BarChart2, DollarSign, Pencil, Plus, Trash2, Store, Package, Save, FileText,
   ChevronUp, ChevronDown, CornerUpLeft, AlertTriangle, Check, Info,
   ShoppingCart, Boxes, TrendingUp, Receipt, Coffee, ShoppingBag, Truck, History,
+  Search, CircleCheck, Inbox,
 } from 'lucide-react-native';
 import { colors, fontSize } from '../config/theme';
 
@@ -123,6 +124,19 @@ export const IconShoppingBag = props => (
 
 export const IconTruck = props => (
   <Truck strokeWidth={STROKE} color={colors.textPrimary} size={fontSize.label} {...props} />
+);
+
+export const IconSearch = props => (
+  <Search strokeWidth={STROKE} color={colors.placeholder} size={fontSize.itemTitle} {...props} />
+);
+
+// Estados vacíos ("¡Todo en orden!", "Sin deudas") y listas sin datos.
+export const IconCheckCircle = props => (
+  <CircleCheck strokeWidth={STROKE} color={colors.success} size={fontSize.heading} {...props} />
+);
+
+export const IconInbox = props => (
+  <Inbox strokeWidth={STROKE} color={colors.textMuted} size={fontSize.heading} {...props} />
 );
 
 export const IconHistory = props => (

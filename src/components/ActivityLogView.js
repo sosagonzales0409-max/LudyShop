@@ -4,18 +4,25 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
   ActivityIndicator,
 } from 'react-native';
 import { LOG_META } from '../context/StoreContext';
 import { cargarLog, contarLog } from '../data/repositories/log';
 import { crearConsultaViva } from '../data/consultaViva';
-import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { IconBack } from './Icon';
+import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
+import { IconShoppingCart, IconCreditCard, IconTruck, IconPackage, IconHistory } from './Icon';
+import Encabezado, { EtiquetaEncabezado } from './Encabezado';
+import { EstadoVacio } from './Estados';
 
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+// Ícono de cada evento según su grupo de filtro (LOG_META[tipo].filtro).
+// Reemplaza al emoji de LOG_META, que se sigue usando en otros lugares.
+const ICONO_FILTRO = {
+  ventas: IconShoppingCart,
+  creditos: IconCreditCard,
+  compras: IconTruck,
+  inventario: IconPackage,
+  otros: IconHistory,
+};
 
 // Eventos por página (se piden más al llegar al final de la lista).
 const PAGINA = 50;
@@ -36,7 +43,7 @@ const FILTROS = [
 /**
  * ActivityLogView — historial cronológico de todos los cambios en la app.
  *
- * Acceso: fila "🗒️ Historial de actividad" en ConfigView.
+ * Acceso: fila "Historial de actividad" en ConfigView.
  * Los eventos se registran en StoreContext (misma transacción que cada acción).
  *
  * Datos BAJO DEMANDA (no viven en memoria): consulta la BD por páginas de
@@ -128,20 +135,16 @@ export default class ActivityLogView extends Component {
 
   renderEvento(evento) {
     const meta = LOG_META[evento.tipo] ?? { icono: '•', label: evento.tipo };
+    const Icono = ICONO_FILTRO[meta.filtro] ?? IconHistory;
 
     return (
       <View
         style={{
-          backgroundColor: colors.card,
-          borderRadius: radius.md,
+          ...tarjeta,
           padding: spacing.lg,
           marginBottom: spacing.sm,
           flexDirection: 'row',
           alignItems: 'flex-start',
-          elevation: 2,
-          shadowOpacity: 0.05,
-          shadowRadius: 2,
-          shadowOffset: { width: 0, height: 1 },
         }}
       >
         {/* Ícono del tipo de evento */}
@@ -150,13 +153,13 @@ export default class ActivityLogView extends Component {
             width: 40,
             height: 40,
             borderRadius: radius.sm,
-            backgroundColor: colors.background,
+            backgroundColor: colors.primarySoft,
             justifyContent: 'center',
             alignItems: 'center',
             marginRight: spacing.md,
           }}
         >
-          <Text style={{ fontSize: fontSize.label }}>{meta.icono}</Text>
+          <Icono size={20} color={colors.primaryDark} />
         </View>
 
         {/* Descripción + fecha */}
@@ -202,44 +205,12 @@ export default class ActivityLogView extends Component {
     const { eventos, total, cargando, error } = this.state;
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
-        {/* Header */}
-        <View
-          style={{
-            height: 60,
-            paddingHorizontal: spacing.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.card,
-            elevation: 4,
-            shadowOpacity: 0.1,
-            shadowOffset: { width: 0, height: 2 },
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => this.props.navigation.goBack()}
-            style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}
-          >
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
-            Historial de actividad
-          </Text>
-          <View
-            style={{
-              backgroundColor: colors.chipInactive,
-              borderRadius: radius.lg,
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.md,
-            }}
-          >
-            <Text style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textSecondary }}>
-              {total} eventos
-            </Text>
-          </View>
-        </View>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Encabezado
+          titulo="Historial de actividad"
+          onBack={() => this.props.navigation.goBack()}
+          derecha={<EtiquetaEncabezado texto={`${total} eventos`} />}
+        />
 
         {/* Filtros */}
         <View
@@ -305,21 +276,18 @@ export default class ActivityLogView extends Component {
           onEndReachedThreshold={0.5}
           ListFooterComponent={this.renderPie}
           ListEmptyComponent={() => (
-            <View style={{ alignItems: 'center', marginTop: 60 }}>
-              <Text style={{ fontSize: 40 }}>🗒️</Text>
-              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.md }}>
-                Sin actividad registrada
-              </Text>
-              <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>
-                {this.state.filtro === 'todos'
-                  ? 'Los cambios que hagas en la app aparecerán aquí.'
-                  : 'No hay eventos de este tipo todavía.'}
-              </Text>
-            </View>
+            <EstadoVacio
+              Icono={IconHistory}
+              tono="info"
+              titulo="Sin actividad registrada"
+              texto={this.state.filtro === 'todos'
+                ? 'Los cambios que hagas en la app aparecerán aquí.'
+                : 'No hay eventos de este tipo todavía.'}
+            />
           )}
         />
         )}
-      </SafeAreaView>
+      </View>
     );
   }
 }

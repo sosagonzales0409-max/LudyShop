@@ -75,7 +75,7 @@ export default class BorrarDatosModal extends Component {
             <TextInput
               style={{
                 borderWidth: 1.5,
-                borderColor: listo ? colors.danger : colors.chipInactive,
+                borderColor: listo ? colors.danger : colors.inputBorder,
                 borderRadius: radius.sm,
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.md,
@@ -86,7 +86,7 @@ export default class BorrarDatosModal extends Component {
                 marginBottom: spacing.lg,
               }}
               placeholder={PALABRA}
-              placeholderTextColor={colors.chipInactive}
+              placeholderTextColor={colors.placeholder}
               autoCapitalize="characters"
               autoCorrect={false}
               autoFocus

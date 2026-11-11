@@ -4,19 +4,20 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
   Alert,
   TextInput,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import Toast from './Toast';
-import { colors, spacing, radius, fontSize, buttonHeight, iconButton } from '../config/theme';
+import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
 import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formato';
-import { IconBack } from './Icon';
+import { IconPackage } from './Icon';
+import { CampoBusqueda } from './Formulario';
+import Encabezado, { EtiquetaEncabezado } from './Encabezado';
+import { EstadoVacio } from './Estados';
 
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+// Botones − / + de cantidad: 40 de alto para tocarlos fácil
+const BOTON_CANTIDAD = 40;
 
 export default class ConsumoPropioView extends Component {
   static contextType = StoreContext;
@@ -130,21 +131,21 @@ export default class ConsumoPropioView extends Component {
     const cantidad = this.getCantidad(item.id);
     const seleccionado = cantidad > 0;
     return (
-      <View style={{ backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.lg, marginBottom: spacing.sm, borderWidth: seleccionado ? 1.5 : 0, borderColor: seleccionado ? colors.primary : 'transparent', elevation: seleccionado ? 4 : 2, shadowOpacity: seleccionado ? 0.1 : 0.05, shadowRadius: 3, shadowOffset: { width: 0, height: 1 } }}>
+      <View style={{ ...tarjeta, padding: spacing.lg, marginBottom: spacing.sm, borderWidth: seleccionado ? 1.5 : 1, borderColor: seleccionado ? colors.primary : colors.cardBorder }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ flex: 1, marginRight: spacing.md }}>
             <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary }}>{item.nombre} {item.tamano}</Text>
-            {!!item.marca && <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>{item.marca}</Text>}
+            {!!item.marca && <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary, marginTop: 2 }}>{item.marca}</Text>}
           </View>
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginRight: spacing.md }}>{this.cantidadConUnidad(item, item.stock)} disp.</Text>
           {item.esGranel ? (
             // A granel: cantidad con decimales (ej. 0.5 kg), como en el carrito
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TextInput
-                style={{ width: 76, height: 40, borderRadius: radius.sm, borderWidth: 1, borderColor: seleccionado ? colors.primary : colors.chipInactive, textAlign: 'center', fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, paddingHorizontal: spacing.sm }}
+                style={{ width: 76, height: 40, borderRadius: radius.sm, borderWidth: 1, borderColor: seleccionado ? colors.primary : colors.inputBorder, textAlign: 'center', fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, paddingHorizontal: spacing.sm }}
                 keyboardType="decimal-pad"
                 placeholder="0.000"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={colors.placeholder}
                 value={this.state.textoGranel[item.id] ?? ''}
                 onChangeText={t => this.setCantidadGranel(item.id, t)}
               />
@@ -152,11 +153,11 @@ export default class ConsumoPropioView extends Component {
             </View>
           ) : (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <TouchableOpacity onPress={() => this.setCantidad(item.id, cantidad - 1, item.stock)} style={{ width: iconButton.size + 4, height: iconButton.size + 4, borderRadius: radius.sm, backgroundColor: cantidad > 0 ? colors.chipInactive : colors.border, justifyContent: 'center', alignItems: 'center' }} disabled={cantidad === 0}>
+            <TouchableOpacity onPress={() => this.setCantidad(item.id, cantidad - 1, item.stock)} style={{ width: BOTON_CANTIDAD, height: BOTON_CANTIDAD, borderRadius: radius.sm, backgroundColor: cantidad > 0 ? colors.chipInactive : colors.border, justifyContent: 'center', alignItems: 'center' }} disabled={cantidad === 0}>
               <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: cantidad > 0 ? colors.textPrimary : colors.textMuted }}>−</Text>
             </TouchableOpacity>
             <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: seleccionado ? colors.primary : colors.textMuted, minWidth: 28, textAlign: 'center' }}>{cantidad}</Text>
-            <TouchableOpacity onPress={() => this.setCantidad(item.id, cantidad + 1, item.stock)} style={{ width: iconButton.size + 4, height: iconButton.size + 4, borderRadius: radius.sm, backgroundColor: cantidad < item.stock ? colors.success : colors.border, justifyContent: 'center', alignItems: 'center' }} disabled={cantidad >= item.stock}>
+            <TouchableOpacity onPress={() => this.setCantidad(item.id, cantidad + 1, item.stock)} style={{ width: BOTON_CANTIDAD, height: BOTON_CANTIDAD, borderRadius: radius.sm, backgroundColor: cantidad < item.stock ? colors.success : colors.border, justifyContent: 'center', alignItems: 'center' }} disabled={cantidad >= item.stock}>
               <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: cantidad < item.stock ? colors.white : colors.textMuted }}>+</Text>
             </TouchableOpacity>
           </View>
@@ -176,23 +177,16 @@ export default class ConsumoPropioView extends Component {
     const hayCosto = seleccionados.length > costo.sinCosto;
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-        <View style={{ height: 60, paddingHorizontal: spacing.lg, flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, elevation: 4, shadowOpacity: 0.1, shadowOffset: { width: 0, height: 2 } }}>
-          <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}>
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>Consumo propio</Text>
-          {haySeleccion && (
-            <View style={{ backgroundColor: colors.primary, borderRadius: radius.lg, paddingVertical: spacing.xs, paddingHorizontal: spacing.md }}>
-              <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>{totalProductos} {totalProductos === 1 ? 'producto' : 'productos'}</Text>
-            </View>
-          )}
-        </View>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Encabezado
+          titulo="Consumo propio"
+          onBack={() => this.props.navigation.goBack()}
+          derecha={haySeleccion ? <EtiquetaEncabezado texto={`${totalProductos} ${totalProductos === 1 ? 'producto' : 'productos'}`} /> : null}
+        />
 
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.sm, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.cardBorder }}>
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted }}>Selecciona los productos que te llevas. Se descontarán del inventario sin registrarse como venta.</Text>
-          <TextInput style={{ marginTop: spacing.md, borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSize.body, color: colors.textPrimary }} placeholder="Buscar producto..." placeholderTextColor={colors.textMuted} value={this.state.searchText} onChangeText={text => this.setState({ searchText: text })} />
+          <CampoBusqueda style={{ marginTop: spacing.md }} placeholder="Buscar producto..." value={this.state.searchText} onChangeText={text => this.setState({ searchText: text })} />
         </View>
 
         <FlatList
@@ -202,11 +196,12 @@ export default class ConsumoPropioView extends Component {
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl }}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={() => (
-            <View style={{ alignItems: 'center', marginTop: 60 }}>
-              <Text style={{ fontSize: 40 }}>📦</Text>
-              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textPrimary, marginTop: spacing.md }}>Sin productos disponibles</Text>
-              <Text style={{ fontSize: fontSize.body, color: colors.textMuted, marginTop: spacing.sm, textAlign: 'center' }}>{this.state.searchText ? 'No hay coincidencias.' : 'Todos los productos tienen stock 0.'}</Text>
-            </View>
+            <EstadoVacio
+              Icono={IconPackage}
+              tono="info"
+              titulo="Sin productos disponibles"
+              texto={this.state.searchText ? 'No hay coincidencias.' : 'Todos los productos tienen stock 0.'}
+            />
           )}
         />
 
@@ -214,7 +209,7 @@ export default class ConsumoPropioView extends Component {
             absolute con un espacio fijo de 120 px, y al crecer tapaba los
             últimos productos de la lista). */}
         {haySeleccion && (
-          <View style={{ backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, padding: spacing.lg, paddingBottom: spacing.xl, elevation: 8, shadowOpacity: 0.15, shadowRadius: 8, shadowOffset: { width: 0, height: -2 } }}>
+          <View style={{ backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.cardBorder, padding: spacing.lg, paddingBottom: spacing.xl }}>
             <View style={{ marginBottom: spacing.md }}>
               {seleccionados.map(item => {
                 const cantidad = this.state.seleccion[item.id];
@@ -243,12 +238,12 @@ export default class ConsumoPropioView extends Component {
                 </View>
               )}
             </View>
-            <TouchableOpacity onPress={this.confirmarConsumo} style={{ height: buttonHeight.action, backgroundColor: colors.warning, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
+            <TouchableOpacity onPress={this.confirmarConsumo} style={{ height: buttonHeight.action, backgroundColor: colors.warningDark, borderRadius: radius.lg, justifyContent: 'center', alignItems: 'center' }}>
               <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>Confirmar consumo · {totalProductos} {totalProductos === 1 ? 'producto' : 'productos'}</Text>
             </TouchableOpacity>
           </View>
         )}
-      </SafeAreaView>
+      </View>
     );
   }
 }

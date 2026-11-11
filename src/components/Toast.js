@@ -118,11 +118,11 @@ export default class Toast extends Component {
     if (!visible) return null;
 
     const icono = tipo === 'success' ? (
-      <IconCheck size={fontSize.label} color="#fff" />
+      <IconCheck size={fontSize.label} color={colors.white} />
     ) : tipo === 'error' ? (
-      <IconClose size={fontSize.label} color="#fff" />
+      <IconClose size={fontSize.label} color={colors.white} />
     ) : (
-      <IconInfo size={fontSize.label} color="#fff" />
+      <IconInfo size={fontSize.label} color={colors.white} />
     );
 
     return (
@@ -157,8 +157,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: radius.lg,
+    // Flota sobre la pantalla: aquí sí lleva sombra (el negro es el color por defecto).
     elevation: 12,
-    shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   },
   texto: {
     fontSize: fontSize.body,
-    color: '#fff',
+    color: colors.white,
     fontWeight: '600',
     flex: 1,
   },

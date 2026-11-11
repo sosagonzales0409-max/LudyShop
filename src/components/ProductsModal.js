@@ -4,16 +4,17 @@ import {
   View,
   Text,
   TouchableOpacity,
-  TextInput,
   FlatList,
   Dimensions,
 } from 'react-native';
-import { colors, spacing, radius, fontSize } from '../config/theme';
+import { colors, spacing, radius, fontSize, tarjeta } from '../config/theme';
 import { formatoDinero } from '../config/formato';
 import { StoreContext } from '../context/StoreContext';
 import { IconClose } from './Icon';
+import { CampoBusqueda } from './Formulario';
+import { ChipEstado } from './Estados';
 
-const CATEGORY_CHIP_HEIGHT = 32;
+const CATEGORY_CHIP_HEIGHT = 36;
 
 // Tamaño FIJO de la tarjeta, calculado con la pantalla al cargar. Con
 // porcentajes (o flex) se calculaba contra la ventana del Modal, que en
@@ -76,11 +77,12 @@ export default class ProductsModal extends Component {
   // Mismo criterio de severidad que LowStockView, más un tercer nivel
   // "normal" (aquí sí conviven productos con stock de sobra, a diferencia
   // de LowStockView donde todo lo listado ya es poco stock).
-  stockChip(item) {
+  // Devuelve el tono de <ChipEstado> ('bad' | 'warn') o null si el stock es normal.
+  stockTono(item) {
     const umbral = this.props.umbralStock ?? 5;
-    if (item.stock <= 2) return { bg: colors.danger, text: colors.white };
-    if (item.stock < umbral) return { bg: colors.warning, text: colors.white };
-    return { bg: colors.chipInactive, text: colors.textPrimary };
+    if (item.stock <= 2) return 'bad';
+    if (item.stock < umbral) return 'warn';
+    return null;
   }
 
   renderCategoryChip(item) {
@@ -103,19 +105,16 @@ export default class ProductsModal extends Component {
 
   renderProductItem(item) {
     const moneda = this.context.config?.moneda ?? '$';
-    const chip = this.stockChip(item);
+    const tono = this.stockTono(item);
+    const textoStock = `Stock: ${item.stock}${item.esGranel ? ` ${item.unidadGranel || 'kg'}` : ''}`;
     return (
       <TouchableOpacity
         activeOpacity={0.8}
         onPress={() => this.props.onSelectProduct(item)}
         style={{
-          backgroundColor: colors.card,
+          ...tarjeta,
           padding: spacing.lg,
-          borderRadius: radius.md,
           marginBottom: spacing.sm,
-          elevation: 2,
-          shadowOpacity: 0.06,
-          shadowOffset: { width: 0, height: 1 },
         }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -144,7 +143,7 @@ export default class ProductsModal extends Component {
                   style={{
                     fontSize: fontSize.small,
                     fontWeight: 'bold',
-                    color: colors.primary,
+                    color: colors.primaryDark,
                     borderWidth: 1,
                     borderColor: colors.primary,
                     paddingVertical: 2,
@@ -158,20 +157,14 @@ export default class ProductsModal extends Component {
               )}
             </View>
           </View>
-          <Text
-            style={{
-              fontSize: fontSize.body,
-              fontWeight: 'bold',
-              backgroundColor: chip.bg,
-              color: chip.text,
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.sm,
-              borderRadius: radius.sm,
-              alignSelf: 'flex-start',
-            }}
-          >
-            Stock: {item.stock}{item.esGranel ? ` ${item.unidadGranel || 'kg'}` : ''}
-          </Text>
+          {/* Stock: etiqueta de estado si es poco; gris neutro si es normal */}
+          {tono ? (
+            <ChipEstado tono={tono} texto={textoStock} />
+          ) : (
+            <View style={{ backgroundColor: colors.chipInactive, borderRadius: 14, height: 28, paddingHorizontal: 10, justifyContent: 'center' }}>
+              <Text numberOfLines={1} style={{ fontSize: fontSize.caption, fontWeight: 'bold', color: colors.textPrimary }}>{textoStock}</Text>
+            </View>
+          )}
         </View>
         <Text style={{ fontSize: fontSize.body, color: colors.textSecondary, marginTop: spacing.sm }}>
           {formatoDinero(item.precio, moneda)}
@@ -217,18 +210,8 @@ export default class ProductsModal extends Component {
 
             {/* Buscador */}
             <View style={{ paddingHorizontal: spacing.xl }}>
-              <TextInput
-                style={{
-                  fontSize: fontSize.body,
-                  color: colors.textPrimary,
-                  paddingHorizontal: spacing.md,
-                  paddingVertical: spacing.sm,
-                  borderWidth: 1,
-                  borderColor: colors.chipInactive,
-                  borderRadius: radius.sm,
-                }}
+              <CampoBusqueda
                 placeholder="Buscar productos"
-                placeholderTextColor={colors.textMuted}
                 value={this.state.searchText}
                 onChangeText={text => this.setState({ searchText: text })}
               />

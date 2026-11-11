@@ -2,19 +2,14 @@ import React, { Component } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
   Keyboard,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import ScrollViewTeclado from './ScrollViewTeclado';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { IconBack } from './Icon';
-
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+import Encabezado from './Encabezado';
+import { Seccion, Campo, Etiqueta, Ayuda } from './Formulario';
 
 const MONEDAS = ['$', 'US$', '€', 'S/', 'Bs'];
 
@@ -25,17 +20,10 @@ const VALORES_DEFAULT = {
   umbralStock: 5,
 };
 
-const labelStyle = { fontSize: fontSize.label, color: colors.textPrimary, marginBottom: spacing.xs };
-const inputStyle = {
-  borderWidth: 1, borderColor: colors.chipInactive, borderRadius: radius.sm,
-  paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-  fontSize: fontSize.body, color: colors.textPrimary, backgroundColor: colors.card,
-};
-
 /**
  * TiendaView — Formulario de personalización de la tienda.
  * Nombre del dueño, nombre de la tienda, moneda, umbral de stock bajo.
- * Se abre desde ConfigView → 🏪 Personalizar la tienda.
+ * Se abre desde ConfigView → Personalizar la tienda.
  * El nombre del dueño vivía en ProfileView (eliminado); quedó aquí.
  */
 export default class TiendaView extends Component {
@@ -93,95 +81,41 @@ export default class TiendaView extends Component {
     this.setState(prev => ({ form: { ...prev.form, [campo]: valor }, error: null, guardado: false }));
   }
 
-  renderSeccion(titulo, children) {
-    return (
-      <View
-        style={{
-          backgroundColor: colors.card,
-          borderRadius: radius.md,
-          padding: spacing.lg,
-          marginBottom: spacing.lg,
-          elevation: 3,
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
-        }}
-      >
-        <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.textSecondary, marginBottom: spacing.md }}>
-          {titulo}
-        </Text>
-        {children}
-      </View>
-    );
-  }
-
   render() {
     const f = this.state.form || this.context.config;
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
-        <View
-          style={{
-            height: 60,
-            paddingHorizontal: spacing.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.card,
-            elevation: 4,
-            shadowOpacity: 0.1,
-            shadowOffset: { width: 0, height: 2 },
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => this.props.navigation.goBack()}
-            style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.xs }}
-          >
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary, flex: 1 }}>
-            Personalizar tienda
-          </Text>
-        </View>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <Encabezado titulo="Personalizar tienda" onBack={() => this.props.navigation.goBack()} />
 
         {/* ScrollViewTeclado: con la app de borde a borde (Android 16) el
-            teclado tapaba el campo del umbral, que es el último de la pantalla. */}
-        <ScrollViewTeclado contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
+            teclado tapaba el campo del umbral, que es el último de la pantalla.
+            El botón Guardar se queda dentro del scroll (no en barra fija) para
+            que el error o el "✓ Cambios guardados" aparezcan junto a él. */}
+        <ScrollViewTeclado contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
 
-          {this.renderSeccion('Tienda', (
-            <View>
-              <Text style={labelStyle}>Nombre del dueño</Text>
-              <TextInput
-                style={inputStyle}
-                placeholder="Ej. Juan García"
-                placeholderTextColor={colors.textMuted}
-                value={f.nombreDueno}
-                onChangeText={text => this.setCampo('nombreDueno', text)}
-                autoCorrect={false}
-                returnKeyType="next"
-              />
-              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.sm }}>
-                Quién administra la tienda (aparece en reportes y cortes).
-              </Text>
+          <Seccion titulo="Tienda">
+            <Campo
+              label="Nombre del dueño"
+              placeholder="Ej. Juan García"
+              value={f.nombreDueno}
+              onChangeText={text => this.setCampo('nombreDueno', text)}
+              returnKeyType="next"
+              ayuda="Quién administra la tienda (aparece en reportes y cortes)."
+            />
+            <Campo
+              label="Nombre de la tienda"
+              placeholder="Ej. Mi Tienda"
+              value={f.nombreTienda}
+              onChangeText={text => this.setCampo('nombreTienda', text)}
+              returnKeyType="done"
+            />
+          </Seccion>
 
-              <Text style={[labelStyle, { marginTop: spacing.md }]}>Nombre de la tienda</Text>
-              <TextInput
-                style={inputStyle}
-                placeholder="Ej. Mi Tienda"
-                placeholderTextColor={colors.textMuted}
-                value={f.nombreTienda}
-                onChangeText={text => this.setCampo('nombreTienda', text)}
-                autoCorrect={false}
-                returnKeyType="done"
-              />
-            </View>
-          ))}
-
-          {this.renderSeccion('Moneda', (
-            <View>
-              <Text style={labelStyle}>Símbolo de moneda</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Seccion titulo="Moneda">
+            <View style={{ gap: spacing.sm }}>
+              <Etiqueta texto="Símbolo de moneda" />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
                 {MONEDAS.map(simbolo => {
                   const activo = f.moneda === simbolo;
                   return (
@@ -193,7 +127,6 @@ export default class TiendaView extends Component {
                         height: buttonHeight.chip,
                         backgroundColor: activo ? colors.primary : colors.chipInactive,
                         borderRadius: radius.lg,
-                        marginRight: spacing.sm,
                         paddingHorizontal: spacing.md,
                         justifyContent: 'center', alignItems: 'center',
                       }}
@@ -205,82 +138,74 @@ export default class TiendaView extends Component {
                   );
                 })}
               </View>
-              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.sm }}>
-                Ej. {f.moneda}25.50 y {f.moneda}100.00
-              </Text>
+              <Ayuda>Ej. {f.moneda}25.50 y {f.moneda}100.00</Ayuda>
             </View>
-          ))}
+          </Seccion>
 
-          {this.renderSeccion('Inventario', (
-            <View>
-              <Text style={labelStyle}>Umbral de stock bajo</Text>
-              <TextInput
-                style={inputStyle}
-                placeholder="5"
-                placeholderTextColor={colors.textMuted}
-                value={String(f.umbralStock)}
-                onChangeText={text => this.setCampo('umbralStock', text)}
-                keyboardType="number-pad"
-                returnKeyType="done"
-              />
-              <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginTop: spacing.sm }}>
-                Los productos con menos de esta cantidad aparecen en "Stock bajo".
+          <Seccion titulo="Inventario">
+            <Campo
+              label="Umbral de stock bajo"
+              placeholder="5"
+              value={String(f.umbralStock)}
+              onChangeText={text => this.setCampo('umbralStock', text)}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              ayuda='Los productos con menos de esta cantidad aparecen en "Stock bajo".'
+            />
+          </Seccion>
+
+          <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
+            {this.state.error && (
+              <View
+                style={{
+                  backgroundColor: colors.dangerSoft,
+                  borderWidth: 1,
+                  borderColor: colors.danger,
+                  borderRadius: radius.sm,
+                  padding: spacing.md,
+                }}
+              >
+                <Text style={{ fontSize: fontSize.caption, color: colors.dangerDark, fontWeight: 'bold' }}>
+                  {this.state.error}
+                </Text>
+              </View>
+            )}
+
+            {this.state.guardado && (
+              <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.successDark, textAlign: 'center' }}>
+                ✓ Cambios guardados
               </Text>
-            </View>
-          ))}
+            )}
 
-          {this.state.error && (
-            <View
+            <TouchableOpacity
+              onPress={() => this.guardar()}
               style={{
-                backgroundColor: '#fdecea',
-                borderWidth: 1,
-                borderColor: colors.danger,
-                borderRadius: radius.sm,
-                padding: spacing.md,
-                marginBottom: spacing.md,
+                height: buttonHeight.action,
+                backgroundColor: colors.primary,
+                borderRadius: radius.lg,
+                justifyContent: 'center', alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: fontSize.caption, color: colors.danger, fontWeight: 'bold' }}>
-                {this.state.error}
+              <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
+                Guardar cambios
               </Text>
-            </View>
-          )}
+            </TouchableOpacity>
 
-          {this.state.guardado && (
-            <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.success, textAlign: 'center', marginBottom: spacing.md }}>
-              ✓ Cambios guardados
-            </Text>
-          )}
-
-          <TouchableOpacity
-            onPress={() => this.guardar()}
-            style={{
-              height: buttonHeight.action,
-              backgroundColor: colors.primary,
-              borderRadius: radius.lg,
-              justifyContent: 'center', alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.white }}>
-              Guardar cambios
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => this.restablecer()}
-            style={{
-              height: buttonHeight.chip,
-              marginTop: spacing.md,
-              borderRadius: radius.lg,
-              justifyContent: 'center', alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textSecondary }}>
-              Restablecer valores
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => this.restablecer()}
+              style={{
+                height: buttonHeight.chip,
+                borderRadius: radius.lg,
+                justifyContent: 'center', alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: fontSize.body, fontWeight: 'bold', color: colors.textSecondary }}>
+                Restablecer valores
+              </Text>
+            </TouchableOpacity>
+          </View>
         </ScrollViewTeclado>
-      </SafeAreaView>
+      </View>
     );
   }
 }

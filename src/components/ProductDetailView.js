@@ -4,8 +4,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
-  Dimensions,
   Alert,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
@@ -13,12 +11,11 @@ import { infoPresentaciones } from '../data/consultas/producto';
 import { crearConsultaViva } from '../data/consultaViva';
 import AgregarUnidadesModal from './AgregarUnidadesModal';
 import EditarDatosProductoModal from './EditarDatosProductoModal';
-import { colors, spacing, radius, fontSize, buttonHeight, iconButton } from '../config/theme';
+import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
 import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formato';
 import { IconEdit, IconTrash, IconPlus, IconBack, IconShoppingBag } from './Icon';
-
-const _window = Dimensions.get('window');
-const GREEN_BAR_HEIGHT = 50;
+import Encabezado from './Encabezado';
+import { ChipEstado } from './Estados';
 
 /**
  * ProductDetailView — pantalla completa de detalle de un producto.
@@ -102,11 +99,12 @@ export default class ProductDetailView extends Component {
     return this.context.products.find(p => p.id === productId) ?? null;
   }
 
-  stockBadgeColor(stock) {
+  // Tono de la etiqueta de stock (ver Estados.js): agotado / bajo / bien
+  stockTono(stock) {
     const threshold = this.context.config?.umbralStock ?? 5;
-    if (stock === 0) return colors.danger;
-    if (stock < threshold) return colors.warning;
-    return colors.success;
+    if (stock === 0) return 'bad';
+    if (stock < threshold) return 'warn';
+    return 'ok';
   }
 
   confirmDelete(product, pres) {
@@ -158,14 +156,9 @@ export default class ProductDetailView extends Component {
       <View
         key={pres.id}
         style={{
-          backgroundColor: colors.card,
-          borderRadius: radius.md,
+          ...tarjeta,
           padding: spacing.lg,
           marginBottom: spacing.md,
-          elevation: 3,
-          shadowOpacity: 0.07,
-          shadowRadius: 4,
-          shadowOffset: { width: 0, height: 2 },
         }}
       >
         {/* ── Fila superior: tamaño + precio + badge stock ── */}
@@ -179,18 +172,7 @@ export default class ProductDetailView extends Component {
             </Text>
           </View>
 
-          <View
-            style={{
-              backgroundColor: this.stockBadgeColor(pres.stock),
-              borderRadius: radius.md,
-              paddingVertical: spacing.sm,
-              paddingHorizontal: spacing.lg,
-            }}
-          >
-            <Text style={{ color: colors.white, fontWeight: 'bold', fontSize: fontSize.label }}>
-              {cantidad(pres.stock)}
-            </Text>
-          </View>
+          <ChipEstado grande tono={this.stockTono(pres.stock)} texto={cantidad(pres.stock)} />
         </View>
 
         {/* ── Información de la presentación ── */}
@@ -199,7 +181,7 @@ export default class ProductDetailView extends Component {
           {tieneCosto && this.renderDato(
             `Ganancia por ${unidad}`,
             `${formatoDinero(ganancia, moneda)}${pctGanancia != null ? ` (${pctGanancia.toFixed(0)}%)` : ''}`,
-            ganancia >= 0 ? colors.success : colors.danger,
+            ganancia >= 0 ? colors.successDark : colors.dangerDark,
           )}
           {tieneCosto && this.renderDato('Valor en inventario (a costo)', formatoDinero(pres.stock * pres.precioCompra, moneda))}
           {this.renderDato(
@@ -249,11 +231,11 @@ export default class ProductDetailView extends Component {
             onPress={() => this.confirmDelete(product, pres)}
             style={{
               width: buttonHeight.action, height: buttonHeight.action,
-              borderRadius: radius.lg, backgroundColor: '#fde8e8',
+              borderRadius: radius.lg, backgroundColor: colors.dangerSoft,
               justifyContent: 'center', alignItems: 'center',
             }}
           >
-            <IconTrash size={fontSize.body} color={colors.textPrimary} />
+            <IconTrash size={fontSize.body} color={colors.dangerDark} />
           </TouchableOpacity>
         </View>
 
@@ -282,7 +264,7 @@ export default class ProductDetailView extends Component {
     // Si el producto fue eliminado mientras se navegaba aquí
     if (!product) {
       return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
           <Text style={{ fontSize: fontSize.body, color: colors.textMuted }}>Producto no encontrado</Text>
           <TouchableOpacity onPress={() => this.props.navigation.goBack()} style={{ marginTop: spacing.lg }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -292,12 +274,12 @@ export default class ProductDetailView extends Component {
               </Text>
             </View>
           </TouchableOpacity>
-        </SafeAreaView>
+        </View>
       );
     }
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         {/* Modales */}
         <AgregarUnidadesModal
           visible={this.state.showAgregarModal}
@@ -315,44 +297,13 @@ export default class ProductDetailView extends Component {
           onClose={() => this.setState({ showEditarDatos: false })}
         />
 
-        {/* Barra verde */}
-        <View style={{ width: _window.width, height: GREEN_BAR_HEIGHT, backgroundColor: 'green' }} />
-
-        {/* Header */}
-        <View
-          style={{
-            height: 60,
-            paddingHorizontal: spacing.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            backgroundColor: colors.card,
-            elevation: 4,
-            shadowOpacity: 0.1,
-            shadowOffset: { width: 0, height: 2 },
-          }}
-        >
-          <TouchableOpacity
-            onPress={() => this.props.navigation.goBack()}
-            style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm }}
-          >
-            <IconBack size={28} color={colors.primary} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: fontSize.heading, fontWeight: 'bold', color: colors.textPrimary }} numberOfLines={1}>
-              {product.nombre}
-            </Text>
-            <Text style={{ fontSize: fontSize.caption, color: colors.textSecondary }} numberOfLines={1}>
-              {!!product.marca && <Text style={{ fontStyle: 'italic' }}>{product.marca}</Text>}{product.marca ? ' · ' : ''}{this.nombreCategoria(product)}
-            </Text>
-          </View>
-          {/* Editar datos del producto: nombre, marca, categoría */}
-          <TouchableOpacity
-            onPress={() => this.setState({ showEditarDatos: true })}
-            style={{ width: 44, height: 44, borderRadius: radius.lg, backgroundColor: colors.chipInactive, justifyContent: 'center', alignItems: 'center' }}
-          >
-            <IconEdit size={fontSize.body} color={colors.textPrimary} />
-          </TouchableOpacity>
-        </View>
+        {/* Encabezado: nombre + marca · categoría; el lápiz edita nombre, marca y categoría */}
+        <Encabezado
+          titulo={product.nombre}
+          subtitulo={`${product.marca ? `${product.marca} · ` : ''}${this.nombreCategoria(product)}`}
+          onBack={() => this.props.navigation.goBack()}
+          acciones={[{ Icono: IconEdit, etiqueta: 'Editar datos del producto', onPress: () => this.setState({ showEditarDatos: true }) }]}
+        />
 
         {/* Contenido */}
         <ScrollView
@@ -367,7 +318,7 @@ export default class ProductDetailView extends Component {
           {/* Tarjetas de presentación */}
           {product.presentaciones.map(pres => this.renderPresentacion(product, pres))}
         </ScrollView>
-      </SafeAreaView>
+      </View>
     );
   }
 }
