@@ -12,6 +12,7 @@ import { nombreProducto, formatoDinero, formatoCantidad } from '../config/format
 import { IconPlus, IconClose, IconShoppingBag } from './Icon';
 import Encabezado from './Encabezado';
 import { Seccion, Campo, FilaCampos, Casilla, BarraGuardar, NotaConfirmacion } from './Formulario';
+import { AvisoPrimeraVez, Resaltar } from './Estados';
 
 /**
  * RegistrarCompraView — pantalla para registrar una compra de mercancía.
@@ -430,6 +431,12 @@ export default class RegistrarCompraView extends Component {
         <Encabezado titulo={esEdicion ? 'Editar compra' : 'Registrar compra'} onBack={() => this.props.navigation.goBack()} />
 
         <ScrollViewTeclado contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+          <AvisoPrimeraVez
+            clave="pista_registrar_compra"
+            titulo="Lo que compras suma"
+            texto={<>Cada producto que registres aquí sube su stock. Si compraste en el mercado u otra tienda, toca <Resaltar>Sin proveedor</Resaltar>.</>}
+          />
 
           {/* ── PROVEEDOR ── */}
           <Seccion titulo="Proveedor">

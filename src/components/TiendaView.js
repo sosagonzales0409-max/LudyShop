@@ -10,6 +10,10 @@ import ScrollViewTeclado from './ScrollViewTeclado';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 import Encabezado from './Encabezado';
 import { Seccion, Campo, Etiqueta, Ayuda } from './Formulario';
+import { AvisoPrimeraVez } from './Estados';
+
+// Aviso "Empieza por aquí": se cierra con su X o al guardar.
+const PISTA = 'pista_tienda';
 
 const MONEDAS = ['$', 'US$', '€', 'S/', 'Bs'];
 
@@ -37,6 +41,10 @@ export default class TiendaView extends Component {
 
   componentDidMount() {
     this.setState({ form: { ...this.context.config } });
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this._timerGuardado);
   }
 
   parseEntero(texto) {
@@ -69,6 +77,7 @@ export default class TiendaView extends Component {
     });
 
     this.setState({ error: null, guardado: true });
+    this.context.marcarPistaVista(PISTA);
     clearTimeout(this._timerGuardado);
     this._timerGuardado = setTimeout(() => this.setState({ guardado: false }), 2000);
   }
@@ -93,6 +102,12 @@ export default class TiendaView extends Component {
             El botón Guardar se queda dentro del scroll (no en barra fija) para
             que el error o el "✓ Cambios guardados" aparezcan junto a él. */}
         <ScrollViewTeclado contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xxl }} keyboardShouldPersistTaps="handled">
+
+          <AvisoPrimeraVez
+            clave={PISTA}
+            titulo="Empieza por aquí"
+            texto="Escribe el nombre de tu tienda y elige tu moneda. Puedes cambiarlo cuando quieras."
+          />
 
           <Seccion titulo="Tienda">
             <Campo

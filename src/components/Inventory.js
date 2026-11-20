@@ -11,7 +11,7 @@ import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../con
 import { IconSettings, IconPlus, IconChevron, IconShoppingBag, IconWarning, IconSearch } from './Icon';
 import { CampoBusqueda } from './Formulario';
 import Encabezado from './Encabezado';
-import { ChipEstado, EstadoVacio } from './Estados';
+import { ChipEstado, EstadoVacio, AvisoPrimeraVez } from './Estados';
 
 const CATEGORY_CHIP_HEIGHT = 36;
 
@@ -195,6 +195,11 @@ class Inventory extends Component {
         />
 
         <View style={{ flex: 1, paddingHorizontal: spacing.lg }}>
+          <AvisoPrimeraVez
+            clave="pista_inventario"
+            titulo="Tu anaquel"
+            texto="Toca un producto para ver su detalle y editarlo. Con la bolsa verde registras una compra y se suma al stock."
+          />
           <CampoBusqueda style={{ marginTop: spacing.md }} placeholder="Buscar por nombre o marca" value={this.state.searchText} onChangeText={text => this.updateSearchText(text)} />
 
           {/* Chips de categoría + botón "+" fijo a la derecha (abre la gestión

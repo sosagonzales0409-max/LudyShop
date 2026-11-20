@@ -2,7 +2,7 @@ import React, { createContext, Component } from 'react';
 import { Alert } from 'react-native';
 import PantallaCarga from '../components/PantallaCarga';
 import Toast from '../components/Toast';
-import { initDB, getDB, persistir, esperarEscrituras, onErrorPersistencia } from '../data/db';
+import { initDB, getDB, persistir, esperarEscrituras, onErrorPersistencia, getMeta, setMeta } from '../data/db';
 import { newId, nowIso } from '../data/ids';
 import { nombreProducto, formatoDinero, formatoCantidad } from '../config/formato';
 import { debeSembrarAutomatico, sembrarAutomatico, reiniciarConSemilla, vaciarDatos } from '../data/seed';
@@ -172,6 +172,14 @@ export class StoreProvider extends Component {
     categories:  [],   // sin "Todos": se agrega en render()
     clientes:    [],
     config:      CONFIG_POR_DEFECTO,
+    // Carrusel de bienvenida (BienvenidaView): true si este teléfono aún no
+    // lo ha visto. Se guarda en la tabla meta (dato del dispositivo, no va en
+    // las copias de seguridad).
+    mostrarBienvenida: false,
+    // Avisos de primera vez ya cerrados (AvisoPrimeraVez): { pista_creditos: true, … }.
+    // Se cargan UNA vez al arrancar para que el aviso salga desde el primer
+    // dibujado de la pantalla, sin consultar la BD en cada una.
+    pistasVistas: {},
   };
 
   // ─── Arranque e hidratación ───────────────────────────────────────────────
@@ -207,6 +215,16 @@ export class StoreProvider extends Component {
         await persistir(sembrarAutomatico, 'semilla');
         if (tiempos) tiempos.semilla = ahoraMs() - tSemilla;
       }
+      // Antes de recargarDesdeBD: ese setState quita PantallaCarga, y el
+      // router decide con este valor si abre la bienvenida.
+      const bienvenidaVista = await getMeta('onboarding_hecho');
+      const { rows: pistas } = await getDB().execute(
+        'SELECT clave FROM meta WHERE clave LIKE ? AND valor IS NOT NULL', ['pista_%'],
+      );
+      this.setState({
+        mostrarBienvenida: !bienvenidaVista,
+        pistasVistas: Object.fromEntries(pistas.map(p => [p.clave, true])),
+      });
       await this.recargarDesdeBD(tiempos);
       // Copias exportadas/importadas que quedaron en la caché. En segundo
       // plano: no retrasa el arranque y nunca falla.
@@ -387,6 +405,22 @@ export class StoreProvider extends Component {
   };
 
   // ─── Configuración ────────────────────────────────────────────────────────
+
+  // Al cerrar el carrusel de bienvenida (por cualquier camino). Si se abrió
+  // otra vez desde Configuración ya está marcado: no hay nada que escribir.
+  marcarBienvenidaVista = () => {
+    if (!this.state.mostrarBienvenida) return;
+    this.setState({ mostrarBienvenida: false });
+    persistir(tx => setMeta(tx, 'onboarding_hecho', '1'), 'marcarBienvenidaVista');
+  };
+
+  // Avisos de primera vez (AvisoPrimeraVez, claves 'pista_<pantalla>'). Se
+  // guardan en meta: dato del teléfono, no va en las copias de seguridad.
+  marcarPistaVista = clave => {
+    if (this.state.pistasVistas[clave]) return;
+    this.setState(prev => ({ pistasVistas: { ...prev.pistasVistas, [clave]: true } }));
+    persistir(tx => setMeta(tx, clave, '1'), 'marcarPistaVista');
+  };
 
   updateConfig = cambios => {
     this.setState(prev => ({ config: { ...prev.config, ...cambios } }));
@@ -1352,6 +1386,10 @@ export class StoreProvider extends Component {
           // consultan bajo demanda en src/data/consultas/ y las acciones los
           // leen dentro de su transacción.)
           config:                this.state.config,
+          mostrarBienvenida:     this.state.mostrarBienvenida,
+          marcarBienvenidaVista: this.marcarBienvenidaVista,
+          pistasVistas:          this.state.pistasVistas,
+          marcarPistaVista:      this.marcarPistaVista,
           // Derivados
           sellableItems:         this.getSellableItems(),
           // Log

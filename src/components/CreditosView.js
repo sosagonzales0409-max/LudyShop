@@ -15,7 +15,7 @@ import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../con
 import { formatoDinero } from '../config/formato';
 import { IconChevron, IconCheckCircle } from './Icon';
 import Encabezado, { EtiquetaEncabezado } from './Encabezado';
-import { ChipEstado, EstadoVacio } from './Estados';
+import { ChipEstado, EstadoVacio, AvisoPrimeraVez, Resaltar } from './Estados';
 
 /**
  * CreditosView — lista de clientes con saldo pendiente.
@@ -186,6 +186,12 @@ export default class CreditosView extends Component {
         />
 
         <View style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
+          <AvisoPrimeraVez
+            clave="pista_creditos"
+            titulo="Quién te debe"
+            texto={<>Toca el saldo para ver el detalle de cada venta. Con <Resaltar>Registrar pago</Resaltar> anotas lo que te abonan.</>}
+            style={{ marginTop: 0, marginBottom: spacing.md }}
+          />
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.md }}>
             {this.state.orden === 'antiguedad'
               ? 'Clientes con saldo pendiente, de la deuda más antigua a la más reciente.'

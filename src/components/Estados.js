@@ -1,6 +1,8 @@
-import React from 'react';
-import { View, Text } from 'react-native';
-import { colors, spacing, fontSize } from '../config/theme';
+import React, { useContext } from 'react';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { colors, spacing, radius, fontSize } from '../config/theme';
+import { StoreContext } from '../context/StoreContext';
+import { IconInfo, IconClose } from './Icon';
 
 /**
  * Piezas para mostrar ESTADOS de forma consistente (rediseño nov 2026):
@@ -44,3 +46,43 @@ export function EstadoVacio({ Icono, tono = 'info', titulo, texto, style }) {
     </View>
   );
 }
+
+// Aviso de primera vez: tarjeta azul claro que explica la pantalla y no vuelve
+// a salir después de cerrarla con la X. La marca vive en la tabla meta
+// (StoreContext.pistasVistas / marcarPistaVista), una clave por pantalla.
+// `texto` puede llevar <Text style={{ fontWeight: 'bold' }}> para resaltar.
+// <AvisoPrimeraVez clave="pista_creditos" titulo="Quién te debe" texto="…" />
+export function AvisoPrimeraVez({ clave, titulo, texto, style }) {
+  const tienda = useContext(StoreContext);
+  if (!tienda || tienda.pistasVistas[clave]) return null;
+  return (
+    <View
+      style={[{
+        flexDirection: 'row', alignItems: 'flex-start',
+        backgroundColor: colors.primarySoft, borderRadius: radius.md,
+        paddingLeft: spacing.lg, paddingVertical: spacing.md, marginTop: spacing.md,
+      }, style]}
+    >
+      <IconInfo size={22} color={colors.primaryDark} style={{ marginTop: spacing.xs }} />
+      <View style={{ flex: 1, marginLeft: spacing.md, paddingVertical: spacing.xs }}>
+        <Text style={{ fontSize: fontSize.label, fontWeight: 'bold', color: colors.primaryDark }}>
+          {titulo}
+        </Text>
+        <Text style={{ fontSize: fontSize.body, color: colors.textPrimary, marginTop: spacing.xs, lineHeight: 21 }}>
+          {texto}
+        </Text>
+      </View>
+      <TouchableOpacity
+        onPress={() => tienda.marcarPistaVista(clave)}
+        accessibilityRole="button"
+        accessibilityLabel="Cerrar aviso"
+        style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center', marginTop: -spacing.sm }}
+      >
+        <IconClose size={20} color={colors.primaryDark} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// Palabra en negrita dentro del texto de un aviso.
+export const Resaltar = ({ children }) => <Text style={{ fontWeight: 'bold' }}>{children}</Text>;

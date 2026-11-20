@@ -20,11 +20,14 @@ import { IconBack } from './Icon';
  *     acciones={[{ Icono: IconSettings, onPress, etiqueta: 'Configuración', badge: 3, punto: false }]}
  *     derecha={<EtiquetaEncabezado texto="$1245.00 total" color={colors.dangerDark} />}
  *   />
+ *
+ * `miniatura`: sin el alto de la barra de estado (réplicas de pantallas
+ * dentro de la bienvenida, BienvenidaView).
  */
-export default function Encabezado({ titulo, subtitulo, onBack, acciones = [], derecha = null }) {
+export default function Encabezado({ titulo, subtitulo, onBack, acciones = [], derecha = null, miniatura = false }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ backgroundColor: colors.primary, paddingTop: insets.top }}>
+    <View style={{ backgroundColor: colors.primary, paddingTop: miniatura ? 0 : insets.top }}>
       <View style={{ height: HEADER_ALTO, flexDirection: 'row', alignItems: 'center', paddingLeft: onBack ? spacing.xs : spacing.lg, paddingRight: spacing.xs }}>
         {!!onBack && (
           <TouchableOpacity onPress={onBack} accessibilityRole="button" accessibilityLabel="Regresar" style={{ width: 48, height: 48, justifyContent: 'center', alignItems: 'center' }}>

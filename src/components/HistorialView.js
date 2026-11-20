@@ -17,7 +17,7 @@ import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../con
 import { formatoDinero, nombreProducto } from '../config/formato';
 import { IconReceipt, IconTrendingUp, IconTrash, IconCornerUp, IconChevronUp, IconChevronDown, IconInbox } from './Icon';
 import Encabezado from './Encabezado';
-import { ChipEstado, EstadoVacio } from './Estados';
+import { ChipEstado, EstadoVacio, AvisoPrimeraVez, Resaltar } from './Estados';
 
 const TIPOS_PAGO = ['Todos', 'Contado', 'Credito'];
 const PERIODOS = [
@@ -369,6 +369,12 @@ export default class HistorialView extends Component {
 
     return (
       <View>
+        <AvisoPrimeraVez
+          clave="pista_historial"
+          titulo="Tus ventas y el corte"
+          texto={<>Toca <Resaltar>Corte</Resaltar> arriba para ver cuánto entró hoy. Con el ícono de gráfica ves tus reportes.</>}
+          style={{ marginHorizontal: spacing.lg }}
+        />
         {/* Filtros */}
         <View style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md }}>
           <Text style={{ fontSize: fontSize.caption, color: colors.textMuted, marginBottom: spacing.sm }}>Tipo de pago</Text>

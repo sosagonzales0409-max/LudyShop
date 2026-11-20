@@ -22,7 +22,7 @@ import Encabezado from './Encabezado';
 import {
   IconStore, IconTrendingUp, IconCoffee, IconClipboard,
   IconSave, IconFile, IconChevron, IconShoppingBag, IconPlus,
-  IconHistory, IconWarning, IconTrash,
+  IconHistory, IconWarning, IconTrash, IconInfo,
 } from './Icon';
 
 // Tipo genérico a propósito: con 'application/vnd.sqlite3' algunos destinos
@@ -78,7 +78,22 @@ export default class ConfigView extends Component {
       alCargar: copia => this.setState({ copia }),
       alFallar: error => console.error('ConfigView.estadoCopia', error),
     });
+    this.abrirPendiente();
   }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.route?.params?.abrir !== this.props.route?.params?.abrir) this.abrirPendiente();
+  }
+
+  // navigate('ConfigView', { abrir: 'TiendaView' }) abre esa pantalla encima
+  // (lo usa la bienvenida: "Configurar mi tienda"). Así, al regresar, se pasa
+  // por Configuración como si la persona hubiera llegado sola.
+  abrirPendiente = () => {
+    const destino = this.props.route?.params?.abrir;
+    if (!destino) return;
+    this.props.navigation.setParams({ abrir: undefined });
+    this.props.navigation.navigate(destino);
+  };
 
   revisarAntesDeImportar = async () => {
     try {
@@ -460,6 +475,13 @@ export default class ConfigView extends Component {
                 { peligro: true },
               )}
             </View>,
+          )}
+
+          {/* ── Ayuda ── */}
+          {this.renderCard(
+            this.renderFila(<IconInfo size={20} />, 'Ver tutorial de bienvenida', 'Lo principal de la app en 4 pasos',
+              () => nav.navigate('Bienvenida'),
+            ),
           )}
 
           {/* ── Desarrollo (solo en builds de desarrollo) ── */}

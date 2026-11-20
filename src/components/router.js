@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext, useState } from 'react';
 import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -19,10 +19,12 @@ import AgregarProductoView from './AgregarProductoView';
 import EditarProductoView from './EditarProductoView';
 import RegistrarCompraView from './RegistrarCompraView';
 import HistorialComprasView from './HistorialComprasView';
-import { StoreProvider } from '../context/StoreContext';
+import BienvenidaView from './BienvenidaView';
+import { StoreProvider, StoreContext } from '../context/StoreContext';
 import { fontSize, colors } from '../config/theme';
 import { IconShoppingCart, IconBoxes } from './Icon';
 
+const Raiz = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const MainViews = createNativeStackNavigator();
 const InventoryViews = createNativeStackNavigator();
@@ -128,14 +130,33 @@ function AppTabs() {
   );
 }
 
+// Pila raíz: la app (pestañas) y, encima, la bienvenida a pantalla completa.
+// En el primer arranque se abre con las DOS rutas ya puestas (App debajo,
+// Bienvenida arriba): así Saltar / Atrás / "Ir a vender" solo hacen goBack()
+// y queda Ventas, sin pantalla en blanco. Desde Configuración se llega con
+// navigate('Bienvenida') y al cerrar se vuelve a Configuración.
+function Rutas() {
+  const { mostrarBienvenida } = useContext(StoreContext);
+  // Solo cuenta al montar: después NavigationContainer ignora initialState.
+  const [estadoInicial] = useState(() => (mostrarBienvenida
+    ? { index: 1, routes: [{ name: 'App' }, { name: 'Bienvenida' }] }
+    : undefined));
+  return (
+    <NavigationContainer initialState={estadoInicial}>
+      <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
+        <Raiz.Navigator screenOptions={{ headerShown: false }}>
+          <Raiz.Screen name="App" component={AppTabs} />
+          <Raiz.Screen name="Bienvenida" component={BienvenidaView} options={{ animation: 'fade' }} />
+        </Raiz.Navigator>
+      </SafeAreaView>
+    </NavigationContainer>
+  );
+}
+
 export default function Navigator() {
   return (
     <StoreProvider>
-      <NavigationContainer>
-        <SafeAreaView style={{ flex: 1 }} edges={['bottom']}>
-          <AppTabs />
-        </SafeAreaView>
-      </NavigationContainer>
+      <Rutas />
     </StoreProvider>
   );
 }

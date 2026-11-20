@@ -14,6 +14,7 @@ import {
   Seccion, Campo, FilaCampos, FilaInterruptor, Casilla, SelectorSegmentado,
   BadgeGanancia, BarraGuardar, NotaConfirmacion, Etiqueta,
 } from './Formulario';
+import { AvisoPrimeraVez, Resaltar } from './Estados';
 
 // ─── Normalización de tamaños ──────────────────────────────────────────────────
 const UNIDADES_MAP = {
@@ -398,6 +399,12 @@ export default class AgregarProductoView extends Component {
         <Encabezado titulo="Agregar producto" onBack={() => this.props.navigation.goBack()} />
 
         <ScrollViewTeclado contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+
+          <AvisoPrimeraVez
+            clave="pista_agregar_producto"
+            titulo="Granel y presentaciones"
+            texto={<>Si vendes por kilo o litro, activa <Resaltar>¿Es producto a granel?</Resaltar> Para otro tamaño de un producto que ya tienes, escribe el mismo nombre y marca: se agrega como otra presentación.</>}
+          />
 
           {/* ── IDENTIFICACIÓN ── */}
           <Seccion titulo="Identificación">
