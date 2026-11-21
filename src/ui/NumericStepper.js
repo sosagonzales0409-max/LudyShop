@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { colors, spacing, radius, fontSize } from '../config/theme';
+import { colors, radius, fontSize } from '../config/theme';
 
 /**
  * NumericStepper — selector de cantidad con botones − y +.

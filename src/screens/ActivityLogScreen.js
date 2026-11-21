@@ -275,7 +275,7 @@ export default class ActivityLogScreen extends Component {
           onEndReached={this.cargarMas}
           onEndReachedThreshold={0.5}
           ListFooterComponent={this.renderPie}
-          ListEmptyComponent={() => (
+          ListEmptyComponent={(
             <EstadoVacio
               Icono={IconHistory}
               tono="info"

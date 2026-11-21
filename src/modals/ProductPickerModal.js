@@ -86,7 +86,7 @@ export default class ProductPickerModal extends Component {
   }
 
   renderCategoryChip(item) {
-    const isSelected = this.state.selectedCategory == item.id;
+    const isSelected = this.state.selectedCategory === item.id;
     return (
       <TouchableOpacity
         onPress={() => this.setState({ selectedCategory: item.id })}
@@ -241,7 +241,7 @@ export default class ProductPickerModal extends Component {
                 renderItem={({ item }) => this.renderProductItem(item)}
                 contentContainerStyle={{ paddingHorizontal: spacing.xl }}
                 showsVerticalScrollIndicator={false}
-                ListEmptyComponent={() => (
+                ListEmptyComponent={(
                   <View style={{ alignItems: 'center', paddingVertical: spacing.xxl }}>
                     <Text style={{ fontSize: fontSize.body, color: colors.textMuted, textAlign: 'center' }}>
                       No se encontraron productos.

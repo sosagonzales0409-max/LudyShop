@@ -73,7 +73,7 @@ class InventoryScreen extends Component {
   }
 
   renderCategories(item) {
-    const isSelected = this.state.selectedCategory == item.id;
+    const isSelected = this.state.selectedCategory === item.id;
     return (
       <TouchableOpacity
         onPress={() => this.selectCategory(item.id)}
@@ -228,7 +228,7 @@ class InventoryScreen extends Component {
             </View>
           </TouchableOpacity>
 
-          <FlatList ref={this.productListRef} style={{ flex: 1 }} data={filteredProducts} keyExtractor={item => item.id} renderItem={({ item }) => this.renderProductItem(item)} contentContainerStyle={{ paddingBottom: spacing.xl }} ListEmptyComponent={() => <EstadoVacio Icono={IconSearch} tono="info" titulo="No hay productos" />} />
+          <FlatList ref={this.productListRef} style={{ flex: 1 }} data={filteredProducts} keyExtractor={item => item.id} renderItem={({ item }) => this.renderProductItem(item)} contentContainerStyle={{ paddingBottom: spacing.xl }} ListEmptyComponent={<EstadoVacio Icono={IconSearch} tono="info" titulo="No hay productos" />} />
         </View>
       </View>
     );

@@ -230,7 +230,7 @@ export default class ReturnModal extends Component {
                   </View>
                 );
               }}
-              ListEmptyComponent={() => (
+              ListEmptyComponent={(
                 <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: fontSize.body }}>
                   Esta venta no tiene productos registrados.
                 </Text>

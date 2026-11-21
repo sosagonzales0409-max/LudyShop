@@ -512,7 +512,7 @@ export default class SalesHistoryScreen extends Component {
           onEndReached={this.cargarMas}
           onEndReachedThreshold={0.5}
           ListFooterComponent={this.renderPie}
-          ListEmptyComponent={() => (cargando ? (
+          ListEmptyComponent={(cargando ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
           ) : (
             <EstadoVacio

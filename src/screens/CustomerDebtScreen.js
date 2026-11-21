@@ -325,7 +325,7 @@ export default class CustomerDebtScreen extends Component {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }}
-            ListHeaderComponent={() => (
+            ListHeaderComponent={(
               <View>
                 {/* Resumen */}
                 <View style={{ ...tarjeta, padding: spacing.lg, marginBottom: spacing.lg }}>

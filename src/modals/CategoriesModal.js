@@ -257,7 +257,7 @@ export default class CategoriesModal extends Component {
               renderItem={({ item }) => this.renderCategoria(item)}
               contentContainerStyle={{ paddingHorizontal: spacing.xl }}
               style={{ maxHeight: 320 }}
-              ListEmptyComponent={() => (
+              ListEmptyComponent={(
                 <Text style={{ color: colors.textMuted, fontSize: fontSize.body, textAlign: 'center', marginVertical: spacing.xl }}>
                   No hay categorías. Agrega una abajo.
                 </Text>

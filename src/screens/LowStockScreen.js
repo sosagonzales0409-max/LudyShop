@@ -133,7 +133,7 @@ export default class LowStockScreen extends Component {
           keyExtractor={item => `${item.product.id}::${item.presentacion.id}`}
           renderItem={({ item }) => this.renderItem(item)}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
-          ListEmptyComponent={() => (
+          ListEmptyComponent={(
             <EstadoVacio
               Icono={IconCheckCircle}
               tono="ok"

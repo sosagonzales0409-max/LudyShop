@@ -11,7 +11,7 @@ Guía para Claude Code (y para cualquier persona) al trabajar en este repositori
 ## Comandos
 
 - `npm start` (Metro) · `npm run android` · `npm run ios` (antes, en macOS: `bundle install` y `cd ios && bundle exec pod install`).
-- Lint: `npm run lint` (`eslint src`) → debe dar **0 errores**. La regla `react-native/no-inline-styles` está desactivada **temporalmente** mientras se pasan los estilos en línea a `StyleSheet.create`; el código nuevo ya debe usar `StyleSheet.create`.
+- Lint: `npm run lint` (`eslint src`) → debe dar **0 errores y 0 avisos**.
 - Release Android: `cd android && ./gradlew bundleRelease`. Cada subida a Play: `versionCode` +1 en `android/app/build.gradle`.
 - Borrar los datos de la app en el teléfono de pruebas: `adb shell pm clear com.ludyshop.app`.
 

@@ -76,6 +76,10 @@ function tabVisibility(route, rootName) {
     : { display: 'none' };
 }
 
+// Íconos de las pestañas: fuera de AppTabs para que no se creen en cada render.
+const iconoVentas = ({ color }) => <IconShoppingCart color={color} size={30} />;
+const iconoInventario = ({ color }) => <IconBoxes color={color} size={30} />;
+
 function AppTabs() {
   return (
     <Tab.Navigator
@@ -102,7 +106,7 @@ function AppTabs() {
         options={({ route }) => ({
           headerShown: false,
           tabBarLabel: 'Ventas',
-          tabBarIcon: ({ color }) => <IconShoppingCart color={color} size={30} />,
+          tabBarIcon: iconoVentas,
           tabBarLabelStyle: {
             fontSize: fontSize.label,
             fontWeight: 'bold',
@@ -117,7 +121,7 @@ function AppTabs() {
         options={({ route }) => ({
           headerShown: false,
           tabBarLabel: 'Inventario',
-          tabBarIcon: ({ color }) => <IconBoxes color={color} size={30} />,
+          tabBarIcon: iconoInventario,
           tabBarLabelStyle: {
             fontSize: fontSize.label,
             fontWeight: 'bold',

@@ -315,7 +315,7 @@ export default class PurchaseHistoryScreen extends Component {
           onEndReached={this.cargarMas}
           onEndReachedThreshold={0.5}
           ListFooterComponent={this.renderPie}
-          ListEmptyComponent={() => (cargando ? (
+          ListEmptyComponent={(cargando ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
           ) : error ? (
             <Text style={{ fontSize: fontSize.body, color: colors.danger, textAlign: 'center', marginTop: 60 }}>

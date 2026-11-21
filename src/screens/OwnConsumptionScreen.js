@@ -195,7 +195,7 @@ export default class OwnConsumptionScreen extends Component {
           renderItem={({ item }) => this.renderItem(item)}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl }}
           keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={() => (
+          ListEmptyComponent={(
             <EstadoVacio
               Icono={IconPackage}
               tono="info"

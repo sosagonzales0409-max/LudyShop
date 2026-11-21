@@ -239,7 +239,7 @@ export default class CreditsScreen extends Component {
           keyExtractor={item => item.cliente}
           renderItem={({ item }) => this.renderCliente(item)}
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
-          ListEmptyComponent={() => (this.state.cargando ? (
+          ListEmptyComponent={(this.state.cargando ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 60 }} />
           ) : this.state.error ? (
             <Text style={{ fontSize: fontSize.body, color: colors.danger, textAlign: 'center', marginTop: 60 }}>
