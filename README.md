@@ -1,97 +1,175 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+<div align="center">
 
-# Getting Started
+<img src="android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png" width="96" alt="LudyShop icon" />
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+# LudyShop
 
-## Step 1: Start Metro
+**Offline point-of-sale and inventory app for small neighborhood grocery stores.**
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+**English** · [Español](README.es.md)
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white)
+![iOS](https://img.shields.io/badge/iOS-000000?logo=apple&logoColor=white)
+![React Native 0.83](https://img.shields.io/badge/React_Native-0.83-61DAFB?logo=react&logoColor=black)
+![SQLite](https://img.shields.io/badge/SQLite-op--sqlite-003B57?logo=sqlite&logoColor=white)
+![Offline-first](https://img.shields.io/badge/offline--first-✓-2F6FDB)
+![License](https://img.shields.io/badge/license-proprietary-lightgrey)
 
-```sh
-# Using npm
-npm start
+Android: **closed testing on Google Play** · iOS: **tested on device, not yet on the App Store**
 
-# OR using Yarn
-yarn start
+</div>
+
+---
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/capturas/ventas.jpg" width="200" alt="New sale" /><br/><sub>New sale (cash or credit)</sub></td>
+    <td align="center"><img src="docs/capturas/credito.jpg" width="200" alt="Credit" /><br/><sub>Customers who owe money</sub></td>
+    <td align="center"><img src="docs/capturas/inventario.jpg" width="200" alt="Inventory" /><br/><sub>Inventory and stock value</sub></td>
+    <td align="center"><img src="docs/capturas/reportes.jpg" width="200" alt="Reports" /><br/><sub>Reports</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/capturas/corte.jpg" width="200" alt="End of day" /><br/><sub>End-of-day cash summary</sub></td>
+    <td align="center"><img src="docs/capturas/consumopropio.jpg" width="200" alt="Own consumption" /><br/><sub>Owner's own consumption</sub></td>
+    <td align="center"><img src="docs/capturas/tienda.jpg" width="200" alt="Store settings" /><br/><sub>Store settings</sub></td>
+    <td></td>
+  </tr>
+</table>
+
+> The app UI is in Spanish: it was built for grocery stores in Mexico.
+
+## The problem
+
+A Mexican *tienda de abarrotes* is usually run by one person behind the counter, often without a reliable internet connection. They sell on credit to neighbors they trust ("fiado"), track it in a paper notebook, and only find out what is missing from the shelf when a customer asks for it.
+
+LudyShop puts the store on the owner's phone, **with no internet required**: charge without doing math, know who owes how much, and know what is in stock and what needs to be bought.
+
+## Features
+
+- **Sales** in cash or on credit, with a cart and products sold by unit or **by weight/volume** (bulk: rice, beans, etc.).
+- **Credit and payments**: debt per customer, partial payments, sorting by oldest or largest debt.
+- **Inventory**: products with brand and several sizes, categories, low-stock alerts and total inventory value.
+- **Purchases** from suppliers, which restock inventory and record what was spent.
+- **Reports**: real income (cash + payments received), average sale and balance, by week, month or year.
+- **End-of-day summary**: money collected today, split into cash sales and payments.
+- **Returns, deleting sales and editing purchases**, always keeping inventory consistent.
+- **Backups**: export and import all data as a file.
+- **Activity log** of every relevant action.
+
+## Tech stack
+
+| Area | Technology |
+|---|---|
+| App | React Native 0.83, React 19 |
+| Database | SQLite via `@op-engineering/op-sqlite` (WAL mode) |
+| Navigation | React Navigation 6 (bottom tabs + native stacks) |
+| Charts | `react-native-gifted-charts` |
+| IDs | UUIDv7 (`uuid`) |
+| Backups | `react-native-fs`, `react-native-share`, document picker |
+| Tests | Custom Node.js harness over `node:sqlite` (see [Quality](#quality)) |
+
+## Architecture
+
+```mermaid
+flowchart LR
+    UI["Screens<br/>(src/components)"] -->|actions| CTX["StoreContext<br/>(all business actions)"]
+    CTX -->|"persistir(tx => …)"| Q["Serial write queue<br/>one transaction per write"]
+    Q --> DB[("SQLite<br/>mitienda.db")]
+    Q -->|"after commit:<br/>tables written"| EV["cambios.js<br/>change notifications"]
+    EV --> LIVE["consultaViva<br/>live queries"]
+    LIVE -->|reload| UI
+    DB -->|"reads (SQL)"| LIVE
 ```
 
-## Step 2: Build and run your app
+- **Memory holds only what is small** (products, categories, customers, settings). Sales, payments and purchases are queried with SQL on demand, so the app stays fast with a year of data.
+- **Every write goes through `persistir()`**, and screens that show query results reload themselves when another action writes to the tables they depend on.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## Technical decisions
 
-### Android
+Each decision solves a concrete problem:
+
+| Decision | Why |
+|---|---|
+| **Offline-first with SQLite** | The store has no reliable internet. All data lives on the phone; the database is the single source of truth. The data model is designed so a future version can add online sync without changing how the app works offline. |
+| **Serial write queue** (`persistir`) | Every write runs in its own transaction, one after another. Two quick taps can never interleave and corrupt data. The queue also detects which tables each statement touched and notifies screens only after the commit, a natural hook for sending changes to a server later. |
+| **Inventory as an append-only ledger** | Stock is never overwritten. Each change (sale, purchase, return, adjustment, own consumption) adds a row to `movimientos_inventario`; the `stock` column is a cache of that sum, updated in the same transaction. This gives a full audit trail, and undoing a sale adds an opposite movement instead of guessing the previous value. It also prepares for online sync: movements from several devices can simply be merged, while two different `stock` values would conflict. |
+| **Sales keep a snapshot of the product** | Name and price are copied at the time of the sale, so editing or deleting a product never changes past history or reports. |
+| **Ready for online sync (v2)** | Every table has a UUIDv7 id, `tienda_id`, `created_at`/`updated_at` and soft delete (`deleted_at`). IDs can be generated offline on several devices without collisions, `updated_at` decides which version wins when merging, and deletions can be synced instead of disappearing. |
+| **Versioned migrations that are never edited** | The schema version lives in `PRAGMA user_version`. Once a migration is published it is never changed; fixes go in a new one, run inside a transaction (all or nothing), without deleting or merging user data. |
+| **Money and quantities rounded in one place** | Bulk products use decimal quantities; stock is updated with `ROUND(stock + ?, 3)` in SQL and the same rule in memory, so floating-point errors never accumulate. |
+
+## Quality
+
+React Native unit tests can't easily run a real SQLite database, so the project has its own harness in [`qa/`](qa/):
+
+- **Runs the real code**: `qa/arnes/construir.mjs` copies the actual data layer and `StoreContext` and replaces only the native modules (op-sqlite → Node's built-in `node:sqlite`, React Native → stubs).
+- **Action scenarios**: seeds a year of data and runs every business action (sales, credit, payments, returns, purchases, deletions), checking stock and balances after each one.
+- **Money oracle**: recomputes every expected total in plain JavaScript from the raw rows, without using the app's SQL, and cross-checks it against the app's report queries.
+- **Integrity checks** ([`qa/integridad.sql`](qa/integridad.sql)): database invariants, e.g. the stock cache equals the sum of its movements.
+
+## Project structure
+
+```
+src/
+├── components/     # Screens, modals and UI pieces
+├── context/        # StoreContext: all business actions
+├── config/         # Theme and money/quantity formatting
+└── data/
+    ├── db.js           # Connection and persistir() write queue
+    ├── migrations.js   # Versioned schema
+    ├── consultaViva.js # Live queries
+    ├── repositories/   # Writes per entity
+    ├── consultas/      # Aggregated SQL reads per screen
+    └── respaldo.js     # Backup export/import
+qa/                 # Test harness, money oracle and integrity checks
+```
+
+The code, comments and names are in Spanish, the language of the business domain.
+
+## Running locally
+
+Requirements: Node 22+ and the [React Native environment setup](https://reactnative.dev/docs/set-up-your-environment) for your platform. The app runs on **Android and iOS**.
 
 ```sh
-# Using npm
+npm install
+npm start          # Metro
+```
+
+**Android** (Android Studio + emulator or device), in another terminal:
+
+```sh
 npm run android
-
-# OR using Yarn
-yarn android
 ```
 
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+**iOS** (macOS + Xcode), in another terminal:
 
 ```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
+bundle install                       # first time only (CocoaPods)
+cd ios && bundle exec pod install && cd ..
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+### Tests
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+```sh
+node qa/arnes/escenario-desde-cero.mjs   # end-to-end scenario from an empty database
+node qa/arnes/probar-acciones.mjs        # every action + integrity checks (~1 min)
+npx eslint src                            # lint
+```
 
-## Step 3: Modify your app
+## License
 
-Now that you have successfully run the app, let's make changes!
+Copyright © 2025-2026 Luis Alberto Sosa González. **All rights reserved.**
+This repository is public only as a portfolio sample. See [LICENSE](LICENSE).
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## Contact
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+**Luis Alberto Sosa González**<br/>
+Frontend Developer (React Native + React) · Next.js · TypeScript · Apps on Google Play and the App Store
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+[![Portfolio](https://img.shields.io/badge/Portfolio-sosadev.online-2F6FDB)](https://sosadev.online/)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-luis--sosa-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/luis-sosa-reactnative/)
+[![GitHub](https://img.shields.io/badge/GitHub-sosagonzales0409--max-181717?logo=github&logoColor=white)](https://github.com/sosagonzales0409-max)
+[![Email](https://img.shields.io/badge/Email-sosadevmx@gmail.com-EA4335?logo=gmail&logoColor=white)](mailto:sosadevmx@gmail.com)
