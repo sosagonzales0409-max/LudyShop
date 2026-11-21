@@ -1,6 +1,7 @@
-// Escenario "App desde 0" de QA_FINAL.md, ejecutado con las ACCIONES REALES
-// de StoreContext sobre una BD vacía. Comprueba que cada valor esperado que
-// dice el documento es exactamente lo que calcula la app.
+// Escenario "App desde 0" (el mismo que se recorre a mano en el teléfono),
+// ejecutado con las ACCIONES REALES de StoreContext sobre una BD vacía.
+// Comprueba que cada valor esperado del escenario es exactamente lo que
+// calcula la app.
 //   node qa/arnes/escenario-desde-cero.mjs
 // Deja la BD final en qa/datos/desde-cero.db (se puede revisar con
 // valores-esperados.mjs para comparar con el teléfono).

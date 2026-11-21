@@ -1,10 +1,11 @@
-# CI: en cada push y pull request a main, revisa el lint y corre el arnés de
-# pruebas de qa/ (el código real de la capa de datos sobre node:sqlite).
+# CI: en cada push (a cualquier rama) y en cada pull request a main, revisa el
+# lint y corre el arnés de pruebas de qa/ (el código real de la capa de datos
+# sobre node:sqlite).
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
 
