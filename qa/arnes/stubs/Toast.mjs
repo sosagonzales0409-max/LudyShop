@@ -1,4 +1,4 @@
-// Sustituto de components/Toast para el arnés: no hay pantalla, así que solo
+// Sustituto de ui/Toast para el arnés: no hay pantalla, así que solo
 // guarda los mensajes (por si una prueba quiere revisar qué se avisó).
 const Toast = {
   mensajes: [],

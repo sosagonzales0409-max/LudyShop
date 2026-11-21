@@ -87,7 +87,7 @@ export const cargarCompras = async () => {
 
 /**
  * Una PÁGINA de compras, más recientes primero, con sus ítems (bajo demanda,
- * para HistorialComprasView). antesDe: la última compra ya cargada
+ * para PurchaseHistoryScreen). antesDe: la última compra ya cargada
  * ({ fecha, id }), cursor compuesto como en ventas.
  */
 export const cargarComprasPagina = async ({ limite = 30, antesDe = null } = {}) => {

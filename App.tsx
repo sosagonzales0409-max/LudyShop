@@ -1,8 +1,8 @@
 import React from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Navigator from './src/components/router';
-import Toast from './src/components/Toast';
+import Navigator from './src/navigation/router';
+import Toast from './src/ui/Toast';
 
 /**
  * App.tsx — punto de entrada.

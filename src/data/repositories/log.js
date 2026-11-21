@@ -3,7 +3,7 @@ import { insertar } from './comunes';
 
 // ─── Repositorio del registro de actividad ────────────────────────────────────
 // Forma para las pantallas: { id, tipo, fecha, desc }
-// Ya NO vive en memoria: ActivityLogView lo consulta por páginas (bajo
+// Ya NO vive en memoria: ActivityLogScreen lo consulta por páginas (bajo
 // demanda). En SQLite se guarda TODO el historial.
 // La columna se llama `descr` porque DESC es palabra reservada de SQL.
 

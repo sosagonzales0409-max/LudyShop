@@ -260,7 +260,7 @@ const tieneDatos = async () => {
 
 // ─── Borrar todos los datos ───────────────────────────────────────────────────
 
-// Lo que se perdería al borrar, para la advertencia de ConfigView.
+// Lo que se perdería al borrar, para la advertencia de SettingsScreen.
 // `vacia`: no hay nada que borrar (mismo criterio que tieneDatos).
 export const resumenDatos = async () => {
   const uno = async sql => Object.values((await getDB().execute(sql)).rows[0] ?? {})[0] ?? 0;

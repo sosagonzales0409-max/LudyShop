@@ -75,7 +75,7 @@ LudyShop puts the store on the owner's phone, **with no internet required**: cha
 
 ```mermaid
 flowchart LR
-    UI["Screens<br/>(src/components)"] -->|actions| CTX["StoreContext<br/>(all business actions)"]
+    UI["Screens<br/>(src/screens)"] -->|actions| CTX["StoreContext<br/>(all business actions)"]
     CTX -->|"persistir(tx => …)"| Q["Serial write queue<br/>one transaction per write"]
     Q --> DB[("SQLite<br/>mitienda.db")]
     Q -->|"after commit:<br/>tables written"| EV["cambios.js<br/>change notifications"]
@@ -114,7 +114,10 @@ React Native unit tests can't easily run a real SQLite database, so the project 
 
 ```
 src/
-├── components/     # Screens, modals and UI pieces
+├── screens/        # Full screens (new sale, credits, inventory, reports…)
+├── modals/         # Modals (payment, returns, end of day…)
+├── ui/             # Reusable UI pieces (header, form fields, toast…)
+├── navigation/     # Tabs and native stacks
 ├── context/        # StoreContext: all business actions
 ├── config/         # Theme and money/quantity formatting
 └── data/
@@ -127,7 +130,7 @@ src/
 qa/                 # Test harness, money oracle and integrity checks
 ```
 
-The code, comments and names are in Spanish, the language of the business domain.
+File and component names are in English; the code, comments and UI are in Spanish, the language of the business domain.
 
 ## Running locally
 

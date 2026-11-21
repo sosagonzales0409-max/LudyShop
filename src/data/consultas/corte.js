@@ -3,7 +3,7 @@ import { aBooleano } from '../repositories/comunes';
 import { resumenPeriodo } from './historial';
 
 // ─── Consulta del Corte del día (bajo demanda) ────────────────────────────────
-// Replica las fórmulas que tenía CorteModal cuando leía de memoria.
+// Replica las fórmulas que tenía EndOfDayModal cuando leía de memoria.
 
 /**
  * Todo lo que muestra el Corte, con "hoy" = desde la medianoche local.

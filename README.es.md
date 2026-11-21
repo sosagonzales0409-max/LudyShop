@@ -73,7 +73,7 @@ LudyShop lleva la tienda en el teléfono, **sin necesidad de internet**: cobrar 
 
 ```mermaid
 flowchart LR
-    UI["Pantallas<br/>(src/components)"] -->|acciones| CTX["StoreContext<br/>(todas las acciones de negocio)"]
+    UI["Pantallas<br/>(src/screens)"] -->|acciones| CTX["StoreContext<br/>(todas las acciones de negocio)"]
     CTX -->|"persistir(tx => …)"| Q["Cola de escritura serial<br/>una transacción por escritura"]
     Q --> DB[("SQLite<br/>mitienda.db")]
     Q -->|"tras el commit:<br/>tablas escritas"| EV["cambios.js<br/>avisos de cambio"]
@@ -112,7 +112,10 @@ Las pruebas unitarias de React Native no pueden correr fácilmente una base SQLi
 
 ```
 src/
-├── components/     # Pantallas, modales y piezas de UI
+├── screens/        # Pantallas completas (nueva venta, créditos, inventario, reportes…)
+├── modals/         # Modales (pago, devoluciones, corte del día…)
+├── ui/             # Piezas de UI reutilizables (encabezado, campos, toast…)
+├── navigation/     # Pestañas y stacks nativos
 ├── context/        # StoreContext: todas las acciones de negocio
 ├── config/         # Tema y formato de dinero y cantidades
 └── data/
@@ -124,6 +127,8 @@ src/
     └── respaldo.js     # Exportar e importar copias de seguridad
 qa/                 # Arnés de pruebas, oráculo de dinero e integridad
 ```
+
+Los nombres de archivos y componentes están en inglés; el código, los comentarios y la interfaz, en español, el idioma del negocio.
 
 ## Correrla localmente
 

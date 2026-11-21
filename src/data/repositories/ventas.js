@@ -101,7 +101,7 @@ export const cargarVentas = async () => {
 
 /**
  * Una PÁGINA de ventas, más recientes primero, con sus ítems y cliente
- * (bajo demanda, para HistorialView).
+ * (bajo demanda, para SalesHistoryScreen).
  *   desde:    ISO; solo ventas con fecha >= desde (null = todas)
  *   tipoPago: 'Contado' | 'Credito' | null (todas)
  *   antesDe:  la ÚLTIMA venta ya cargada ({ fecha, id }): cursor compuesto,
@@ -129,7 +129,7 @@ export const cargarVentasPagina = async ({ desde = null, tipoPago = null, limite
 
 /**
  * Ventas a crédito de UN cliente, más recientes primero, con sus ítems
- * (bajo demanda, para ClientDebtDetailView). clienteId null = las ventas a
+ * (bajo demanda, para CustomerDebtScreen). clienteId null = las ventas a
  * crédito sin cliente (el grupo "Sin nombre").
  */
 export const cargarVentasCreditoCliente = async ({ clienteId }) => {

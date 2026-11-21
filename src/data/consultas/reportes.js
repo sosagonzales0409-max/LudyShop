@@ -2,11 +2,11 @@ import { getDB } from '../db';
 import { resumenPeriodo } from './historial';
 
 // ─── Consultas de Reportes (bajo demanda) ─────────────────────────────────────
-// Antes ReportesView recorría TODAS las ventas una vez por día de la gráfica
+// Antes ReportsScreen recorría TODAS las ventas una vez por día de la gráfica
 // y en cada dibujado (≈ 8 millones de revisiones con "año": 7 s por toque).
 // Ahora SQLite agrupa y suma una sola vez por período; los toques (tooltip,
 // modo, criterio del top) ya no consultan nada.
-// Cada fórmula replica la que tenía ReportesView cuando leía de memoria.
+// Cada fórmula replica la que tenía ReportsScreen cuando leía de memoria.
 
 // Una cantidad 0 cuenta como 1 unidad (como `numProducts || 1`).
 const UNIDADES = 'CASE WHEN i.cantidad = 0 THEN 1 ELSE i.cantidad END';

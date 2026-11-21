@@ -2,9 +2,9 @@ import { getDB } from '../db';
 import { cargarVentasCreditoCliente } from '../repositories/ventas';
 
 // ─── Consultas de Créditos (bajo demanda) ─────────────────────────────────────
-// Antes CreditosView, ClientDebtDetailView, Main (selector de clientes con
+// Antes CreditsScreen, CustomerDebtScreen, NewSaleScreen (selector de clientes con
 // deuda) y StoreContext (badge) recorrían TODAS las ventas en cada dibujado;
-// Main incluso al escribir en el carrito. Ahora SQLite agrupa por cliente.
+// NewSaleScreen incluso al escribir en el carrito. Ahora SQLite agrupa por cliente.
 // Cada fórmula replica la que tenían esas pantallas.
 
 /**

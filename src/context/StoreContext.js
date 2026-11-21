@@ -1,7 +1,7 @@
 import React, { createContext, Component } from 'react';
 import { Alert } from 'react-native';
-import PantallaCarga from '../components/PantallaCarga';
-import Toast from '../components/Toast';
+import LoadingScreen from '../ui/LoadingScreen';
+import Toast from '../ui/Toast';
 import { initDB, getDB, persistir, esperarEscrituras, onErrorPersistencia, getMeta, setMeta } from '../data/db';
 import { newId, nowIso } from '../data/ids';
 import { nombreProducto, formatoDinero, formatoCantidad } from '../config/formato';
@@ -159,7 +159,7 @@ export const StoreContext = createContext(null);
 
 export class StoreProvider extends Component {
   // Estado "seco": se hidrata desde SQLite en arrancar(). Mientras
-  // cargando = true, render() muestra PantallaCarga en vez de la app.
+  // cargando = true, render() muestra LoadingScreen en vez de la app.
   // Solo lo pequeño vive en memoria (catálogo, clientes, config). Ventas,
   // abonos, compras y el registro de actividad se consultan bajo demanda
   // (src/data/consultas/ y los repositorios), y las acciones que los
@@ -167,12 +167,12 @@ export class StoreProvider extends Component {
   state = {
     cargando:    true,
     errorCarga:  null,
-    mensajeCarga: null, // texto de PantallaCarga al reemplazar los datos
+    mensajeCarga: null, // texto de LoadingScreen al reemplazar los datos
     products:    [],
     categories:  [],   // sin "Todos": se agrega en render()
     clientes:    [],
     config:      CONFIG_POR_DEFECTO,
-    // Carrusel de bienvenida (BienvenidaView): true si este teléfono aún no
+    // Carrusel de bienvenida (WelcomeScreen): true si este teléfono aún no
     // lo ha visto. Se guarda en la tabla meta (dato del dispositivo, no va en
     // las copias de seguridad).
     mostrarBienvenida: false,
@@ -192,7 +192,7 @@ export class StoreProvider extends Component {
       this.recargarDesdeBD().catch(error => console.error('recargarDesdeBD', error));
     });
     // componentDidMount no puede esperar promesas: arrancar() atrapa sus
-    // propios errores y los muestra en PantallaCarga.
+    // propios errores y los muestra en LoadingScreen.
     
     this.arrancar();
   }
@@ -215,7 +215,7 @@ export class StoreProvider extends Component {
         await persistir(sembrarAutomatico, 'semilla');
         if (tiempos) tiempos.semilla = ahoraMs() - tSemilla;
       }
-      // Antes de recargarDesdeBD: ese setState quita PantallaCarga, y el
+      // Antes de recargarDesdeBD: ese setState quita LoadingScreen, y el
       // router decide con este valor si abre la bienvenida.
       const bienvenidaVista = await getMeta('onboarding_hecho');
       const { rows: pistas } = await getDB().execute(
@@ -270,7 +270,7 @@ export class StoreProvider extends Component {
   // ─── Reemplazar todos los datos ───────────────────────────────────────────
   // Importar una copia, deshacer una importación, borrar todos los datos y
   // (en desarrollo) reiniciar con ejemplos cambian TODO. En vez de avisar pantalla por pantalla, se vuelve
-  // a PantallaCarga: eso desmonta el árbol de navegación completo, y al
+  // a LoadingScreen: eso desmonta el árbol de navegación completo, y al
   // recargar se monta de cero (carrito vacío, pestañas en su raíz, ninguna
   // pantalla con ids que ya no existen). Por lo mismo, quien llama no debe
   // tocar su propio estado después: ya no estará montado.
@@ -330,7 +330,7 @@ export class StoreProvider extends Component {
     Toast.show(deshacer ? 'Datos anteriores recuperados' : 'Datos importados', 'success');
   };
 
-  // Solo desarrollo (sección "Desarrollo" de ConfigView).
+  // Solo desarrollo (sección "Desarrollo" de SettingsScreen).
   reiniciarConEjemplos = async () => {
     if (await this.reemplazarDatos('Generando datos de ejemplo…', () => getDB().transaction(reiniciarConSemilla))) {
       Toast.show('Datos de ejemplo listos', 'success');
@@ -338,7 +338,7 @@ export class StoreProvider extends Component {
   };
 
   // "Borrar todos los datos" (Configuración). Conserva la tienda (nombre,
-  // moneda, umbral). La advertencia y la confirmación viven en ConfigView.
+  // moneda, umbral). La advertencia y la confirmación viven en SettingsScreen.
   vaciarTodo = async () => {
     const ok = await this.reemplazarDatos('Borrando datos…', async () => {
       await getDB().transaction(vaciarDatos);
@@ -356,9 +356,9 @@ export class StoreProvider extends Component {
   // ─── Log ──────────────────────────────────────────────────────────────────
   // Las acciones guardan su evento EN LA MISMA transacción que su cambio
   // (nuevoEvento + crearEvento). El registro ya no vive en memoria:
-  // ActivityLogView lo consulta por páginas y se refresca solo al cambiar la
+  // ActivityLogScreen lo consulta por páginas y se refresca solo al cambiar la
   // tabla activity_log. logEvent queda para los eventos sueltos que
-  // registran las pantallas (p. ej. EditarProductoView).
+  // registran las pantallas (p. ej. EditProductScreen).
 
   // Monto con la moneda configurada, para los textos del registro de
   // actividad (antes decían "$" fijo aunque la moneda fuera otra).
@@ -431,7 +431,7 @@ export class StoreProvider extends Component {
 
   /**
    * Compra que acompaña el alta de una presentación nueva ("registrar como
-   * compra" en AgregarProductoView). Antes la pantalla llamaba a addCompra
+   * compra" en AddProductScreen). Antes la pantalla llamaba a addCompra
    * por separado y fallaba: adivinaba el id de la presentación y validaba
    * contra un estado que aún no incluía el producto recién creado.
    * Devuelve null si no aplica (sin datos de compra, stock o costo en 0).
@@ -535,7 +535,7 @@ export class StoreProvider extends Component {
     if (!this.state.categories.some(c => String(c.id) === String(categoriaId))) {
       return { ok: false, error: 'Selecciona una categoría válida.' };
     }
-    // Misma regla de duplicado que el alta (AgregarProductoView): nombre + marca.
+    // Misma regla de duplicado que el alta (AddProductScreen): nombre + marca.
     const duplicado = this.state.products.some(p =>
       p.id !== productId &&
       p.nombre.trim().toLowerCase() === nombre.toLowerCase() &&
@@ -673,7 +673,7 @@ export class StoreProvider extends Component {
   };
 
   /**
-   * Descuenta stock. Hoy solo lo usa ConsumoPropioView (esConsumoPropio =
+   * Descuenta stock. Hoy solo lo usa OwnConsumptionScreen (esConsumoPropio =
    * true, registra su evento). Las ventas descuentan su stock dentro de
    * addSale, en la misma transacción que la venta.
    */
@@ -948,7 +948,7 @@ export class StoreProvider extends Component {
     return newCat;
   };
 
-  // Protegida aquí también (no solo en CategoriasModal): no se permite un
+  // Protegida aquí también (no solo en CategoriesModal): no se permite un
   // nombre que ya tenga OTRA categoría (ni "Todos"). Devuelve true/false.
   renameCategory = (id, nuevoNombre) => {
     if (String(id) === String(CATEGORIA_TODOS.id)) return false;
@@ -971,10 +971,10 @@ export class StoreProvider extends Component {
     return true;
   };
 
-  // Protegida aquí (no solo en CategoriasModal): si algún producto sigue
+  // Protegida aquí (no solo en CategoriesModal): si algún producto sigue
   // asignado a esta categoría, no se borra — dejaría productos con
   // categoriaId huérfana. Para liberarla, primero se reasignan los productos
-  // con updateProduct (botón ✏️ en ProductDetailView).
+  // con updateProduct (botón ✏️ en ProductDetailScreen).
   deleteCategory = id => {
     if (String(id) === String(CATEGORIA_TODOS.id)) return false;
     const enUso = this.state.products.some(p => String(p.categoriaId) === String(id));
@@ -1027,7 +1027,7 @@ export class StoreProvider extends Component {
 
   /**
    * Registra una venta Y descuenta su stock, todo en una transacción
-   * (antes Main.js llamaba a decreaseStock por separado: si la app se cerraba
+   * (antes NewSaleScreen.js llamaba a decreaseStock por separado: si la app se cerraba
    * entre las dos, quedaba stock descontado sin venta).
    */
   addSale = sale => {
@@ -1373,7 +1373,7 @@ export class StoreProvider extends Component {
   render() {
     // Compuerta: las pantallas no se montan hasta tener los datos de la BD.
     if (this.state.cargando || this.state.errorCarga) {
-      return <PantallaCarga error={this.state.errorCarga} mensaje={this.state.mensajeCarga} onReintentar={this.arrancar} />;
+      return <LoadingScreen error={this.state.errorCarga} mensaje={this.state.mensajeCarga} onReintentar={this.arrancar} />;
     }
     return (
       <StoreContext.Provider

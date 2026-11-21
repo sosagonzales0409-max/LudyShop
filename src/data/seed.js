@@ -328,7 +328,7 @@ const simular = () => {
           (porProveedor[p.proveedor] ??= []).push({ pres: p, cantidad: p.pedido, costo: p.costo });
         });
         // A veces un proveedor no surte ese día: así hay agotados y stock bajo
-        // reales (para probar LowStockView y las compras de emergencia).
+        // reales (para probar LowStockScreen y las compras de emergencia).
         Object.entries(porProveedor)
           .filter(([prov]) => !(prov === PROVEEDOR_RETRASADO.nombre && d < PROVEEDOR_RETRASADO.ultimosDias))
           .filter(() => al.rand() >= PROB_PROVEEDOR_NO_SURTE)

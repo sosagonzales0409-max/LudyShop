@@ -1,7 +1,7 @@
 import { getDB } from '../db';
 
 // ─── Consultas del detalle de producto (bajo demanda) ─────────────────────────
-// Antes ProductDetailView recorría todas las ventas y compras en memoria en
+// Antes ProductDetailScreen recorría todas las ventas y compras en memoria en
 // cada dibujado. Cada fórmula replica la anterior.
 
 /**

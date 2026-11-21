@@ -1,7 +1,7 @@
 // Copia el código REAL de la app (src/data, src/config/formato.js y
 // src/context/StoreContext.js) a qa/arnes/app como módulos .mjs, compila el
 // JSX de StoreContext y redirige lo nativo a sustitutos (qa/arnes/stubs):
-//   react / react-native / PantallaCarga → sustitutos mínimos
+//   react / react-native / LoadingScreen → sustitutos mínimos
 //   @op-engineering/op-sqlite           → node:sqlite con la misma API
 //   uuid                                 → UUIDv7 con node:crypto
 // Así en Node corren las acciones, la cola de escritura y las consultas
@@ -24,8 +24,8 @@ const STUBS = {
   'uuid': 'stubs/uuid.mjs',
   '@op-engineering/op-sqlite': 'stubs/op-sqlite.mjs',
   '@dr.pogodin/react-native-fs': 'stubs/react-native-fs.mjs',
-  '../components/PantallaCarga': 'stubs/PantallaCarga.mjs',
-  '../components/Toast': 'stubs/Toast.mjs',
+  '../ui/LoadingScreen': 'stubs/LoadingScreen.mjs',
+  '../ui/Toast': 'stubs/Toast.mjs',
 };
 
 export const construir = () => {

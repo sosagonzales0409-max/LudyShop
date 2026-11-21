@@ -3,7 +3,7 @@ import { getDB } from '../db';
 // ─── Consultas del Historial de ventas (bajo demanda) ─────────────────────────
 // Los totales los calcula SQLite (SUM/COUNT sobre índices) en vez de recorrer
 // todas las ventas en JS en cada dibujado. Cada fórmula replica EXACTAMENTE
-// la que tenía HistorialView cuando leía de memoria.
+// la que tenía SalesHistoryScreen cuando leía de memoria.
 
 /**
  * Resumen del período.

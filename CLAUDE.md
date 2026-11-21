@@ -24,11 +24,11 @@ No hay Jest: las pruebas son el arnés de `qa/`. `npm test` corre los dos primer
 - Oráculo de las consultas de dinero (después de `probar-acciones.mjs`, que genera la BD): `node qa/valores-esperados.mjs qa/datos/semilla-node.db qa/datos/semilla-esperados.md` y después `node qa/arnes/cruzar-oraculo.mjs qa/datos/semilla-node.db qa/datos/semilla-esperados.md` → "✅ El oráculo coincide…".
 - `qa/integridad.sql`: invariantes de la BD (todas deben devolver 0 problemas). `qa/extraer-bd.cmd` saca la BD real del teléfono para revisarla.
 
-Cómo funciona el arnés: `qa/arnes/construir.mjs` copia el código **real** de `src/data`, `src/config/formato.js` y `src/context/StoreContext.js` a `qa/arnes/app/*.mjs` (generado, no editar) y sustituye los paquetes (react, react-native, op-sqlite → `node:sqlite`, uuid, react-native-fs) y algunos componentes (`PantallaCarga`, `Toast`) con `qa/arnes/stubs`. Si agregas en esos archivos un import de un paquete (cualquier import no relativo), agrega su sustituto en `STUBS`; si no, `construir.mjs` falla. Estas pruebas **no** cubren la interfaz.
+Cómo funciona el arnés: `qa/arnes/construir.mjs` copia el código **real** de `src/data`, `src/config/formato.js` y `src/context/StoreContext.js` a `qa/arnes/app/*.mjs` (generado, no editar) y sustituye los paquetes (react, react-native, op-sqlite → `node:sqlite`, uuid, react-native-fs) y algunos componentes (`ui/LoadingScreen`, `ui/Toast`) con `qa/arnes/stubs`. Si agregas en esos archivos un import de un paquete (cualquier import no relativo), agrega su sustituto en `STUBS`; si no, `construir.mjs` falla. Estas pruebas **no** cubren la interfaz.
 
 ## Arquitectura
 
-**Flujo:** `App.tsx` → `src/components/router.js` (`StoreProvider` → `NavigationContainer` → pila raíz con la pantalla `Bienvenida` y las pestañas `App`; cada pestaña tiene su stack nativo: Ventas `MainStack` e Inventario `InventoryStack`, y varias pantallas están registradas en ambos) → pantallas en `src/components/` (componentes de **clase** que consumen `StoreContext`). `Toast` se monta una vez en `App.tsx` y se usa con `Toast.show(msg, tipo)`.
+**Flujo:** `App.tsx` → `src/navigation/router.js` (`StoreProvider` → `NavigationContainer` → pila raíz con la pantalla `Bienvenida` y las pestañas `App`; cada pestaña tiene su stack nativo: Ventas `MainStack` e Inventario `InventoryStack`, y varias pantallas están registradas en ambos) → pantallas en `src/screens/` (`…Screen`, componentes de **clase** que consumen `StoreContext`), modales en `src/modals/` (`…Modal`) y piezas reutilizables en `src/ui/`. `Toast` (`src/ui/Toast.js`) se monta una vez en `App.tsx` y se usa con `Toast.show(msg, tipo)`.
 
 **Capa de datos (`src/data/`, SQLite con op-sqlite, archivo `mitienda.db`, modo WAL):**
 

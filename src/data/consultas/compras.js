@@ -4,7 +4,7 @@ import { getDB } from '../db';
 // Reemplazan cálculos que recorrían todas las compras (o todas las VENTAS)
 // en memoria. Cada fórmula replica la anterior.
 
-// Número de compras y total invertido (resumen de HistorialComprasView).
+// Número de compras y total invertido (resumen de PurchaseHistoryScreen).
 export const resumenCompras = async () => {
   const { rows: [r] } = await getDB().execute(
     'SELECT COUNT(*) AS total_compras, COALESCE(SUM(total), 0) AS invertido FROM compras WHERE deleted_at IS NULL',

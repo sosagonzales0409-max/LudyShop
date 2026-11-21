@@ -89,7 +89,7 @@ export const iconButton = {
   radius: radius.sm,
 };
 
-// Encabezado azul compartido (Encabezado.js): alto de la fila del título,
+// Encabezado azul compartido (Header.js): alto de la fila del título,
 // sin contar la barra de estado del sistema (se suma aparte).
 export const HEADER_ALTO = 56;
 
