@@ -27,7 +27,6 @@ Android: **prueba cerrada en Google Play** · iOS: **probada en dispositivo, aú
 <table>
   <tr>
     <td align="center"><img src="docs/screenshots/new-sale.jpg" width="200" alt="Nueva venta" /><br/><sub>Nueva venta (contado o crédito)</sub></td>
-    <td align="center"><img src="docs/screenshots/credits.jpg" width="200" alt="Créditos" /><br/><sub>Clientes que deben</sub></td>
     <td align="center"><img src="docs/screenshots/inventory.jpg" width="200" alt="Inventario" /><br/><sub>Inventario y valor en anaquel</sub></td>
     <td align="center"><img src="docs/screenshots/reports.jpg" width="200" alt="Reportes" /><br/><sub>Reportes</sub></td>
   </tr>
@@ -35,7 +34,6 @@ Android: **prueba cerrada en Google Play** · iOS: **probada en dispositivo, aú
     <td align="center"><img src="docs/screenshots/end-of-day.jpg" width="200" alt="Corte del día" /><br/><sub>Corte del día</sub></td>
     <td align="center"><img src="docs/screenshots/own-consumption.jpg" width="200" alt="Consumo propio" /><br/><sub>Consumo propio</sub></td>
     <td align="center"><img src="docs/screenshots/store-settings.jpg" width="200" alt="Personalizar tienda" /><br/><sub>Datos de la tienda</sub></td>
-    <td></td>
   </tr>
 </table>
 

@@ -27,7 +27,6 @@ Android: **closed testing on Google Play** · iOS: **tested on device, not yet o
 <table>
   <tr>
     <td align="center"><img src="docs/screenshots/new-sale.jpg" width="200" alt="New sale" /><br/><sub>New sale (cash or credit)</sub></td>
-    <td align="center"><img src="docs/screenshots/credits.jpg" width="200" alt="Credit" /><br/><sub>Customers who owe money</sub></td>
     <td align="center"><img src="docs/screenshots/inventory.jpg" width="200" alt="Inventory" /><br/><sub>Inventory and stock value</sub></td>
     <td align="center"><img src="docs/screenshots/reports.jpg" width="200" alt="Reports" /><br/><sub>Reports</sub></td>
   </tr>
@@ -35,7 +34,6 @@ Android: **closed testing on Google Play** · iOS: **tested on device, not yet o
     <td align="center"><img src="docs/screenshots/end-of-day.jpg" width="200" alt="End of day" /><br/><sub>End-of-day cash summary</sub></td>
     <td align="center"><img src="docs/screenshots/own-consumption.jpg" width="200" alt="Own consumption" /><br/><sub>Owner's own consumption</sub></td>
     <td align="center"><img src="docs/screenshots/store-settings.jpg" width="200" alt="Store settings" /><br/><sub>Store settings</sub></td>
-    <td></td>
   </tr>
 </table>
 
