@@ -8,6 +8,7 @@
 
 **English** · [Español](README.es.md)
 
+[![CI](https://github.com/sosagonzales0409-max/LudyShop/actions/workflows/ci.yml/badge.svg)](https://github.com/sosagonzales0409-max/LudyShop/actions/workflows/ci.yml)
 ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-000000?logo=apple&logoColor=white)
 ![React Native 0.83](https://img.shields.io/badge/React_Native-0.83-61DAFB?logo=react&logoColor=black)
@@ -154,10 +155,11 @@ npm run ios
 ### Tests
 
 ```sh
-node qa/arnes/escenario-desde-cero.mjs   # end-to-end scenario from an empty database
-node qa/arnes/probar-acciones.mjs        # every action + integrity checks (~1 min)
-npx eslint src                            # lint
+npm test       # end-to-end scenario from an empty database + every action with integrity checks (~1 min)
+npm run lint
 ```
+
+Both run automatically on every push with [GitHub Actions](.github/workflows/ci.yml).
 
 ## License
 
