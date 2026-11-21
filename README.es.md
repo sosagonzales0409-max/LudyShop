@@ -51,7 +51,7 @@ LudyShop lleva la tienda en el teléfono, **sin necesidad de internet**: cobrar 
 - **Créditos y abonos**: deuda por cliente, pagos parciales y orden por deuda más antigua o más grande.
 - **Inventario**: productos con marca y varias presentaciones, categorías, alertas de stock bajo y valor total del inventario.
 - **Compras** a proveedores, que reabastecen el inventario y registran lo gastado.
-- **Reportes**: ingreso real (contado + abonos), venta promedio y balance, por semana, mes o año.
+- **Reportes**: ingreso real (contado + abonos), venta promedio y balance de los últimos 7 días, los últimos 30 días o el año en curso.
 - **Corte del día**: dinero cobrado hoy, separado en ventas de contado y abonos.
 - **Devoluciones, eliminar ventas y editar compras**, siempre con el inventario consistente.
 - **Copias de seguridad**: exportar e importar todos los datos en un archivo.
@@ -95,7 +95,7 @@ Cada decisión resuelve un problema concreto:
 | **Cola de escritura serial** (`persistir`) | Cada escritura corre en su propia transacción, una tras otra. Dos toques rápidos nunca se mezclan ni corrompen datos. La cola además detecta qué tablas tocó cada sentencia y avisa a las pantallas solo después del commit, un punto natural para enviar después los cambios a un servidor. |
 | **Inventario como registro de movimientos** | El stock nunca se sobreescribe. Cada cambio (venta, compra, devolución, ajuste, consumo propio) agrega un renglón a `movimientos_inventario`; la columna `stock` es una caché de esa suma, actualizada en la misma transacción. Así queda un historial completo, y deshacer una venta agrega un movimiento contrario en vez de adivinar el valor anterior. También prepara la sincronización en línea: los movimientos de varios dispositivos simplemente se juntan, mientras que dos valores de `stock` distintos chocarían. |
 | **Las ventas guardan una foto del producto** | Nombre y precio se copian al vender, así editar o borrar un producto nunca altera el historial ni los reportes. |
-| **Lista para sincronizar en línea (V2)** | Todas las tablas tienen id UUIDv7, `tienda_id`, `created_at`/`updated_at` y borrado lógico (`deleted_at`). Los ids se generan sin internet en varios dispositivos sin chocar, `updated_at` decide qué versión gana al combinar, y los borrados se pueden sincronizar en vez de desaparecer. |
+| **Lista para sincronizar en línea (V2)** | Todas las tablas de datos tienen id UUIDv7, `tienda_id`, `created_at`/`updated_at` y borrado lógico (`deleted_at`). Los ids se generan sin internet en varios dispositivos sin chocar, `updated_at` decide qué versión gana al combinar, y los borrados se pueden sincronizar en vez de desaparecer. |
 | **Migraciones versionadas que no se editan** | La versión del esquema vive en `PRAGMA user_version`. Una migración publicada nunca se cambia; las correcciones van en una nueva, dentro de una transacción (todo o nada) y sin borrar ni fusionar datos del usuario. |
 | **Redondeo de dinero y cantidades en un solo lugar** | El granel usa cantidades con decimales; el stock se actualiza con `ROUND(stock + ?, 3)` en SQL y con la misma regla en memoria, así los errores de punto flotante nunca se acumulan. |
 

@@ -48,7 +48,7 @@ En memoria solo guarda lo pequeño (`products`, `categories`, `clientes`, `confi
 - **"La BD decide"** (`decidirEnBD`: abonos, eliminar venta, editar compra…): lee y escribe dentro de la transacción y, después del commit, aplica a memoria el `efecto` con `aplicarEfecto`, que **suma deltas** de stock en vez de fijar valores.
 - Cada acción relevante registra un evento en `activity_log` (`LOG_TIPOS` / `LOG_META`).
 
-**Modelo:** todas las tablas tienen id UUIDv7, `tienda_id`, `created_at`/`updated_at` y borrado lógico (`deleted_at`), pensado para la sincronización en línea de la V2. `presentaciones.stock` es una **caché**: la fuente de verdad es `movimientos_inventario`, un registro al que solo se agregan filas. Las ventas y compras guardan una "foto" del producto, así que borrar un producto no altera el historial. Las fechas se guardan en UTC ISO y se convierten a hora local al mostrarlas.
+**Modelo:** todas las tablas de datos (todas salvo `tienda` y `meta`) tienen id UUIDv7, `tienda_id`, `created_at`/`updated_at` y borrado lógico (`deleted_at`), pensado para la sincronización en línea de la V2. `presentaciones.stock` es una **caché**: la fuente de verdad es `movimientos_inventario`, un registro al que solo se agregan filas. Las ventas y compras guardan una "foto" del producto, así que borrar un producto no altera el historial. Las fechas se guardan en UTC ISO y se convierten a hora local al mostrarlas.
 
 ## Reglas que no se deben romper
 

@@ -53,7 +53,7 @@ LudyShop puts the store on the owner's phone, **with no internet required**: cha
 - **Credit and payments**: debt per customer, partial payments, sorting by oldest or largest debt.
 - **Inventory**: products with brand and several sizes, categories, low-stock alerts and total inventory value.
 - **Purchases** from suppliers, which restock inventory and record what was spent.
-- **Reports**: real income (cash + payments received), average sale and balance, by week, month or year.
+- **Reports**: real income (cash + payments received), average sale and balance for the last 7 days, the last 30 days or the current year.
 - **End-of-day summary**: money collected today, split into cash sales and payments.
 - **Returns, deleting sales and editing purchases**, always keeping inventory consistent.
 - **Backups**: export and import all data as a file.
@@ -97,7 +97,7 @@ Each decision solves a concrete problem:
 | **Serial write queue** (`persistir`) | Every write runs in its own transaction, one after another. Two quick taps can never interleave and corrupt data. The queue also detects which tables each statement touched and notifies screens only after the commit, a natural hook for sending changes to a server later. |
 | **Inventory as an append-only ledger** | Stock is never overwritten. Each change (sale, purchase, return, adjustment, own consumption) adds a row to `movimientos_inventario`; the `stock` column is a cache of that sum, updated in the same transaction. This gives a full audit trail, and undoing a sale adds an opposite movement instead of guessing the previous value. It also prepares for online sync: movements from several devices can simply be merged, while two different `stock` values would conflict. |
 | **Sales keep a snapshot of the product** | Name and price are copied at the time of the sale, so editing or deleting a product never changes past history or reports. |
-| **Ready for online sync (v2)** | Every table has a UUIDv7 id, `tienda_id`, `created_at`/`updated_at` and soft delete (`deleted_at`). IDs can be generated offline on several devices without collisions, `updated_at` decides which version wins when merging, and deletions can be synced instead of disappearing. |
+| **Ready for online sync (v2)** | Every data table has a UUIDv7 id, `tienda_id`, `created_at`/`updated_at` and soft delete (`deleted_at`). IDs can be generated offline on several devices without collisions, `updated_at` decides which version wins when merging, and deletions can be synced instead of disappearing. |
 | **Versioned migrations that are never edited** | The schema version lives in `PRAGMA user_version`. Once a migration is published it is never changed; fixes go in a new one, run inside a transaction (all or nothing), without deleting or merging user data. |
 | **Money and quantities rounded in one place** | Bulk products use decimal quantities; stock is updated with `ROUND(stock + ?, 3)` in SQL and the same rule in memory, so floating-point errors never accumulate. |
 
