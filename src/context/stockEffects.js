@@ -1,6 +1,6 @@
 // Ayudantes de stock compartidos por el núcleo y las acciones: aplicar a
 // memoria el efecto ya guardado en la BD, con el mismo redondeo que SQLite.
-import { nombreProducto } from '../config/formato';
+import { nombreProducto } from '../config/formatting';
 
 // Parte final del evento de una venta eliminada o devuelta: dice "stock
 // devuelto" solo si de verdad volvió algo al inventario, y nombra los

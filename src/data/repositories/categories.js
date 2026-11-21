@@ -1,5 +1,5 @@
 import { getDB } from '../db';
-import { insertar, actualizar, borrarLogico } from './comunes';
+import { insertar, actualizar, borrarLogico } from './common';
 
 // ─── Repositorio de categorías ────────────────────────────────────────────────
 // Forma en memoria (la que usan las pantallas): { id, nombre }

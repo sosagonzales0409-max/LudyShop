@@ -13,8 +13,8 @@ import { StoreContext, LOG_TIPOS } from '../context/StoreContext';
 import {
   exportarCopia, revisarCopia, descartarCopia, fechaAntesDeImportar,
   RUTA_ANTES_DE_IMPORTAR, ErrorCopia, estadoCopia, registrarCopiaHecha, resumenDatos,
-} from '../data/respaldo';
-import { crearConsultaViva } from '../data/consultaViva';
+} from '../data/backup';
+import { crearConsultaViva } from '../data/liveQuery';
 import { colors, spacing, radius, fontSize, tarjeta } from '../config/theme';
 import Toast from '../ui/Toast';
 import DeleteDataModal from '../modals/DeleteDataModal';
@@ -212,7 +212,7 @@ export default class SettingsScreen extends Component {
       fechaCopia ? `Copia del ${fechaHora(fechaCopia)}` : null,
     ].filter(Boolean);
     // Teléfono recién instalado: no hay nada que reemplazar ni que guardar
-    // (respaldo.js tampoco guarda el "antes" si la app está vacía).
+    // (backup.js tampoco guarda el "antes" si la app está vacía).
     const { products, clientes } = this.context;
     const appVacia = !products.length && !clientes.length;
     Alert.alert(

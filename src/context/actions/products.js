@@ -4,9 +4,9 @@
 // Dentro de cada acción, `tienda` es lo que en la clase sería `this`.
 import { persistir } from '../../data/db';
 import { newId, nowIso } from '../../data/ids';
-import { nombreProducto } from '../../config/formato';
-import { crearProducto, crearPresentacion, editarPresentacion, editarProducto, eliminarPresentacion, eliminarProducto, registrarMovimiento } from '../../data/repositories/productos';
-import { crearCompra } from '../../data/repositories/compras';
+import { nombreProducto } from '../../config/formatting';
+import { crearProducto, crearPresentacion, editarPresentacion, editarProducto, eliminarPresentacion, eliminarProducto, registrarMovimiento } from '../../data/repositories/products';
+import { crearCompra } from '../../data/repositories/purchases';
 import { crearEvento } from '../../data/repositories/log';
 import { nuevoEvento, LOG_TIPOS } from '../activityLog';
 import { redondearStock, normalizarPresentacion } from '../stockEffects';

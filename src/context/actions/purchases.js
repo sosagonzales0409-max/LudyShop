@@ -4,8 +4,8 @@
 // Dentro de cada acción, `tienda` es lo que en la clase sería `this`.
 import { persistir } from '../../data/db';
 import { newId, nowIso } from '../../data/ids';
-import { editarPresentacion, registrarMovimiento, leerPresentaciones } from '../../data/repositories/productos';
-import { crearCompra, obtenerCompra, editarCompra as editarCompraBD, eliminarCompra as eliminarCompraBD } from '../../data/repositories/compras';
+import { editarPresentacion, registrarMovimiento, leerPresentaciones } from '../../data/repositories/products';
+import { crearCompra, obtenerCompra, editarCompra as editarCompraBD, eliminarCompra as eliminarCompraBD } from '../../data/repositories/purchases';
 import { crearEvento } from '../../data/repositories/log';
 import { nuevoEvento, LOG_TIPOS } from '../activityLog';
 import { redondearStock, existeEn, aplicarEfecto } from '../stockEffects';
@@ -154,7 +154,7 @@ export const accionesCompras = tienda => ({
   /**
    * Edita una compra ya registrada: revierte el efecto en stock/precioCompra
    * de los ítems anteriores y vuelve a aplicar los ítems nuevos, en una sola
-   * transacción. En la BD los ítems se REEMPLAZAN (ver repositories/compras.js).
+   * transacción. En la BD los ítems se REEMPLAZAN (ver repositories/purchases.js).
    *
    * El precioCompra solo se restaura al valor anterior si nadie más lo
    * cambió después de esta compra (si ya no coincide con el costoUnitario

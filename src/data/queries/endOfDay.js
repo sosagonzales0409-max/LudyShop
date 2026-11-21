@@ -1,6 +1,6 @@
 import { getDB } from '../db';
-import { aBooleano } from '../repositories/comunes';
-import { resumenPeriodo } from './historial';
+import { aBooleano } from '../repositories/common';
+import { resumenPeriodo } from './salesHistory';
 
 // ─── Consulta del Corte del día (bajo demanda) ────────────────────────────────
 // Replica las fórmulas que tenía EndOfDayModal cuando leía de memoria.

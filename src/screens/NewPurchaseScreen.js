@@ -3,12 +3,12 @@ import {
   View, Text, TouchableOpacity, Alert,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { obtenerCompra } from '../data/repositories/compras';
-import { proveedoresRecientes } from '../data/consultas/compras';
-import { crearConsultaViva } from '../data/consultaViva';
+import { obtenerCompra } from '../data/repositories/purchases';
+import { proveedoresRecientes } from '../data/queries/purchases';
+import { crearConsultaViva } from '../data/liveQuery';
 import KeyboardScrollView from '../ui/KeyboardScrollView';
 import { colors, spacing, radius, fontSize } from '../config/theme';
-import { nombreProducto, formatoDinero, formatoCantidad } from '../config/formato';
+import { nombreProducto, formatoDinero, formatoCantidad } from '../config/formatting';
 import { IconPlus, IconClose, IconShoppingBag } from '../ui/Icon';
 import Header from '../ui/Header';
 import { Seccion, Campo, FilaCampos, Casilla, BarraGuardar, NotaConfirmacion } from '../ui/FormFields';

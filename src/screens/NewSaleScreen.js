@@ -9,9 +9,9 @@ import {
   Alert,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { clientesConSaldo } from '../data/consultas/creditos';
-import { crearConsultaViva } from '../data/consultaViva';
-import { estadoCopia } from '../data/respaldo';
+import { clientesConSaldo } from '../data/queries/credits';
+import { crearConsultaViva } from '../data/liveQuery';
+import { estadoCopia } from '../data/backup';
 import ProductPickerModal from '../modals/ProductPickerModal.js';
 import ConfirmSaleModal from '../modals/ConfirmSaleModal.js';
 import NumericStepper from '../ui/NumericStepper.js';
@@ -20,7 +20,7 @@ import KeyboardScrollView from '../ui/KeyboardScrollView';
 import Header from '../ui/Header';
 import { SelectorSegmentado, BarraGuardar } from '../ui/FormFields';
 import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
-import { formatoDinero, nombreProducto } from '../config/formato';
+import { formatoDinero, nombreProducto } from '../config/formatting';
 import {
   IconClose, IconClipboard, IconCreditCard, IconSettings,
   IconBack, IconPlus, IconChevronUp, IconChevronDown, IconShoppingCart,

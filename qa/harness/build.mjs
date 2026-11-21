@@ -1,6 +1,6 @@
-// Copia el código REAL de la app (src/data, src/config/formato.js y todo
-// src/context) a qa/arnes/app como módulos .mjs, compila el JSX de
-// src/context y redirige lo nativo a sustitutos (qa/arnes/stubs):
+// Copia el código REAL de la app (src/data, src/config/formatting.js y todo
+// src/context) a qa/harness/app como módulos .mjs, compila el JSX de
+// src/context y redirige lo nativo a sustitutos (qa/harness/stubs):
 //   react / react-native / LoadingScreen → sustitutos mínimos
 //   @op-engineering/op-sqlite           → node:sqlite con la misma API
 //   uuid                                 → UUIDv7 con node:crypto
@@ -41,7 +41,7 @@ export const construir = () => {
   });
   recorrer('data');
   recorrer('context');
-  archivos.push('config/formato.js');
+  archivos.push('config/formatting.js');
 
   for (const rel of archivos) {
     let codigo = readFileSync(join(SRC, rel), 'utf8');
@@ -97,5 +97,5 @@ export const montarTienda = async ({ bd, dev = false, sembrar = false }) => {
 };
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  console.log(`construido: ${construir()} archivos en qa/arnes/app`);
+  console.log(`construido: ${construir()} archivos en qa/harness/app`);
 }

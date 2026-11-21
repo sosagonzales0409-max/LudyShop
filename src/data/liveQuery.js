@@ -1,4 +1,4 @@
-import { suscribirCambios } from './cambios';
+import { suscribirCambios } from './changes';
 
 // ─── Consulta viva: datos de una pantalla que se recargan solos ───────────────
 // Para pantallas que consultan la BD bajo demanda en vez de leer todo de

@@ -8,13 +8,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { cargarVentasPagina } from '../data/repositories/ventas';
-import { resumenPeriodo } from '../data/consultas/historial';
-import { crearConsultaViva } from '../data/consultaViva';
+import { cargarVentasPagina } from '../data/repositories/sales';
+import { resumenPeriodo } from '../data/queries/salesHistory';
+import { crearConsultaViva } from '../data/liveQuery';
 import EndOfDayModal from '../modals/EndOfDayModal';
 import ReturnModal from '../modals/ReturnModal';
 import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
-import { formatoDinero, nombreProducto } from '../config/formato';
+import { formatoDinero, nombreProducto } from '../config/formatting';
 import { IconReceipt, IconTrendingUp, IconTrash, IconCornerUp, IconChevronUp, IconChevronDown, IconInbox } from '../ui/Icon';
 import Header from '../ui/Header';
 import { ChipEstado, EstadoVacio, AvisoPrimeraVez, Resaltar } from '../ui/StatusViews';
@@ -357,7 +357,7 @@ export default class SalesHistoryScreen extends Component {
 
   renderListHeader = () => {
     const moneda = this.context.config?.moneda ?? '$';
-    // Totales calculados en SQLite (consultas/historial.js). "POR COBRAR" es
+    // Totales calculados en SQLite (queries/salesHistory.js). "POR COBRAR" es
     // lo que falta cobrar de las ventas a crédito de ESTE período (antes se
     // mostraba el crédito otorgado con esa etiqueta, que no es lo mismo).
     const r = this.state.resumen;

@@ -26,15 +26,15 @@ Android: **prueba cerrada en Google Play** · iOS: **probada en dispositivo, aú
 
 <table>
   <tr>
-    <td align="center"><img src="docs/capturas/ventas.jpg" width="200" alt="Nueva venta" /><br/><sub>Nueva venta (contado o crédito)</sub></td>
-    <td align="center"><img src="docs/capturas/credito.jpg" width="200" alt="Créditos" /><br/><sub>Clientes que deben</sub></td>
-    <td align="center"><img src="docs/capturas/inventario.jpg" width="200" alt="Inventario" /><br/><sub>Inventario y valor en anaquel</sub></td>
-    <td align="center"><img src="docs/capturas/reportes.jpg" width="200" alt="Reportes" /><br/><sub>Reportes</sub></td>
+    <td align="center"><img src="docs/screenshots/new-sale.jpg" width="200" alt="Nueva venta" /><br/><sub>Nueva venta (contado o crédito)</sub></td>
+    <td align="center"><img src="docs/screenshots/credits.jpg" width="200" alt="Créditos" /><br/><sub>Clientes que deben</sub></td>
+    <td align="center"><img src="docs/screenshots/inventory.jpg" width="200" alt="Inventario" /><br/><sub>Inventario y valor en anaquel</sub></td>
+    <td align="center"><img src="docs/screenshots/reports.jpg" width="200" alt="Reportes" /><br/><sub>Reportes</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/capturas/corte.jpg" width="200" alt="Corte del día" /><br/><sub>Corte del día</sub></td>
-    <td align="center"><img src="docs/capturas/consumopropio.jpg" width="200" alt="Consumo propio" /><br/><sub>Consumo propio</sub></td>
-    <td align="center"><img src="docs/capturas/tienda.jpg" width="200" alt="Personalizar tienda" /><br/><sub>Datos de la tienda</sub></td>
+    <td align="center"><img src="docs/screenshots/end-of-day.jpg" width="200" alt="Corte del día" /><br/><sub>Corte del día</sub></td>
+    <td align="center"><img src="docs/screenshots/own-consumption.jpg" width="200" alt="Consumo propio" /><br/><sub>Consumo propio</sub></td>
+    <td align="center"><img src="docs/screenshots/store-settings.jpg" width="200" alt="Personalizar tienda" /><br/><sub>Datos de la tienda</sub></td>
     <td></td>
   </tr>
 </table>
@@ -76,8 +76,8 @@ flowchart LR
     UI["Pantallas<br/>(src/screens)"] -->|acciones| CTX["StoreContext + actions/<br/>(acciones de negocio por dominio)"]
     CTX -->|"persistir(tx => …)"| Q["Cola de escritura serial<br/>una transacción por escritura"]
     Q --> DB[("SQLite<br/>mitienda.db")]
-    Q -->|"tras el commit:<br/>tablas escritas"| EV["cambios.js<br/>avisos de cambio"]
-    EV --> LIVE["consultaViva<br/>consultas vivas"]
+    Q -->|"tras el commit:<br/>tablas escritas"| EV["changes.js<br/>avisos de cambio"]
+    EV --> LIVE["liveQuery.js<br/>consultas vivas"]
     LIVE -->|recarga| UI
     DB -->|"lecturas (SQL)"| LIVE
 ```
@@ -103,10 +103,10 @@ Cada decisión resuelve un problema concreto:
 
 Las pruebas unitarias de React Native no pueden correr fácilmente una base SQLite real, así que el proyecto tiene su propio arnés en [`qa/`](qa/):
 
-- **Corre el código real**: `qa/arnes/construir.mjs` copia la capa de datos y el `StoreContext` reales y sustituye solo los módulos nativos (op-sqlite → `node:sqlite` de Node, React Native → sustitutos).
+- **Corre el código real**: `qa/harness/build.mjs` copia la capa de datos y el `StoreContext` reales y sustituye solo los módulos nativos (op-sqlite → `node:sqlite` de Node, React Native → sustitutos).
 - **Escenarios de acciones**: siembra un año de datos y ejecuta cada acción de negocio (ventas, crédito, abonos, devoluciones, compras, eliminaciones), revisando stock y saldos después de cada una.
 - **Oráculo de dinero**: recalcula cada total esperado en JavaScript a partir de las filas crudas, sin usar el SQL de la app, y lo cruza con las consultas de los reportes.
-- **Verificaciones de integridad** ([`qa/integridad.sql`](qa/integridad.sql)): invariantes de la BD, por ejemplo que la caché de stock sea igual a la suma de sus movimientos.
+- **Verificaciones de integridad** ([`qa/integrity.sql`](qa/integrity.sql)): invariantes de la BD, por ejemplo que la caché de stock sea igual a la suma de sus movimientos.
 
 ## Estructura del proyecto
 
@@ -121,10 +121,10 @@ src/
 └── data/
     ├── db.js           # Conexión y cola de escritura persistir()
     ├── migrations.js   # Esquema versionado
-    ├── consultaViva.js # Consultas vivas
+    ├── liveQuery.js    # Consultas vivas
     ├── repositories/   # Escrituras por entidad
-    ├── consultas/      # Lecturas SQL agregadas por pantalla
-    └── respaldo.js     # Exportar e importar copias de seguridad
+    ├── queries/        # Lecturas SQL agregadas por pantalla
+    └── backup.js       # Exportar e importar copias de seguridad
 qa/                 # Arnés de pruebas, oráculo de dinero e integridad
 ```
 

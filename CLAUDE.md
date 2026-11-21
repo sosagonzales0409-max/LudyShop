@@ -6,7 +6,7 @@ Guía para Claude Code (y para cualquier persona) al trabajar en este repositori
 
 **LudyShop** (`com.ludyshop.app`): app React Native 0.83 para Android e iOS, sin internet, para tiendas de abarrotes: ventas al contado y a crédito, abonos, inventario (incluye granel), compras, reportes, corte del día y copias de seguridad. Android ya está en Google Play (prueba cerrada).
 
-**Idioma:** el código (variables, funciones, tablas), los comentarios, los mensajes de commit y los textos de la app están en español; mantenlo. Los archivos y componentes **nuevos** se nombran en inglés. No renombres ni muevas archivos existentes sin pedirlo: el arnés depende de algunas rutas (ver `STUBS` en `qa/arnes/construir.mjs`).
+**Idioma:** el código (variables, funciones, tablas), los comentarios, los mensajes de commit y los textos de la app están en español; mantenlo. Los archivos y componentes **nuevos** se nombran en inglés. No renombres ni muevas archivos existentes sin pedirlo: el arnés depende de algunas rutas (ver `STUBS` en `qa/harness/build.mjs`).
 
 ## Comandos
 
@@ -19,12 +19,12 @@ Guía para Claude Code (y para cualquier persona) al trabajar en este repositori
 
 No hay Jest: las pruebas son el arnés de `qa/`. `npm test` corre los dos primeros scripts de abajo, y GitHub Actions (`.github/workflows/ci.yml`) corre `npm run lint` + `npm test` en cada push a cualquier rama y en cada PR a `main`, con `TZ=America/Mexico_City`.
 
-- `node qa/arnes/escenario-desde-cero.mjs` → termina en "✅ ESCENARIO "DESDE 0" VERIFICADO".
-- `node qa/arnes/probar-acciones.mjs` → todas las verificaciones en ✅, "Integridad: 21 verificaciones · 0 problemas", "✅ ACCIONES VERIFICADAS" (~1 min, siembra un año de datos y deja la BD sembrada en `qa/datos/semilla-node.db`).
-- Oráculo de las consultas de dinero (después de `probar-acciones.mjs`, que genera la BD): `node qa/valores-esperados.mjs qa/datos/semilla-node.db qa/datos/semilla-esperados.md` y después `node qa/arnes/cruzar-oraculo.mjs qa/datos/semilla-node.db qa/datos/semilla-esperados.md` → "✅ El oráculo coincide…".
-- `qa/integridad.sql`: invariantes de la BD (todas deben devolver 0 problemas). `qa/extraer-bd.cmd` saca la BD real del teléfono para revisarla.
+- `node qa/harness/scenario-from-scratch.mjs` → termina en "✅ ESCENARIO "DESDE 0" VERIFICADO".
+- `node qa/harness/test-actions.mjs` → todas las verificaciones en ✅, "Integridad: 21 verificaciones · 0 problemas", "✅ ACCIONES VERIFICADAS" (~1 min, siembra un año de datos y deja la BD sembrada en `qa/data/semilla-node.db`).
+- Oráculo de las consultas de dinero (después de `test-actions.mjs`, que genera la BD): `node qa/expected-values.mjs qa/data/semilla-node.db qa/data/semilla-esperados.md` y después `node qa/harness/check-oracle.mjs qa/data/semilla-node.db qa/data/semilla-esperados.md` → "✅ El oráculo coincide…".
+- `qa/integrity.sql`: invariantes de la BD (todas deben devolver 0 problemas). `qa/pull-db.cmd` saca la BD real del teléfono para revisarla.
 
-Cómo funciona el arnés: `qa/arnes/construir.mjs` copia el código **real** de `src/data`, `src/config/formato.js` y todo `src/context` a `qa/arnes/app/*.mjs` (generado, no editar) y sustituye los paquetes (react, react-native, op-sqlite → `node:sqlite`, uuid, react-native-fs; en `STUBS`) y algunos componentes de la app (`ui/LoadingScreen`, `ui/Toast`; en `STUBS_APP`, por el archivo al que apunta el import) con `qa/arnes/stubs`. Si agregas en esos archivos un import de un paquete (cualquier import no relativo) o de un componente de la interfaz, agrega su sustituto; si no, `construir.mjs` falla. Estas pruebas **no** cubren la interfaz.
+Cómo funciona el arnés: `qa/harness/build.mjs` copia el código **real** de `src/data`, `src/config/formatting.js` y todo `src/context` a `qa/harness/app/*.mjs` (generado, no editar) y sustituye los paquetes (react, react-native, op-sqlite → `node:sqlite`, uuid, react-native-fs; en `STUBS`) y algunos componentes de la app (`ui/LoadingScreen`, `ui/Toast`; en `STUBS_APP`, por el archivo al que apunta el import) con `qa/harness/stubs`. Si agregas en esos archivos un import de un paquete (cualquier import no relativo) o de un componente de la interfaz, agrega su sustituto; si no, `build.mjs` falla. Estas pruebas **no** cubren la interfaz.
 
 ## Arquitectura
 
@@ -32,11 +32,11 @@ Cómo funciona el arnés: `qa/arnes/construir.mjs` copia el código **real** de 
 
 **Capa de datos (`src/data/`, SQLite con op-sqlite, archivo `mitienda.db`, modo WAL):**
 
-- `db.js`: `initDB()` al arrancar; `getDB().execute` **solo para leer**; **toda escritura** pasa por `persistir(async tx => …, etiqueta)`, una cola serial donde cada escritura va en su propia transacción. `persistir` detecta qué tablas escribe cada sentencia y, tras el commit, avisa a los suscriptores (`cambios.js`).
-- `consultaViva.js`: las pantallas que consultan la BD bajo demanda (historial, reportes, créditos, log…) usan `crearConsultaViva({ tablas, cargar, alCargar })` y se recargan solas cuando otra acción escribe en esas tablas (con protección contra respuestas desordenadas). Llamar a `detener()` en `componentWillUnmount`.
-- `repositories/`: escrituras por entidad. Usan `insertar` / `actualizar` / `borrarLogico` de `comunes.js`, que llenan `tienda_id`, `created_at`, `updated_at` y `deleted_at`.
-- `consultas/`: lecturas SQL agregadas por pantalla (corte, reportes, créditos, historial, compras, producto).
-- `migrations.js` (versión en `PRAGMA user_version`), `ids.js` (UUIDv7, `nowIso`), `nombres.js` (`normalizarNombre`: única regla de "mismo cliente"), `seed.js` (datos de un año, solo en `__DEV__` y con `SEED_AUTOMATICO`), `respaldo.js` (exportar e importar la copia).
+- `db.js`: `initDB()` al arrancar; `getDB().execute` **solo para leer**; **toda escritura** pasa por `persistir(async tx => …, etiqueta)`, una cola serial donde cada escritura va en su propia transacción. `persistir` detecta qué tablas escribe cada sentencia y, tras el commit, avisa a los suscriptores (`changes.js`).
+- `liveQuery.js`: las pantallas que consultan la BD bajo demanda (historial, reportes, créditos, log…) usan `crearConsultaViva({ tablas, cargar, alCargar })` y se recargan solas cuando otra acción escribe en esas tablas (con protección contra respuestas desordenadas). Llamar a `detener()` en `componentWillUnmount`.
+- `repositories/`: escrituras por entidad. Usan `insertar` / `actualizar` / `borrarLogico` de `common.js`, que llenan `tienda_id`, `created_at`, `updated_at` y `deleted_at`.
+- `queries/`: lecturas SQL agregadas por pantalla (corte, reportes, créditos, historial, compras, producto).
+- `migrations.js` (versión en `PRAGMA user_version`), `ids.js` (UUIDv7, `nowIso`), `names.js` (`normalizarNombre`: única regla de "mismo cliente"), `seed.js` (datos de un año, solo en `__DEV__` y con `SEED_AUTOMATICO`), `backup.js` (exportar e importar la copia).
 
 **`src/context/`** contiene el estado y todas las acciones:
 - `StoreContext.js`: el núcleo (`StoreProvider`: estado, arranque, recarga desde la BD, `decidirEnBD`, log, configuración y `render()`, que entrega cada acción por nombre al contexto).
@@ -57,7 +57,7 @@ En memoria solo guarda lo pequeño (`products`, `categories`, `clientes`, `confi
 3. La app ya está en Google Play (prueba cerrada, versionCode 1, con la migración 1) y puede haber usuarios con datos, así que **no se editan migraciones existentes**. Los cambios de esquema van en una migración nueva al final de `MIGRACIONES`: una sentencia por elemento de `sql` y, si hace falta transformar datos, `js(tx)`. Nunca borrar ni fusionar datos del usuario. Si cambias `normalizarNombre`, agrega una migración que recalcule `nombre_norm`.
 4. Los nombres de tabla y columna salen del código; los valores van **siempre** como parámetros `?`.
 5. Las lecturas filtran con `deleted_at IS NULL`.
-6. Mostrar dinero y cantidades con `formatoDinero`, `formatoCantidad` y `nombreProducto` de `src/config/formato.js`. Los colores y tamaños están en `src/config/theme.js`.
-7. Si cambias una consulta de dinero, actualiza también el oráculo (`qa/valores-esperados.mjs`) y vuelve a cruzarlo.
+6. Mostrar dinero y cantidades con `formatoDinero`, `formatoCantidad` y `nombreProducto` de `src/config/formatting.js`. Los colores y tamaños están en `src/config/theme.js`.
+7. Si cambias una consulta de dinero, actualiza también el oráculo (`qa/expected-values.mjs`) y vuelve a cruzarlo.
 8. No agregar dependencias nativas sin consultarlo antes.
 9. Antes de cambiar una regla de negocio (devoluciones, abonos, clientes con el mismo nombre, granel, ganancia), pregunta: son decisiones del dueño del producto.

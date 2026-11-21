@@ -26,15 +26,15 @@ Android: **closed testing on Google Play** · iOS: **tested on device, not yet o
 
 <table>
   <tr>
-    <td align="center"><img src="docs/capturas/ventas.jpg" width="200" alt="New sale" /><br/><sub>New sale (cash or credit)</sub></td>
-    <td align="center"><img src="docs/capturas/credito.jpg" width="200" alt="Credit" /><br/><sub>Customers who owe money</sub></td>
-    <td align="center"><img src="docs/capturas/inventario.jpg" width="200" alt="Inventory" /><br/><sub>Inventory and stock value</sub></td>
-    <td align="center"><img src="docs/capturas/reportes.jpg" width="200" alt="Reports" /><br/><sub>Reports</sub></td>
+    <td align="center"><img src="docs/screenshots/new-sale.jpg" width="200" alt="New sale" /><br/><sub>New sale (cash or credit)</sub></td>
+    <td align="center"><img src="docs/screenshots/credits.jpg" width="200" alt="Credit" /><br/><sub>Customers who owe money</sub></td>
+    <td align="center"><img src="docs/screenshots/inventory.jpg" width="200" alt="Inventory" /><br/><sub>Inventory and stock value</sub></td>
+    <td align="center"><img src="docs/screenshots/reports.jpg" width="200" alt="Reports" /><br/><sub>Reports</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/capturas/corte.jpg" width="200" alt="End of day" /><br/><sub>End-of-day cash summary</sub></td>
-    <td align="center"><img src="docs/capturas/consumopropio.jpg" width="200" alt="Own consumption" /><br/><sub>Owner's own consumption</sub></td>
-    <td align="center"><img src="docs/capturas/tienda.jpg" width="200" alt="Store settings" /><br/><sub>Store settings</sub></td>
+    <td align="center"><img src="docs/screenshots/end-of-day.jpg" width="200" alt="End of day" /><br/><sub>End-of-day cash summary</sub></td>
+    <td align="center"><img src="docs/screenshots/own-consumption.jpg" width="200" alt="Own consumption" /><br/><sub>Owner's own consumption</sub></td>
+    <td align="center"><img src="docs/screenshots/store-settings.jpg" width="200" alt="Store settings" /><br/><sub>Store settings</sub></td>
     <td></td>
   </tr>
 </table>
@@ -78,8 +78,8 @@ flowchart LR
     UI["Screens<br/>(src/screens)"] -->|actions| CTX["StoreContext + actions/<br/>(business actions by domain)"]
     CTX -->|"persistir(tx => …)"| Q["Serial write queue<br/>one transaction per write"]
     Q --> DB[("SQLite<br/>mitienda.db")]
-    Q -->|"after commit:<br/>tables written"| EV["cambios.js<br/>change notifications"]
-    EV --> LIVE["consultaViva<br/>live queries"]
+    Q -->|"after commit:<br/>tables written"| EV["changes.js<br/>change notifications"]
+    EV --> LIVE["liveQuery.js<br/>live queries"]
     LIVE -->|reload| UI
     DB -->|"reads (SQL)"| LIVE
 ```
@@ -105,10 +105,10 @@ Each decision solves a concrete problem:
 
 React Native unit tests can't easily run a real SQLite database, so the project has its own harness in [`qa/`](qa/):
 
-- **Runs the real code**: `qa/arnes/construir.mjs` copies the actual data layer and `StoreContext` and replaces only the native modules (op-sqlite → Node's built-in `node:sqlite`, React Native → stubs).
+- **Runs the real code**: `qa/harness/build.mjs` copies the actual data layer and `StoreContext` and replaces only the native modules (op-sqlite → Node's built-in `node:sqlite`, React Native → stubs).
 - **Action scenarios**: seeds a year of data and runs every business action (sales, credit, payments, returns, purchases, deletions), checking stock and balances after each one.
 - **Money oracle**: recomputes every expected total in plain JavaScript from the raw rows, without using the app's SQL, and cross-checks it against the app's report queries.
-- **Integrity checks** ([`qa/integridad.sql`](qa/integridad.sql)): database invariants, e.g. the stock cache equals the sum of its movements.
+- **Integrity checks** ([`qa/integrity.sql`](qa/integrity.sql)): database invariants, e.g. the stock cache equals the sum of its movements.
 
 ## Project structure
 
@@ -123,10 +123,10 @@ src/
 └── data/
     ├── db.js           # Connection and persistir() write queue
     ├── migrations.js   # Versioned schema
-    ├── consultaViva.js # Live queries
+    ├── liveQuery.js    # Live queries
     ├── repositories/   # Writes per entity
-    ├── consultas/      # Aggregated SQL reads per screen
-    └── respaldo.js     # Backup export/import
+    ├── queries/        # Aggregated SQL reads per screen
+    └── backup.js       # Backup export/import
 qa/                 # Test harness, money oracle and integrity checks
 ```
 

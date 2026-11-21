@@ -1,5 +1,5 @@
 import { getDB } from '../db';
-import { insertar } from './comunes';
+import { insertar } from './common';
 
 // ─── Repositorio del registro de actividad ────────────────────────────────────
 // Forma para las pantallas: { id, tipo, fecha, desc }

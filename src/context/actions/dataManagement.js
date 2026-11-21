@@ -6,8 +6,8 @@ import { Alert } from 'react-native';
 import Toast from '../../ui/Toast';
 import { getDB, esperarEscrituras } from '../../data/db';
 import { reiniciarConSemilla, vaciarDatos } from '../../data/seed';
-import { reemplazarConCopia, borrarAntesDeImportar, ErrorCopia } from '../../data/respaldo';
-import { prepararTienda } from '../../data/repositories/tienda';
+import { reemplazarConCopia, borrarAntesDeImportar, ErrorCopia } from '../../data/backup';
+import { prepararTienda } from '../../data/repositories/store';
 import { LOG_TIPOS } from '../activityLog';
 
 export const accionesDatos = tienda => ({

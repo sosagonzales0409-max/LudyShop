@@ -1,6 +1,6 @@
 import { getDB, getMeta, setMeta, persistir } from '../db';
 import { newId, nowIso } from '../ids';
-import { actualizar, setTiendaId } from './comunes';
+import { actualizar, setTiendaId } from './common';
 
 // ─── Repositorio de la tienda (antes `config` en StoreContext) ────────────────
 // Forma en memoria: { nombreTienda, nombreDueno, moneda, umbralStock }

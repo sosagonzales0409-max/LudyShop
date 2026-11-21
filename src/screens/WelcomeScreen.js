@@ -5,7 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StoreContext } from '../context/StoreContext';
 import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
-import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formato';
+import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formatting';
 import Header, { EtiquetaEncabezado } from '../ui/Header';
 import NumericStepper from '../ui/NumericStepper';
 import { BarraGuardar } from '../ui/FormFields';

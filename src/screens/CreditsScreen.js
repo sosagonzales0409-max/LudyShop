@@ -8,11 +8,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { clientesConSaldo } from '../data/consultas/creditos';
-import { crearConsultaViva } from '../data/consultaViva';
+import { clientesConSaldo } from '../data/queries/credits';
+import { crearConsultaViva } from '../data/liveQuery';
 import PaymentModal from '../modals/PaymentModal';
 import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
-import { formatoDinero } from '../config/formato';
+import { formatoDinero } from '../config/formatting';
 import { IconChevron, IconCheckCircle } from '../ui/Icon';
 import Header, { EtiquetaEncabezado } from '../ui/Header';
 import { ChipEstado, EstadoVacio, AvisoPrimeraVez, Resaltar } from '../ui/StatusViews';

@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { formatoDinero } from '../config/formato';
+import { formatoDinero } from '../config/formatting';
 import { IconClose } from '../ui/Icon';
 import { StoreContext } from '../context/StoreContext';
 

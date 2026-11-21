@@ -9,7 +9,7 @@ import {
   Switch,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { formatoDinero } from '../config/formato';
+import { formatoDinero } from '../config/formatting';
 import { StoreContext } from '../context/StoreContext';
 
 /**

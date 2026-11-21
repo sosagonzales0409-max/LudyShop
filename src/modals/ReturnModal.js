@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import NumericStepper from '../ui/NumericStepper';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formato';
+import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formatting';
 import { StoreContext } from '../context/StoreContext';
 import { IconClose } from '../ui/Icon';
 

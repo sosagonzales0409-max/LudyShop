@@ -1,5 +1,5 @@
 import { getDB } from '../db';
-import { resumenPeriodo } from './historial';
+import { resumenPeriodo } from './salesHistory';
 
 // ─── Consultas de Reportes (bajo demanda) ─────────────────────────────────────
 // Antes ReportsScreen recorría TODAS las ventas una vez por día de la gráfica

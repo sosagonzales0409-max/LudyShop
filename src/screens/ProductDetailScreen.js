@@ -7,12 +7,12 @@ import {
   Alert,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { infoPresentaciones } from '../data/consultas/producto';
-import { crearConsultaViva } from '../data/consultaViva';
+import { infoPresentaciones } from '../data/queries/product';
+import { crearConsultaViva } from '../data/liveQuery';
 import AddStockModal from '../modals/AddStockModal';
 import EditProductInfoModal from '../modals/EditProductInfoModal';
 import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
-import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formato';
+import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formatting';
 import { IconEdit, IconTrash, IconPlus, IconBack, IconShoppingBag } from '../ui/Icon';
 import Header from '../ui/Header';
 import { ChipEstado } from '../ui/StatusViews';

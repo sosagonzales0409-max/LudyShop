@@ -8,7 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { colors, spacing, radius, fontSize, tarjeta } from '../config/theme';
-import { formatoDinero } from '../config/formato';
+import { formatoDinero } from '../config/formatting';
 import { StoreContext } from '../context/StoreContext';
 import { IconClose } from '../ui/Icon';
 import { CampoBusqueda } from '../ui/FormFields';

@@ -3,15 +3,15 @@
 // reales de StoreContext (persistir, cola y transacciones reales).
 // Después de cada acción compara memoria vs BD, y al final corre la batería
 // de integridad.
-//   node qa/arnes/probar-acciones.mjs
-// Deja la BD sembrada (antes de las pruebas) en qa/datos/semilla-node.db.
+//   node qa/harness/test-actions.mjs
+// Deja la BD sembrada (antes de las pruebas) en qa/data/semilla-node.db.
 import { readFileSync, rmSync, mkdirSync, copyFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { construir, montarTienda } from './construir.mjs';
+import { construir, montarTienda } from './build.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
-const DATOS = join(AQUI, '..', 'datos');
+const DATOS = join(AQUI, '..', 'data');
 const BD = join(DATOS, 'acciones.db');
 mkdirSync(DATOS, { recursive: true });
 for (const s of ['', '-wal', '-shm']) rmSync(BD + s, { force: true });
@@ -22,7 +22,7 @@ const { store, esperarEscrituras, crudo: db } = await montarTienda({ bd: BD, dev
 db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
 copyFileSync(BD, join(DATOS, 'semilla-node.db'));
 globalThis.__DEV__ = false; // de aquí en adelante, sin registros de rendimiento
-const { suscribirCambios } = await import('./app/data/cambios.mjs');
+const { suscribirCambios } = await import('./app/data/changes.mjs');
 
 let fallos = 0;
 const reporta = (ok, texto) => { if (!ok) fallos++; console.log(`${ok ? '✅' : '❌'} ${texto}`); };
@@ -273,7 +273,7 @@ await esperarEscrituras();
 reporta(avisadas.length > 0, `Notificaciones de cambios tras commit: ${avisadas.length} (las pantallas se refrescan solas)`);
 
 // ═══ 8. Batería de integridad ═══
-const filas = q(readFileSync(join(AQUI, '..', 'integridad.sql'), 'utf8'));
+const filas = q(readFileSync(join(AQUI, '..', 'integrity.sql'), 'utf8'));
 const malos = filas.filter(f => f.problemas);
 reporta(!malos.length, `Integridad: ${filas.length} verificaciones · ${malos.reduce((s, f) => s + f.problemas, 0)} problemas${malos.length ? ' → ' + JSON.stringify(malos) : ''}`);
 

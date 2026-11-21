@@ -1,5 +1,5 @@
 import { getDB } from '../db';
-import { cargarVentasCreditoCliente } from '../repositories/ventas';
+import { cargarVentasCreditoCliente } from '../repositories/sales';
 
 // ─── Consultas de Créditos (bajo demanda) ─────────────────────────────────────
 // Antes CreditsScreen, CustomerDebtScreen, NewSaleScreen (selector de clientes con

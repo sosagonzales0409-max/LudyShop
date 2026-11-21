@@ -9,10 +9,10 @@ import {
 } from 'react-native';
 import { BarChart } from 'react-native-gifted-charts';
 import { StoreContext } from '../context/StoreContext';
-import { cargarReportes, armarBarras, ordenarTop, verificarZonaHoraria } from '../data/consultas/reportes';
-import { crearConsultaViva } from '../data/consultaViva';
+import { cargarReportes, armarBarras, ordenarTop, verificarZonaHoraria } from '../data/queries/reports';
+import { crearConsultaViva } from '../data/liveQuery';
 import { colors, spacing, radius, fontSize, tarjeta } from '../config/theme';
-import { formatoDinero, formatoCantidad } from '../config/formato';
+import { formatoDinero, formatoCantidad } from '../config/formatting';
 import {
   IconMoney, IconReceipt, IconWarning, IconShoppingBag, IconChart, IconShoppingCart,
   IconCreditCard, IconInbox, IconPackage,
@@ -44,7 +44,7 @@ const PERIODOS = [
   { key: 'año', label: 'Este año' },
 ];
 
-// (Los nombres de día/mes de las barras viven en consultas/reportes.js.)
+// (Los nombres de día/mes de las barras viven en queries/reports.js.)
 const MESES =['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const COLORES_PUESTO = [colors.success, colors.primary, colors.warning, colors.textSecondary, colors.textMuted];
 // Mismo orden, pero para TEXTO (el % de cada puesto): warning no se lee como
@@ -53,7 +53,7 @@ const TINTAS_PUESTO = [colors.successDark, colors.primaryDark, colors.warningDar
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmt      = (moneda, v) => formatoDinero(v, moneda); // formato único (config/formato.js)
+const fmt      = (moneda, v) => formatoDinero(v, moneda); // formato único (config/formatting.js)
 
 /**
  * Calcula maxValue y stepValue para el eje Y de gifted-charts.
@@ -107,7 +107,7 @@ function horaActual() {
  * ReportsScreen — KPIs, gráfica, top productos y flujo de dinero del período.
  *
  * Datos BAJO DEMANDA: al entrar y al cambiar de período se consulta todo a
- * SQLite de una vez (consultas/reportes.js, incluye los dos modos de la
+ * SQLite de una vez (queries/reports.js, incluye los dos modos de la
  * gráfica y los dos criterios del top). Tocar barras, cambiar de modo o de
  * criterio ya no calcula nada (antes: ~7 s por toque con "año").
  * Se refresca sola si cambian ventas, abonos o compras.
@@ -179,7 +179,7 @@ export default class ReportsScreen extends Component {
 
   // ─── Datos para las secciones (desde lo consultado, sin recorrer ventas) ──
   // Devuelven la MISMA forma que cuando se calculaban en memoria, así las
-  // secciones de dibujo no cambian. Las fórmulas viven en consultas/reportes.js.
+  // secciones de dibujo no cambian. Las fórmulas viven en queries/reports.js.
 
   getDatosGrafica() {
     const { datos, periodo, modoVentas: modo } = this.state;

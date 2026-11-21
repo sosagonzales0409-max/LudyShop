@@ -79,5 +79,5 @@ android/app/keystore.properties
 
 # QA: copias de la BD del teléfono, hojas generadas y la copia de la app que
 # arma el arnés de pruebas (se regeneran con los scripts de qa/)
-/qa/datos/
-/qa/arnes/app/
+/qa/data/
+/qa/harness/app/

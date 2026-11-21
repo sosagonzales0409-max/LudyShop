@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { LOG_META } from '../context/StoreContext';
 import { cargarLog, contarLog } from '../data/repositories/log';
-import { crearConsultaViva } from '../data/consultaViva';
+import { crearConsultaViva } from '../data/liveQuery';
 import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
 import { IconShoppingCart, IconCreditCard, IconTruck, IconPackage, IconHistory } from '../ui/Icon';
 import Header, { EtiquetaEncabezado } from '../ui/Header';

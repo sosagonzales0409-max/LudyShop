@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
 import { colors, spacing, radius, fontSize, tarjeta } from '../config/theme';
-import { formatoDinero, formatoCantidad } from '../config/formato';
+import { formatoDinero, formatoCantidad } from '../config/formatting';
 import { IconShoppingBag, IconCheckCircle } from '../ui/Icon';
 import Header, { EtiquetaEncabezado } from '../ui/Header';
 import { ChipEstado, EstadoVacio } from '../ui/StatusViews';

@@ -4,10 +4,10 @@
 // Dentro de cada acción, `tienda` es lo que en la clase sería `this`.
 import { persistir } from '../../data/db';
 import { newId, nowIso } from '../../data/ids';
-import { nombreProducto, formatoCantidad } from '../../config/formato';
-import { registrarMovimiento, leerPresentaciones } from '../../data/repositories/productos';
-import { crearCliente, limpiarNombre, normalizarNombre } from '../../data/repositories/clientes';
-import { crearVenta, actualizarTotalesVenta, obtenerVenta, ventasCreditoConSaldo, eliminarVenta as eliminarVentaBD, actualizarItemVenta, eliminarItemVenta, crearAbono, actualizarMontoAbono } from '../../data/repositories/ventas';
+import { nombreProducto, formatoCantidad } from '../../config/formatting';
+import { registrarMovimiento, leerPresentaciones } from '../../data/repositories/products';
+import { crearCliente, limpiarNombre, normalizarNombre } from '../../data/repositories/customers';
+import { crearVenta, actualizarTotalesVenta, obtenerVenta, ventasCreditoConSaldo, eliminarVenta as eliminarVentaBD, actualizarItemVenta, eliminarItemVenta, crearAbono, actualizarMontoAbono } from '../../data/repositories/sales';
 import { crearEvento } from '../../data/repositories/log';
 import { nuevoEvento, LOG_TIPOS } from '../activityLog';
 import { textoStock, redondearStock, existeEn, aplicarEfecto } from '../stockEffects';

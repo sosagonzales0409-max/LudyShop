@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
 import { IconClose, IconWarning } from '../ui/Icon';
-import { formatoCantidad } from '../config/formato';
+import { formatoCantidad } from '../config/formatting';
 
 /**
  * Mini-modal para sumar unidades a una presentación existente.

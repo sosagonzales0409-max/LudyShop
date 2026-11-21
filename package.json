@@ -1,6 +1,6 @@
 {
   "name": "ludyshop",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
@@ -8,7 +8,7 @@
     "ios": "react-native run-ios",
     "lint": "eslint src",
     "start": "react-native start",
-    "test": "node qa/arnes/escenario-desde-cero.mjs && node qa/arnes/probar-acciones.mjs"
+    "test": "node qa/harness/scenario-from-scratch.mjs && node qa/harness/test-actions.mjs"
   },
   "dependencies": {
     "@dr.pogodin/react-native-fs": "^2.40.3",

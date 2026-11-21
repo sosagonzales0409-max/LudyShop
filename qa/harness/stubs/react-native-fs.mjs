@@ -1,13 +1,13 @@
 // Sustituto de @dr.pogodin/react-native-fs para el arnés (Node).
-// Solo lo que usa src/data/respaldo.js, con node:fs sobre una carpeta
-// temporal: así respaldo.js se puede cargar (y, si una prueba lo usa,
+// Solo lo que usa src/data/backup.js, con node:fs sobre una carpeta
+// temporal: así backup.js se puede cargar (y, si una prueba lo usa,
 // exportar/importar copias) sin el módulo nativo.
 import { mkdirSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const BASE = join(tmpdir(), 'mitienda-arnes');
+const BASE = join(tmpdir(), 'mitienda-harness');
 export const DocumentDirectoryPath = join(BASE, 'documentos');
 export const CachesDirectoryPath = join(BASE, 'cache');
 mkdirSync(DocumentDirectoryPath, { recursive: true });

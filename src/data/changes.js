@@ -1,5 +1,5 @@
 // ─── Aviso de cambios en la BD ────────────────────────────────────────────────
-// Las pantallas que consultan la BD bajo demanda (ver consultaViva.js) se
+// Las pantallas que consultan la BD bajo demanda (ver liveQuery.js) se
 // suscriben a las tablas que muestran; persistir() (db.js) avisa qué tablas
 // escribió cada transacción, DESPUÉS de confirmarla. Así una pantalla abierta
 // se refresca sola cuando otra acción cambia sus datos (p. ej. el historial

@@ -1,9 +1,9 @@
 // Hoja de VALORES ESPERADOS para el QA manual, calculada desde una copia de
 // la base de datos del teléfono.
 //
-//   node qa/valores-esperados.mjs [bd] [salida.md]
-//     bd       por defecto qa/datos/mitienda.db (ver qa/extraer-bd.cmd)
-//     salida   por defecto qa/datos/VALORES_ESPERADOS.md
+//   node qa/expected-values.mjs [bd] [salida.md]
+//     bd       por defecto qa/data/mitienda.db (ver qa/pull-db.cmd)
+//     salida   por defecto qa/data/VALORES_ESPERADOS.md
 //
 // Es un ORÁCULO INDEPENDIENTE: lee las filas crudas y calcula todo en
 // JavaScript recorriéndolas (como hacía la app cuando tenía todo en memoria),
@@ -20,10 +20,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
-const RUTA_BD = process.argv[2] ?? join(AQUI, 'datos', 'mitienda.db');
-const SALIDA = process.argv[3] ?? join(AQUI, 'datos', 'VALORES_ESPERADOS.md');
+const RUTA_BD = process.argv[2] ?? join(AQUI, 'data', 'mitienda.db');
+const SALIDA = process.argv[3] ?? join(AQUI, 'data', 'VALORES_ESPERADOS.md');
 if (!existsSync(RUTA_BD)) {
-  console.error(`No existe ${RUTA_BD}. Extrae la base del teléfono con qa\\extraer-bd.cmd`);
+  console.error(`No existe ${RUTA_BD}. Extrae la base del teléfono con qa\\pull-db.cmd`);
   process.exit(1);
 }
 const db = new DatabaseSync(RUTA_BD);
@@ -54,7 +54,7 @@ const productoDe = new Map(productos.map(p => [p.id, p]));
 const catalogo = presentaciones.filter(p => productoDe.has(p.producto_id)).map(p => ({ ...p, prod: productoDe.get(p.producto_id) }));
 const productosVisibles = productos.filter(p => catalogo.some(x => x.producto_id === p.id));
 
-// ─── Formato (igual que src/config/formato.js) ───────────────────────────────
+// ─── Formato (igual que src/config/formatting.js) ───────────────────────────────
 const dinero = n => `${n < 0 ? '-' : ''}${M}${Math.abs(Number(n) || 0).toFixed(2)}`;
 const cantidad = n => String(Math.round((Number(n) || 0) * 1000) / 1000);
 const nombreProd = (n, t) => [n, t].map(s => (s || '').trim()).filter(Boolean).join(' ');
@@ -86,7 +86,7 @@ L(`Generado el **${fecha(iso(ahora))} ${hora(iso(ahora))}** (hora de esta PC) de
   '> Revisa el teléfono **hoy**, sin hacer ventas ni cambios desde que extrajiste la base. Todo se calculó en JavaScript recorriendo las filas (independiente de las consultas de la app).', '');
 
 // ─── 0. Integridad ───────────────────────────────────────────────────────────
-const integridad = q(readFileSync(join(AQUI, 'integridad.sql'), 'utf8'));
+const integridad = q(readFileSync(join(AQUI, 'integrity.sql'), 'utf8'));
 const malos = integridad.filter(f => f.problemas);
 L('## 0. Integridad de la base', '', malos.length
   ? `❌ **${malos.length} verificaciones con problemas** (de ${integridad.length}):`

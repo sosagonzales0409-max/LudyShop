@@ -4,11 +4,11 @@ import {
   Alert, ActivityIndicator,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { cargarComprasPagina } from '../data/repositories/compras';
-import { resumenCompras, vendidasDespuesDe } from '../data/consultas/compras';
-import { crearConsultaViva } from '../data/consultaViva';
+import { cargarComprasPagina } from '../data/repositories/purchases';
+import { resumenCompras, vendidasDespuesDe } from '../data/queries/purchases';
+import { crearConsultaViva } from '../data/liveQuery';
 import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
-import { nombreProducto, formatoCantidad } from '../config/formato';
+import { nombreProducto, formatoCantidad } from '../config/formatting';
 import { IconTrash, IconEdit, IconTruck } from '../ui/Icon';
 import Header from '../ui/Header';
 import { EstadoVacio } from '../ui/StatusViews';

@@ -7,7 +7,7 @@ import { nowIso } from '../ids';
 // Seguridad: los nombres de tabla/columna vienen SIEMPRE de nuestro código
 // (nunca del usuario); los valores van siempre como parámetros `?`.
 
-// Tienda activa. Se fija una vez al arrancar (ver repositories/tienda.js) y
+// Tienda activa. Se fija una vez al arrancar (ver repositories/store.js) y
 // se estampa en cada fila nueva.
 let tiendaIdActual = null;
 

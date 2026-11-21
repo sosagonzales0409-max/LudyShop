@@ -1,6 +1,6 @@
 import { getDB } from '../db';
 import { nowIso } from '../ids';
-import { insertar, actualizar, borrarLogico, aBooleano } from './comunes';
+import { insertar, actualizar, borrarLogico, aBooleano } from './common';
 
 // ─── Repositorio de ventas, sus ítems y abonos ────────────────────────────────
 // Formas en memoria (las que ya usan las pantallas):

@@ -1,6 +1,6 @@
 import { getDB } from '../db';
 import { newId, nowIso } from '../ids';
-import { insertar, actualizar, borrarLogico, aBooleano } from './comunes';
+import { insertar, actualizar, borrarLogico, aBooleano } from './common';
 
 // ─── Repositorio de productos, presentaciones e inventario ────────────────────
 // Forma en memoria (la que ya usan las pantallas):

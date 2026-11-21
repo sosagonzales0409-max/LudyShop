@@ -2,13 +2,13 @@ import React, { createContext, Component } from 'react';
 import { Alert } from 'react-native';
 import LoadingScreen from '../ui/LoadingScreen';
 import { initDB, getDB, persistir, onErrorPersistencia, getMeta, setMeta } from '../data/db';
-import { formatoDinero } from '../config/formato';
+import { formatoDinero } from '../config/formatting';
 import { debeSembrarAutomatico, sembrarAutomatico } from '../data/seed';
-import { limpiarTemporales } from '../data/respaldo';
-import { prepararTienda, cargarConfig, guardarConfig, CONFIG_POR_DEFECTO } from '../data/repositories/tienda';
-import { cargarCategorias } from '../data/repositories/categorias';
-import { cargarProductos } from '../data/repositories/productos';
-import { cargarClientes } from '../data/repositories/clientes';
+import { limpiarTemporales } from '../data/backup';
+import { prepararTienda, cargarConfig, guardarConfig, CONFIG_POR_DEFECTO } from '../data/repositories/store';
+import { cargarCategorias } from '../data/repositories/categories';
+import { cargarProductos } from '../data/repositories/products';
+import { cargarClientes } from '../data/repositories/customers';
 import { crearEvento } from '../data/repositories/log';
 import { nuevoEvento } from './activityLog';
 import { aplicarEfecto } from './stockEffects';
@@ -36,7 +36,7 @@ export class StoreProvider extends Component {
   // cargando = true, render() muestra LoadingScreen en vez de la app.
   // Solo lo pequeño vive en memoria (catálogo, clientes, config). Ventas,
   // abonos, compras y el registro de actividad se consultan bajo demanda
-  // (src/data/consultas/ y los repositorios), y las acciones que los
+  // (src/data/queries/ y los repositorios), y las acciones que los
   // necesitan los leen dentro de su transacción (ver decidirEnBD).
   state = {
     cargando:    true,
@@ -274,7 +274,7 @@ export class StoreProvider extends Component {
           categories:            [CATEGORIA_TODOS, ...this.state.categories],
           clientes:              this.state.clientes,
           // (ventas, abonos y compras no viven en memoria: las pantallas los
-          // consultan bajo demanda en src/data/consultas/ y las acciones los
+          // consultan bajo demanda en src/data/queries/ y las acciones los
           // leen dentro de su transacción.)
           config:                this.state.config,
           mostrarBienvenida:     this.state.mostrarBienvenida,

@@ -1,8 +1,8 @@
 // ─── Limpieza y comparación de nombres de clientes ────────────────────────────
-// Módulo sin dependencias a propósito: lo usan repositories/clientes.js y
+// Módulo sin dependencias a propósito: lo usan repositories/customers.js y
 // StoreContext, y una futura migración de datos podría necesitarlo. Si
-// viviera en clientes.js, migrations.js formaría un ciclo de imports
-// (clientes → db → migrations → clientes).
+// viviera en customers.js, migrations.js formaría un ciclo de imports
+// (customers → db → migrations → customers).
 
 /**
  * Limpieza para MOSTRAR: sin espacios al inicio/fin y espacios repetidos

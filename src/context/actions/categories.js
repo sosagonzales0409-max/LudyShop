@@ -4,7 +4,7 @@
 // Dentro de cada acción, `tienda` es lo que en la clase sería `this`.
 import { persistir } from '../../data/db';
 import { newId } from '../../data/ids';
-import { crearCategoria, renombrarCategoria, eliminarCategoria } from '../../data/repositories/categorias';
+import { crearCategoria, renombrarCategoria, eliminarCategoria } from '../../data/repositories/categories';
 import { crearEvento } from '../../data/repositories/log';
 import { nuevoEvento, LOG_TIPOS } from '../activityLog';
 

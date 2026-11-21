@@ -1,15 +1,15 @@
 import { getDB } from '../db';
-import { insertar, actualizar } from './comunes';
-import { limpiarNombre, normalizarNombre } from '../nombres';
+import { insertar, actualizar } from './common';
+import { limpiarNombre, normalizarNombre } from '../names';
 
 // ─── Repositorio de clientes ──────────────────────────────────────────────────
 // Forma en memoria: { id, nombre }
 // Las pantallas siguen trabajando con nombres (sales[].cliente); StoreContext
 // resuelve nombre → id en memoria con normalizarNombre() y guarda cliente_id.
 
-// La regla de "mismo cliente" vive en data/nombres.js (módulo sin
+// La regla de "mismo cliente" vive en data/names.js (módulo sin
 // dependencias). Se reexporta aquí por comodidad.
-export { limpiarNombre, normalizarNombre } from '../nombres';
+export { limpiarNombre, normalizarNombre } from '../names';
 
 export const cargarClientes = async () => {
   const { rows } = await getDB().execute(

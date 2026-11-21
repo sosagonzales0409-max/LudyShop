@@ -9,13 +9,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { detalleCliente } from '../data/consultas/creditos';
-import { crearConsultaViva } from '../data/consultaViva';
-import { normalizarNombre } from '../data/nombres';
+import { detalleCliente } from '../data/queries/credits';
+import { crearConsultaViva } from '../data/liveQuery';
+import { normalizarNombre } from '../data/names';
 import EditPaymentModal from '../modals/EditPaymentModal';
 import ReturnModal from '../modals/ReturnModal';
 import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
-import { formatoDinero, nombreProducto } from '../config/formato';
+import { formatoDinero, nombreProducto } from '../config/formatting';
 import { IconEdit, IconClose, IconTrash, IconCornerUp, IconCheckCircle } from '../ui/Icon';
 import Header from '../ui/Header';
 import { ChipEstado, EstadoVacio } from '../ui/StatusViews';

@@ -1,15 +1,15 @@
-// Cruza la hoja del oráculo (qa/valores-esperados.mjs, JS independiente)
+// Cruza la hoja del oráculo (qa/expected-values.mjs, JS independiente)
 // contra las consultas REALES de la app sobre la MISMA base. Si ambos
 // coinciden, la hoja es confiable para validar las pantallas del teléfono.
-//   node qa/arnes/cruzar-oraculo.mjs [bd] [hoja.md]
+//   node qa/harness/check-oracle.mjs [bd] [hoja.md]
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { construir } from './construir.mjs';
+import { construir } from './build.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
-const BD = process.argv[2] ?? join(AQUI, '..', 'datos', 'mitienda.db');
-const HOJA = readFileSync(process.argv[3] ?? join(AQUI, '..', 'datos', 'VALORES_ESPERADOS.md'), 'utf8');
+const BD = process.argv[2] ?? join(AQUI, '..', 'data', 'mitienda.db');
+const HOJA = readFileSync(process.argv[3] ?? join(AQUI, '..', 'data', 'VALORES_ESPERADOS.md'), 'utf8');
 
 construir();
 globalThis.__DEV__ = false;
@@ -17,11 +17,11 @@ const { ruta } = await import('./stubs/op-sqlite.mjs');
 ruta.bd = BD;
 const { initDB } = await import('./app/data/db.mjs');
 await initDB();
-const { resumenPeriodo } = await import('./app/data/consultas/historial.mjs');
-const { resumenCorte } = await import('./app/data/consultas/corte.mjs');
-const { clientesConSaldo } = await import('./app/data/consultas/creditos.mjs');
-const { cargarReportes, ordenarTop } = await import('./app/data/consultas/reportes.mjs');
-const { resumenCompras } = await import('./app/data/consultas/compras.mjs');
+const { resumenPeriodo } = await import('./app/data/queries/salesHistory.mjs');
+const { resumenCorte } = await import('./app/data/queries/endOfDay.mjs');
+const { clientesConSaldo } = await import('./app/data/queries/credits.mjs');
+const { cargarReportes, ordenarTop } = await import('./app/data/queries/reports.mjs');
+const { resumenCompras } = await import('./app/data/queries/purchases.mjs');
 const { contarLog } = await import('./app/data/repositories/log.mjs');
 
 const moneda = HOJA.match(/Moneda: \*\*(.+?)\*\*/)[1];

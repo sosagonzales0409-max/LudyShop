@@ -1,6 +1,6 @@
 import { getDB } from '../db';
 import { nowIso } from '../ids';
-import { insertar, actualizar, borrarLogico } from './comunes';
+import { insertar, actualizar, borrarLogico } from './common';
 
 // ─── Repositorio de compras y sus ítems ───────────────────────────────────────
 // Forma en memoria (la que ya usan las pantallas):
@@ -107,7 +107,7 @@ export const cargarComprasPagina = async ({ limite = 30, antesDe = null } = {}) 
 
 // Una compra por id con sus ítems, o null si no existe. La usan la pantalla
 // (para editarla) y las acciones editarCompra/eliminarCompra, que pasan su
-// transacción como `ejecutor` (ver obtenerVenta en ventas.js).
+// transacción como `ejecutor` (ver obtenerVenta en sales.js).
 export const obtenerCompra = async (id, ejecutor = getDB()) => {
   const { rows } = await ejecutor.execute(
     `SELECT ${COLUMNAS_COMPRA} FROM compras WHERE deleted_at IS NULL AND id = ?`,

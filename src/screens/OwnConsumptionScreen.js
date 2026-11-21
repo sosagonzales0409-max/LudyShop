@@ -10,7 +10,7 @@ import {
 import { StoreContext } from '../context/StoreContext';
 import Toast from '../ui/Toast';
 import { colors, spacing, radius, fontSize, buttonHeight, tarjeta } from '../config/theme';
-import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formato';
+import { formatoDinero, formatoCantidad, nombreProducto } from '../config/formatting';
 import { IconPackage } from '../ui/Icon';
 import { CampoBusqueda } from '../ui/FormFields';
 import Header, { EtiquetaEncabezado } from '../ui/Header';

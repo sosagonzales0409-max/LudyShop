@@ -2,29 +2,29 @@
 // ejecutado con las ACCIONES REALES de StoreContext sobre una BD vacía.
 // Comprueba que cada valor esperado del escenario es exactamente lo que
 // calcula la app.
-//   node qa/arnes/escenario-desde-cero.mjs
-// Deja la BD final en qa/datos/desde-cero.db (se puede revisar con
-// valores-esperados.mjs para comparar con el teléfono).
+//   node qa/harness/scenario-from-scratch.mjs
+// Deja la BD final en qa/data/desde-cero.db (se puede revisar con
+// expected-values.mjs para comparar con el teléfono).
 import { rmSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { construir, montarTienda } from './construir.mjs';
+import { construir, montarTienda } from './build.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
-const BD = join(AQUI, '..', 'datos', 'desde-cero.db');
+const BD = join(AQUI, '..', 'data', 'desde-cero.db');
 mkdirSync(dirname(BD), { recursive: true });
 for (const s of ['', '-wal', '-shm']) rmSync(BD + s, { force: true });
 
 construir();
 const { store, esperarEscrituras, crudo } = await montarTienda({ bd: BD, dev: false });
-const { resumenPeriodo } = await import('./app/data/consultas/historial.mjs');
-const { resumenCorte } = await import('./app/data/consultas/corte.mjs');
-const { clientesConSaldo, detalleCliente } = await import('./app/data/consultas/creditos.mjs');
-const { cargarReportes, ordenarTop } = await import('./app/data/consultas/reportes.mjs');
-const { resumenCompras, vendidasDespuesDe } = await import('./app/data/consultas/compras.mjs');
-const { infoPresentaciones } = await import('./app/data/consultas/producto.mjs');
+const { resumenPeriodo } = await import('./app/data/queries/salesHistory.mjs');
+const { resumenCorte } = await import('./app/data/queries/endOfDay.mjs');
+const { clientesConSaldo, detalleCliente } = await import('./app/data/queries/credits.mjs');
+const { cargarReportes, ordenarTop } = await import('./app/data/queries/reports.mjs');
+const { resumenCompras, vendidasDespuesDe } = await import('./app/data/queries/purchases.mjs');
+const { infoPresentaciones } = await import('./app/data/queries/product.mjs');
 const { contarLog } = await import('./app/data/repositories/log.mjs');
-const { obtenerCompra } = await import('./app/data/repositories/compras.mjs');
+const { obtenerCompra } = await import('./app/data/repositories/purchases.mjs');
 const { LOG_META } = await import('./app/context/StoreContext.mjs');
 
 let fallos = 0;
@@ -241,7 +241,7 @@ igual([await contarLog(), porFiltro], [38, { ventas: 7, creditos: 7, compras: 6,
 const eventos = crudo.prepare('SELECT tipo, descr FROM activity_log ORDER BY fecha, id').all().map(e => `${e.tipo}: ${e.descr}`);
 console.log('\nEventos (del más antiguo al más reciente):\n  ' + eventos.join('\n  '));
 
-const filas = crudo.prepare(readFileSync(join(AQUI, '..', 'integridad.sql'), 'utf8')).all();
+const filas = crudo.prepare(readFileSync(join(AQUI, '..', 'integrity.sql'), 'utf8')).all();
 const malos = filas.filter(f => f.problemas);
 ok(!malos.length, `Integridad: ${filas.length} verificaciones · ${malos.reduce((s, f) => s + f.problemas, 0)} problemas${malos.length ? ' → ' + JSON.stringify(malos) : ''}`);
 

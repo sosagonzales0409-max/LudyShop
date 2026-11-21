@@ -1,10 +1,10 @@
 import React, { Component } from 'react';
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { resumenCorte } from '../data/consultas/corte';
-import { crearConsultaViva } from '../data/consultaViva';
+import { resumenCorte } from '../data/queries/endOfDay';
+import { crearConsultaViva } from '../data/liveQuery';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { formatoCantidad, formatoDinero } from '../config/formato';
+import { formatoCantidad, formatoDinero } from '../config/formatting';
 import { IconReceipt } from '../ui/Icon';
 
 /**
@@ -14,7 +14,7 @@ import { IconReceipt } from '../ui/Icon';
  * cobrar, el número de transacciones y el producto más vendido del día.
  *
  * Datos BAJO DEMANDA: al abrirse consulta el corte a SQLite
- * (consultas/corte.js) y, mientras está abierto, se refresca solo si cambian
+ * (queries/endOfDay.js) y, mientras está abierto, se refresca solo si cambian
  * ventas o abonos. Al cerrarse deja de escuchar.
  *
  * @param {boolean}  visible
@@ -85,7 +85,7 @@ export default class EndOfDayModal extends Component {
     const moneda = this.context.config?.moneda ?? '$';
     const { visible, onCancel } = this.props;
     const { datos, error } = this.state;
-    // Todo viene de consultas/corte.js (mismas fórmulas que antes en memoria).
+    // Todo viene de queries/endOfDay.js (mismas fórmulas que antes en memoria).
     const totalContado = datos?.contado ?? 0;
     const totalCredito = datos?.credito ?? 0;
     const totalAbonos = datos?.abonos ?? 0;

@@ -3,7 +3,7 @@
 // constructor de StoreProvider las copia a la instancia (ver StoreContext.js).
 // Dentro de cada acción, `tienda` es lo que en la clase sería `this`.
 import { persistir } from '../../data/db';
-import { renombrarCliente as renombrarClienteBD, limpiarNombre, normalizarNombre } from '../../data/repositories/clientes';
+import { renombrarCliente as renombrarClienteBD, limpiarNombre, normalizarNombre } from '../../data/repositories/customers';
 import { crearEvento } from '../../data/repositories/log';
 import { nuevoEvento, LOG_TIPOS } from '../activityLog';
 

@@ -3,11 +3,11 @@ import {
   View, Text, TouchableOpacity, Alert,
 } from 'react-native';
 import { StoreContext } from '../context/StoreContext';
-import { proveedoresRecientes } from '../data/consultas/compras';
-import { crearConsultaViva } from '../data/consultaViva';
+import { proveedoresRecientes } from '../data/queries/purchases';
+import { crearConsultaViva } from '../data/liveQuery';
 import KeyboardScrollView from '../ui/KeyboardScrollView';
 import { colors, spacing, radius, fontSize } from '../config/theme';
-import { nombreProducto, formatoDinero } from '../config/formato';
+import { nombreProducto, formatoDinero } from '../config/formatting';
 import Header from '../ui/Header';
 import { IconClose } from '../ui/Icon';
 import {

@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Switch, Keyboard } from 'react-native';
 import { colors, spacing, radius, fontSize, buttonHeight } from '../config/theme';
-import { formatoDinero } from '../config/formato';
+import { formatoDinero } from '../config/formatting';
 import { IconCheck, IconSearch } from './Icon';
 
 /**
