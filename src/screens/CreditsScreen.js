@@ -104,7 +104,9 @@ export default class CreditsScreen extends Component {
 
   renderCliente(item) {
     const moneda = this.context.config?.moneda ?? '$';
-    const dias = this.diasDesde(item.fechaUltima);
+    // Antigüedad de la deuda: días desde la venta pendiente más vieja (la
+    // misma fecha con la que ordena "Más antiguo"), no desde la última venta.
+    const dias = this.diasDesde(item.fechaDeuda);
     const chip = this.chipAntiguedad(dias);
 
     return (

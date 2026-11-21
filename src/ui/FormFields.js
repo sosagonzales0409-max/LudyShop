@@ -138,8 +138,10 @@ export class CampoBusqueda extends Component {
 }
 
 // Dos campos lado a lado (costo y venta, piezas y precio del paquete).
+// Alineados por abajo: si una etiqueta ocupa dos líneas ("Costo por unidad ·
+// opcional"), las cajas siguen a la misma altura.
 export function FilaCampos({ children }) {
-  return <View style={{ flexDirection: 'row', gap: spacing.md }}>{children}</View>;
+  return <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md }}>{children}</View>;
 }
 
 // ─── Interruptor: toda la fila responde al toque ────────────────────────────
