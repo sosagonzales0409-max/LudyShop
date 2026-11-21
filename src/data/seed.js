@@ -1,8 +1,8 @@
 import { getMeta, setMeta } from './db';
 import { newId } from './ids';
-import { getTiendaId } from './repositories/comunes';
-import { normalizarNombre } from './nombres';
-import { formatoDinero } from '../config/formato';
+import { getTiendaId } from './repositories/common';
+import { normalizarNombre } from './names';
+import { formatoDinero } from '../config/formatting';
 
 // ─── Datos de ejemplo: "un año de tienda" (solo desarrollo) ───────────────────
 // Cuándo se cargan:
@@ -40,7 +40,7 @@ export const VENTAS_POR_DIA = 80;
 const SEMILLA_ALEATORIA = 20260926;
 
 // Tablas con datos de la tienda (no incluye `tienda` ni `meta`).
-// También la usa respaldo.js: son las tablas que viajan en una copia.
+// También la usa backup.js: son las tablas que viajan en una copia.
 export const TABLAS_DE_DATOS = [
   'categorias', 'productos', 'presentaciones', 'movimientos_inventario', 'clientes',
   'ventas', 'venta_items', 'abonos', 'compras', 'compra_items', 'activity_log',
@@ -328,7 +328,7 @@ const simular = () => {
           (porProveedor[p.proveedor] ??= []).push({ pres: p, cantidad: p.pedido, costo: p.costo });
         });
         // A veces un proveedor no surte ese día: así hay agotados y stock bajo
-        // reales (para probar LowStockView y las compras de emergencia).
+        // reales (para probar LowStockScreen y las compras de emergencia).
         Object.entries(porProveedor)
           .filter(([prov]) => !(prov === PROVEEDOR_RETRASADO.nombre && d < PROVEEDOR_RETRASADO.ultimosDias))
           .filter(() => al.rand() >= PROB_PROVEEDOR_NO_SURTE)
@@ -477,7 +477,7 @@ const vaciar = async tx => {
 // Todas reciben `tx`: se llaman dentro de persistir().
 
 // Siembra automática: solo en desarrollo y una vez por instalación.
-// La lectura de meta se hace ANTES de abrir la transacción (ver tienda.js).
+// La lectura de meta se hace ANTES de abrir la transacción (ver repositories/store.js).
 export const debeSembrarAutomatico = async () =>
   __DEV__ && SEED_AUTOMATICO && !(await getMeta('semilla_auto_hecha'));
 

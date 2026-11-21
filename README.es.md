@@ -26,15 +26,15 @@ Android: **prueba cerrada en Google Play** · iOS: **probada en dispositivo, aú
 
 <table>
   <tr>
-    <td align="center"><img src="docs/capturas/ventas.jpg" width="200" alt="Nueva venta" /><br/><sub>Nueva venta (contado o crédito)</sub></td>
-    <td align="center"><img src="docs/capturas/credito.jpg" width="200" alt="Créditos" /><br/><sub>Clientes que deben</sub></td>
-    <td align="center"><img src="docs/capturas/inventario.jpg" width="200" alt="Inventario" /><br/><sub>Inventario y valor en anaquel</sub></td>
-    <td align="center"><img src="docs/capturas/reportes.jpg" width="200" alt="Reportes" /><br/><sub>Reportes</sub></td>
+    <td align="center"><img src="docs/screenshots/new-sale.jpg" width="200" alt="Nueva venta" /><br/><sub>Nueva venta (contado o crédito)</sub></td>
+    <td align="center"><img src="docs/screenshots/credits.jpg" width="200" alt="Créditos" /><br/><sub>Clientes que deben</sub></td>
+    <td align="center"><img src="docs/screenshots/inventory.jpg" width="200" alt="Inventario" /><br/><sub>Inventario y valor en anaquel</sub></td>
+    <td align="center"><img src="docs/screenshots/reports.jpg" width="200" alt="Reportes" /><br/><sub>Reportes</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/capturas/corte.jpg" width="200" alt="Corte del día" /><br/><sub>Corte del día</sub></td>
-    <td align="center"><img src="docs/capturas/consumopropio.jpg" width="200" alt="Consumo propio" /><br/><sub>Consumo propio</sub></td>
-    <td align="center"><img src="docs/capturas/tienda.jpg" width="200" alt="Personalizar tienda" /><br/><sub>Datos de la tienda</sub></td>
+    <td align="center"><img src="docs/screenshots/end-of-day.jpg" width="200" alt="Corte del día" /><br/><sub>Corte del día</sub></td>
+    <td align="center"><img src="docs/screenshots/own-consumption.jpg" width="200" alt="Consumo propio" /><br/><sub>Consumo propio</sub></td>
+    <td align="center"><img src="docs/screenshots/store-settings.jpg" width="200" alt="Personalizar tienda" /><br/><sub>Datos de la tienda</sub></td>
     <td></td>
   </tr>
 </table>
@@ -51,7 +51,7 @@ LudyShop lleva la tienda en el teléfono, **sin necesidad de internet**: cobrar 
 - **Créditos y abonos**: deuda por cliente, pagos parciales y orden por deuda más antigua o más grande.
 - **Inventario**: productos con marca y varias presentaciones, categorías, alertas de stock bajo y valor total del inventario.
 - **Compras** a proveedores, que reabastecen el inventario y registran lo gastado.
-- **Reportes**: ingreso real (contado + abonos), venta promedio y balance, por semana, mes o año.
+- **Reportes**: ingreso real (contado + abonos), venta promedio y balance de los últimos 7 días, los últimos 30 días o el año en curso.
 - **Corte del día**: dinero cobrado hoy, separado en ventas de contado y abonos.
 - **Devoluciones, eliminar ventas y editar compras**, siempre con el inventario consistente.
 - **Copias de seguridad**: exportar e importar todos los datos en un archivo.
@@ -73,11 +73,11 @@ LudyShop lleva la tienda en el teléfono, **sin necesidad de internet**: cobrar 
 
 ```mermaid
 flowchart LR
-    UI["Pantallas<br/>(src/components)"] -->|acciones| CTX["StoreContext<br/>(todas las acciones de negocio)"]
+    UI["Pantallas<br/>(src/screens)"] -->|acciones| CTX["StoreContext + actions/<br/>(acciones de negocio por dominio)"]
     CTX -->|"persistir(tx => …)"| Q["Cola de escritura serial<br/>una transacción por escritura"]
     Q --> DB[("SQLite<br/>mitienda.db")]
-    Q -->|"tras el commit:<br/>tablas escritas"| EV["cambios.js<br/>avisos de cambio"]
-    EV --> LIVE["consultaViva<br/>consultas vivas"]
+    Q -->|"tras el commit:<br/>tablas escritas"| EV["changes.js<br/>avisos de cambio"]
+    EV --> LIVE["liveQuery.js<br/>consultas vivas"]
     LIVE -->|recarga| UI
     DB -->|"lecturas (SQL)"| LIVE
 ```
@@ -95,7 +95,7 @@ Cada decisión resuelve un problema concreto:
 | **Cola de escritura serial** (`persistir`) | Cada escritura corre en su propia transacción, una tras otra. Dos toques rápidos nunca se mezclan ni corrompen datos. La cola además detecta qué tablas tocó cada sentencia y avisa a las pantallas solo después del commit, un punto natural para enviar después los cambios a un servidor. |
 | **Inventario como registro de movimientos** | El stock nunca se sobreescribe. Cada cambio (venta, compra, devolución, ajuste, consumo propio) agrega un renglón a `movimientos_inventario`; la columna `stock` es una caché de esa suma, actualizada en la misma transacción. Así queda un historial completo, y deshacer una venta agrega un movimiento contrario en vez de adivinar el valor anterior. También prepara la sincronización en línea: los movimientos de varios dispositivos simplemente se juntan, mientras que dos valores de `stock` distintos chocarían. |
 | **Las ventas guardan una foto del producto** | Nombre y precio se copian al vender, así editar o borrar un producto nunca altera el historial ni los reportes. |
-| **Lista para sincronizar en línea (V2)** | Todas las tablas tienen id UUIDv7, `tienda_id`, `created_at`/`updated_at` y borrado lógico (`deleted_at`). Los ids se generan sin internet en varios dispositivos sin chocar, `updated_at` decide qué versión gana al combinar, y los borrados se pueden sincronizar en vez de desaparecer. |
+| **Lista para sincronizar en línea (V2)** | Todas las tablas de datos tienen id UUIDv7, `tienda_id`, `created_at`/`updated_at` y borrado lógico (`deleted_at`). Los ids se generan sin internet en varios dispositivos sin chocar, `updated_at` decide qué versión gana al combinar, y los borrados se pueden sincronizar en vez de desaparecer. |
 | **Migraciones versionadas que no se editan** | La versión del esquema vive en `PRAGMA user_version`. Una migración publicada nunca se cambia; las correcciones van en una nueva, dentro de una transacción (todo o nada) y sin borrar ni fusionar datos del usuario. |
 | **Redondeo de dinero y cantidades en un solo lugar** | El granel usa cantidades con decimales; el stock se actualiza con `ROUND(stock + ?, 3)` en SQL y con la misma regla en memoria, así los errores de punto flotante nunca se acumulan. |
 
@@ -103,27 +103,32 @@ Cada decisión resuelve un problema concreto:
 
 Las pruebas unitarias de React Native no pueden correr fácilmente una base SQLite real, así que el proyecto tiene su propio arnés en [`qa/`](qa/):
 
-- **Corre el código real**: `qa/arnes/construir.mjs` copia la capa de datos y el `StoreContext` reales y sustituye solo los módulos nativos (op-sqlite → `node:sqlite` de Node, React Native → sustitutos).
+- **Corre el código real**: `qa/harness/build.mjs` copia la capa de datos y el `StoreContext` reales y sustituye solo los módulos nativos (op-sqlite → `node:sqlite` de Node, React Native → sustitutos).
 - **Escenarios de acciones**: siembra un año de datos y ejecuta cada acción de negocio (ventas, crédito, abonos, devoluciones, compras, eliminaciones), revisando stock y saldos después de cada una.
 - **Oráculo de dinero**: recalcula cada total esperado en JavaScript a partir de las filas crudas, sin usar el SQL de la app, y lo cruza con las consultas de los reportes.
-- **Verificaciones de integridad** ([`qa/integridad.sql`](qa/integridad.sql)): invariantes de la BD, por ejemplo que la caché de stock sea igual a la suma de sus movimientos.
+- **Verificaciones de integridad** ([`qa/integrity.sql`](qa/integrity.sql)): invariantes de la BD, por ejemplo que la caché de stock sea igual a la suma de sus movimientos.
 
 ## Estructura del proyecto
 
 ```
 src/
-├── components/     # Pantallas, modales y piezas de UI
-├── context/        # StoreContext: todas las acciones de negocio
+├── screens/        # Pantallas completas (nueva venta, créditos, inventario, reportes…)
+├── modals/         # Modales (pago, devoluciones, corte del día…)
+├── ui/             # Piezas de UI reutilizables (encabezado, campos, toast…)
+├── navigation/     # Pestañas y stacks nativos
+├── context/        # StoreContext (estado y núcleo) + actions/ por dominio
 ├── config/         # Tema y formato de dinero y cantidades
 └── data/
     ├── db.js           # Conexión y cola de escritura persistir()
     ├── migrations.js   # Esquema versionado
-    ├── consultaViva.js # Consultas vivas
+    ├── liveQuery.js    # Consultas vivas
     ├── repositories/   # Escrituras por entidad
-    ├── consultas/      # Lecturas SQL agregadas por pantalla
-    └── respaldo.js     # Exportar e importar copias de seguridad
+    ├── queries/        # Lecturas SQL agregadas por pantalla
+    └── backup.js       # Exportar e importar copias de seguridad
 qa/                 # Arnés de pruebas, oráculo de dinero e integridad
 ```
+
+Los nombres de archivos y componentes están en inglés; el código, los comentarios y la interfaz, en español, el idioma del negocio.
 
 ## Correrla localmente
 

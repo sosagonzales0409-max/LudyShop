@@ -87,7 +87,7 @@ export const MIGRACIONES = [
       `CREATE INDEX idx_movimientos_presentacion ON movimientos_inventario(presentacion_id)`,
 
       // nombre_norm: nombre normalizado en JS (ver normalizarNombre en
-      // repositories/clientes.js). No usamos lower() de SQLite porque solo
+      // repositories/customers.js). No usamos lower() de SQLite porque solo
       // convierte A-Z: 'DOÑA' quedaría 'doÑa'.
       `CREATE TABLE clientes (${COMUNES},
         nombre      TEXT NOT NULL,

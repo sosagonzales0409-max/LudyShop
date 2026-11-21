@@ -1,6 +1,6 @@
 import { open } from '@op-engineering/op-sqlite';
 import { aplicarMigraciones } from './migrations';
-import { notificarCambios, tablaEscrita } from './cambios';
+import { notificarCambios, tablaEscrita } from './changes';
 
 // ─── Conexión a SQLite ────────────────────────────────────────────────────────
 // Un solo archivo `mitienda.db` en la carpeta privada de la app.
@@ -8,7 +8,7 @@ import { notificarCambios, tablaEscrita } from './cambios';
 //   await initDB()               — una vez al arrancar (StoreProvider)
 //   getDB().execute(sql, params) — lecturas
 //   persistir(async tx => {...}) — TODAS las escrituras (ver abajo); al
-//                                  confirmarse avisa qué tablas cambió (cambios.js)
+//                                  confirmarse avisa qué tablas cambió (changes.js)
 
 const NOMBRE_BD = 'mitienda.db';
 

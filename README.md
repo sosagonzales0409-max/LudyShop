@@ -26,15 +26,15 @@ Android: **closed testing on Google Play** · iOS: **tested on device, not yet o
 
 <table>
   <tr>
-    <td align="center"><img src="docs/capturas/ventas.jpg" width="200" alt="New sale" /><br/><sub>New sale (cash or credit)</sub></td>
-    <td align="center"><img src="docs/capturas/credito.jpg" width="200" alt="Credit" /><br/><sub>Customers who owe money</sub></td>
-    <td align="center"><img src="docs/capturas/inventario.jpg" width="200" alt="Inventory" /><br/><sub>Inventory and stock value</sub></td>
-    <td align="center"><img src="docs/capturas/reportes.jpg" width="200" alt="Reports" /><br/><sub>Reports</sub></td>
+    <td align="center"><img src="docs/screenshots/new-sale.jpg" width="200" alt="New sale" /><br/><sub>New sale (cash or credit)</sub></td>
+    <td align="center"><img src="docs/screenshots/credits.jpg" width="200" alt="Credit" /><br/><sub>Customers who owe money</sub></td>
+    <td align="center"><img src="docs/screenshots/inventory.jpg" width="200" alt="Inventory" /><br/><sub>Inventory and stock value</sub></td>
+    <td align="center"><img src="docs/screenshots/reports.jpg" width="200" alt="Reports" /><br/><sub>Reports</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/capturas/corte.jpg" width="200" alt="End of day" /><br/><sub>End-of-day cash summary</sub></td>
-    <td align="center"><img src="docs/capturas/consumopropio.jpg" width="200" alt="Own consumption" /><br/><sub>Owner's own consumption</sub></td>
-    <td align="center"><img src="docs/capturas/tienda.jpg" width="200" alt="Store settings" /><br/><sub>Store settings</sub></td>
+    <td align="center"><img src="docs/screenshots/end-of-day.jpg" width="200" alt="End of day" /><br/><sub>End-of-day cash summary</sub></td>
+    <td align="center"><img src="docs/screenshots/own-consumption.jpg" width="200" alt="Own consumption" /><br/><sub>Owner's own consumption</sub></td>
+    <td align="center"><img src="docs/screenshots/store-settings.jpg" width="200" alt="Store settings" /><br/><sub>Store settings</sub></td>
     <td></td>
   </tr>
 </table>
@@ -53,7 +53,7 @@ LudyShop puts the store on the owner's phone, **with no internet required**: cha
 - **Credit and payments**: debt per customer, partial payments, sorting by oldest or largest debt.
 - **Inventory**: products with brand and several sizes, categories, low-stock alerts and total inventory value.
 - **Purchases** from suppliers, which restock inventory and record what was spent.
-- **Reports**: real income (cash + payments received), average sale and balance, by week, month or year.
+- **Reports**: real income (cash + payments received), average sale and balance for the last 7 days, the last 30 days or the current year.
 - **End-of-day summary**: money collected today, split into cash sales and payments.
 - **Returns, deleting sales and editing purchases**, always keeping inventory consistent.
 - **Backups**: export and import all data as a file.
@@ -75,11 +75,11 @@ LudyShop puts the store on the owner's phone, **with no internet required**: cha
 
 ```mermaid
 flowchart LR
-    UI["Screens<br/>(src/components)"] -->|actions| CTX["StoreContext<br/>(all business actions)"]
+    UI["Screens<br/>(src/screens)"] -->|actions| CTX["StoreContext + actions/<br/>(business actions by domain)"]
     CTX -->|"persistir(tx => …)"| Q["Serial write queue<br/>one transaction per write"]
     Q --> DB[("SQLite<br/>mitienda.db")]
-    Q -->|"after commit:<br/>tables written"| EV["cambios.js<br/>change notifications"]
-    EV --> LIVE["consultaViva<br/>live queries"]
+    Q -->|"after commit:<br/>tables written"| EV["changes.js<br/>change notifications"]
+    EV --> LIVE["liveQuery.js<br/>live queries"]
     LIVE -->|reload| UI
     DB -->|"reads (SQL)"| LIVE
 ```
@@ -97,7 +97,7 @@ Each decision solves a concrete problem:
 | **Serial write queue** (`persistir`) | Every write runs in its own transaction, one after another. Two quick taps can never interleave and corrupt data. The queue also detects which tables each statement touched and notifies screens only after the commit, a natural hook for sending changes to a server later. |
 | **Inventory as an append-only ledger** | Stock is never overwritten. Each change (sale, purchase, return, adjustment, own consumption) adds a row to `movimientos_inventario`; the `stock` column is a cache of that sum, updated in the same transaction. This gives a full audit trail, and undoing a sale adds an opposite movement instead of guessing the previous value. It also prepares for online sync: movements from several devices can simply be merged, while two different `stock` values would conflict. |
 | **Sales keep a snapshot of the product** | Name and price are copied at the time of the sale, so editing or deleting a product never changes past history or reports. |
-| **Ready for online sync (v2)** | Every table has a UUIDv7 id, `tienda_id`, `created_at`/`updated_at` and soft delete (`deleted_at`). IDs can be generated offline on several devices without collisions, `updated_at` decides which version wins when merging, and deletions can be synced instead of disappearing. |
+| **Ready for online sync (v2)** | Every data table has a UUIDv7 id, `tienda_id`, `created_at`/`updated_at` and soft delete (`deleted_at`). IDs can be generated offline on several devices without collisions, `updated_at` decides which version wins when merging, and deletions can be synced instead of disappearing. |
 | **Versioned migrations that are never edited** | The schema version lives in `PRAGMA user_version`. Once a migration is published it is never changed; fixes go in a new one, run inside a transaction (all or nothing), without deleting or merging user data. |
 | **Money and quantities rounded in one place** | Bulk products use decimal quantities; stock is updated with `ROUND(stock + ?, 3)` in SQL and the same rule in memory, so floating-point errors never accumulate. |
 
@@ -105,29 +105,32 @@ Each decision solves a concrete problem:
 
 React Native unit tests can't easily run a real SQLite database, so the project has its own harness in [`qa/`](qa/):
 
-- **Runs the real code**: `qa/arnes/construir.mjs` copies the actual data layer and `StoreContext` and replaces only the native modules (op-sqlite → Node's built-in `node:sqlite`, React Native → stubs).
+- **Runs the real code**: `qa/harness/build.mjs` copies the actual data layer and `StoreContext` and replaces only the native modules (op-sqlite → Node's built-in `node:sqlite`, React Native → stubs).
 - **Action scenarios**: seeds a year of data and runs every business action (sales, credit, payments, returns, purchases, deletions), checking stock and balances after each one.
 - **Money oracle**: recomputes every expected total in plain JavaScript from the raw rows, without using the app's SQL, and cross-checks it against the app's report queries.
-- **Integrity checks** ([`qa/integridad.sql`](qa/integridad.sql)): database invariants, e.g. the stock cache equals the sum of its movements.
+- **Integrity checks** ([`qa/integrity.sql`](qa/integrity.sql)): database invariants, e.g. the stock cache equals the sum of its movements.
 
 ## Project structure
 
 ```
 src/
-├── components/     # Screens, modals and UI pieces
-├── context/        # StoreContext: all business actions
+├── screens/        # Full screens (new sale, credits, inventory, reports…)
+├── modals/         # Modals (payment, returns, end of day…)
+├── ui/             # Reusable UI pieces (header, form fields, toast…)
+├── navigation/     # Tabs and native stacks
+├── context/        # StoreContext (state and core) + actions/ split by domain
 ├── config/         # Theme and money/quantity formatting
 └── data/
     ├── db.js           # Connection and persistir() write queue
     ├── migrations.js   # Versioned schema
-    ├── consultaViva.js # Live queries
+    ├── liveQuery.js    # Live queries
     ├── repositories/   # Writes per entity
-    ├── consultas/      # Aggregated SQL reads per screen
-    └── respaldo.js     # Backup export/import
+    ├── queries/        # Aggregated SQL reads per screen
+    └── backup.js       # Backup export/import
 qa/                 # Test harness, money oracle and integrity checks
 ```
 
-The code, comments and names are in Spanish, the language of the business domain.
+File and component names are in English; the code, comments and UI are in Spanish, the language of the business domain.
 
 ## Running locally
 
