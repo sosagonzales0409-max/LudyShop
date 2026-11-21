@@ -1,0 +1,62 @@
+// Registro de actividad: tipos de evento, su presentación (icono, filtro,
+// etiqueta) y la forma de crear un evento nuevo.
+import { newId, nowIso } from '../data/ids';
+
+// Evento del registro de actividad (se guarda en la BD con crearEvento).
+export const nuevoEvento = (tipo, desc) => ({ id: newId(), tipo, desc, fecha: nowIso() });
+
+export const LOG_TIPOS = {
+  VENTA:                  'venta',
+  VENTA_CREDITO:          'venta_credito',
+  ABONO:                  'abono',
+  ABONO_EDITADO:          'abono_editado',
+  CONDONACION:            'condonacion',
+  DEVOLUCION:             'devolucion',
+  VENTA_ELIMINADA:        'venta_eliminada',
+  COMPRA:                 'compra',
+  COMPRA_EDITADA:         'compra_editada',
+  COMPRA_ELIMINADA:       'compra_eliminada',
+  PRECIO_EDITADO:         'precio_editado',
+  STOCK_AGREGADO:         'stock_agregado',
+  STOCK_AJUSTADO:         'stock_ajustado',
+  CONSUMO_PROPIO:         'consumo_propio',
+  PRODUCTO_NUEVO:         'producto_nuevo',
+  PRODUCTO_EDITADO:       'producto_editado',
+  PRESENTACION_NUEVA:     'presentacion_nueva',
+  PRESENTACION_ELIMINADA: 'presentacion_eliminada',
+  CLIENTE_RENOMBRADO:     'cliente_renombrado',
+  CATEGORIA_CREADA:       'categoria_creada',
+  CATEGORIA_RENOMBRADA:   'categoria_renombrada',
+  CATEGORIA_ELIMINADA:    'categoria_eliminada',
+  COPIA_EXPORTADA:        'copia_exportada',
+  DATOS_IMPORTADOS:       'datos_importados',
+  DATOS_BORRADOS:         'datos_borrados',
+};
+
+export const LOG_META = {
+  venta:                  { icono: '🛒', filtro: 'ventas',     label: 'Venta' },
+  venta_credito:          { icono: '💳', filtro: 'creditos',   label: 'Venta a crédito' },
+  abono:                  { icono: '💵', filtro: 'creditos',   label: 'Abono' },
+  abono_editado:          { icono: '✏️', filtro: 'creditos',   label: 'Abono editado' },
+  condonacion:            { icono: '🤝', filtro: 'creditos',   label: 'Condonación' },
+  devolucion:             { icono: '↩️', filtro: 'ventas',     label: 'Devolución' },
+  venta_eliminada:        { icono: '🗑️', filtro: 'ventas',     label: 'Venta eliminada' },
+  compra:                 { icono: '🛍️', filtro: 'compras',    label: 'Compra' },
+  compra_editada:         { icono: '✏️', filtro: 'compras',    label: 'Compra editada' },
+  compra_eliminada:       { icono: '🗑️', filtro: 'compras',    label: 'Compra eliminada' },
+  precio_editado:         { icono: '🏷️', filtro: 'inventario', label: 'Precio editado' },
+  stock_agregado:         { icono: '📦', filtro: 'inventario', label: 'Stock agregado' },
+  stock_ajustado:         { icono: '🔧', filtro: 'inventario', label: 'Stock ajustado' },
+  consumo_propio:         { icono: '🔸', filtro: 'inventario', label: 'Consumo propio' },
+  producto_nuevo:         { icono: '✨', filtro: 'inventario', label: 'Producto nuevo' },
+  producto_editado:       { icono: '✏️', filtro: 'inventario', label: 'Producto editado' },
+  presentacion_nueva:     { icono: '➕', filtro: 'inventario', label: 'Presentación nueva' },
+  presentacion_eliminada: { icono: '🗑️', filtro: 'inventario', label: 'Presentación eliminada' },
+  cliente_renombrado:     { icono: '👤', filtro: 'otros',      label: 'Cliente renombrado' },
+  categoria_creada:       { icono: '🏷️', filtro: 'otros',      label: 'Categoría creada' },
+  categoria_renombrada:   { icono: '✏️', filtro: 'otros',      label: 'Categoría renombrada' },
+  categoria_eliminada:    { icono: '🗑️', filtro: 'otros',      label: 'Categoría eliminada' },
+  copia_exportada:        { icono: '💾', filtro: 'otros',      label: 'Copia de seguridad' },
+  datos_importados:       { icono: '📥', filtro: 'otros',      label: 'Datos importados' },
+  datos_borrados:         { icono: '🧹', filtro: 'otros',      label: 'Datos borrados' },
+};

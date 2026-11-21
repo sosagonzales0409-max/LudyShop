@@ -73,7 +73,7 @@ LudyShop lleva la tienda en el teléfono, **sin necesidad de internet**: cobrar 
 
 ```mermaid
 flowchart LR
-    UI["Pantallas<br/>(src/screens)"] -->|acciones| CTX["StoreContext<br/>(todas las acciones de negocio)"]
+    UI["Pantallas<br/>(src/screens)"] -->|acciones| CTX["StoreContext + actions/<br/>(acciones de negocio por dominio)"]
     CTX -->|"persistir(tx => …)"| Q["Cola de escritura serial<br/>una transacción por escritura"]
     Q --> DB[("SQLite<br/>mitienda.db")]
     Q -->|"tras el commit:<br/>tablas escritas"| EV["cambios.js<br/>avisos de cambio"]
@@ -116,7 +116,7 @@ src/
 ├── modals/         # Modales (pago, devoluciones, corte del día…)
 ├── ui/             # Piezas de UI reutilizables (encabezado, campos, toast…)
 ├── navigation/     # Pestañas y stacks nativos
-├── context/        # StoreContext: todas las acciones de negocio
+├── context/        # StoreContext (estado y núcleo) + actions/ por dominio
 ├── config/         # Tema y formato de dinero y cantidades
 └── data/
     ├── db.js           # Conexión y cola de escritura persistir()

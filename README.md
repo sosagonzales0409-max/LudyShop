@@ -75,7 +75,7 @@ LudyShop puts the store on the owner's phone, **with no internet required**: cha
 
 ```mermaid
 flowchart LR
-    UI["Screens<br/>(src/screens)"] -->|actions| CTX["StoreContext<br/>(all business actions)"]
+    UI["Screens<br/>(src/screens)"] -->|actions| CTX["StoreContext + actions/<br/>(business actions by domain)"]
     CTX -->|"persistir(tx => …)"| Q["Serial write queue<br/>one transaction per write"]
     Q --> DB[("SQLite<br/>mitienda.db")]
     Q -->|"after commit:<br/>tables written"| EV["cambios.js<br/>change notifications"]
@@ -118,7 +118,7 @@ src/
 ├── modals/         # Modals (payment, returns, end of day…)
 ├── ui/             # Reusable UI pieces (header, form fields, toast…)
 ├── navigation/     # Tabs and native stacks
-├── context/        # StoreContext: all business actions
+├── context/        # StoreContext (state and core) + actions/ split by domain
 ├── config/         # Theme and money/quantity formatting
 └── data/
     ├── db.js           # Connection and persistir() write queue

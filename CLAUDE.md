@@ -24,7 +24,7 @@ No hay Jest: las pruebas son el arnés de `qa/`. `npm test` corre los dos primer
 - Oráculo de las consultas de dinero (después de `probar-acciones.mjs`, que genera la BD): `node qa/valores-esperados.mjs qa/datos/semilla-node.db qa/datos/semilla-esperados.md` y después `node qa/arnes/cruzar-oraculo.mjs qa/datos/semilla-node.db qa/datos/semilla-esperados.md` → "✅ El oráculo coincide…".
 - `qa/integridad.sql`: invariantes de la BD (todas deben devolver 0 problemas). `qa/extraer-bd.cmd` saca la BD real del teléfono para revisarla.
 
-Cómo funciona el arnés: `qa/arnes/construir.mjs` copia el código **real** de `src/data`, `src/config/formato.js` y `src/context/StoreContext.js` a `qa/arnes/app/*.mjs` (generado, no editar) y sustituye los paquetes (react, react-native, op-sqlite → `node:sqlite`, uuid, react-native-fs) y algunos componentes (`ui/LoadingScreen`, `ui/Toast`) con `qa/arnes/stubs`. Si agregas en esos archivos un import de un paquete (cualquier import no relativo), agrega su sustituto en `STUBS`; si no, `construir.mjs` falla. Estas pruebas **no** cubren la interfaz.
+Cómo funciona el arnés: `qa/arnes/construir.mjs` copia el código **real** de `src/data`, `src/config/formato.js` y todo `src/context` a `qa/arnes/app/*.mjs` (generado, no editar) y sustituye los paquetes (react, react-native, op-sqlite → `node:sqlite`, uuid, react-native-fs; en `STUBS`) y algunos componentes de la app (`ui/LoadingScreen`, `ui/Toast`; en `STUBS_APP`, por el archivo al que apunta el import) con `qa/arnes/stubs`. Si agregas en esos archivos un import de un paquete (cualquier import no relativo) o de un componente de la interfaz, agrega su sustituto; si no, `construir.mjs` falla. Estas pruebas **no** cubren la interfaz.
 
 ## Arquitectura
 
@@ -38,7 +38,12 @@ Cómo funciona el arnés: `qa/arnes/construir.mjs` copia el código **real** de 
 - `consultas/`: lecturas SQL agregadas por pantalla (corte, reportes, créditos, historial, compras, producto).
 - `migrations.js` (versión en `PRAGMA user_version`), `ids.js` (UUIDv7, `nowIso`), `nombres.js` (`normalizarNombre`: única regla de "mismo cliente"), `seed.js` (datos de un año, solo en `__DEV__` y con `SEED_AUTOMATICO`), `respaldo.js` (exportar e importar la copia).
 
-**`src/context/StoreContext.js`** contiene todas las acciones. En memoria solo guarda lo pequeño (`products`, `categories`, `clientes`, `config`); ventas, abonos y compras se consultan con SQL. Hay dos estilos de acción:
+**`src/context/`** contiene el estado y todas las acciones:
+- `StoreContext.js`: el núcleo (`StoreProvider`: estado, arranque, recarga desde la BD, `decidirEnBD`, log, configuración y `render()`, que entrega cada acción por nombre al contexto).
+- `actions/*.js` (`products`, `purchases`, `categories`, `sales`, `customers`, `dataManagement`): cada archivo exporta una fábrica (`accionesVentas = tienda => ({ … })`) que el constructor de `StoreProvider` copia a la instancia con `Object.assign`. Dentro de una acción, `tienda` es lo que en la clase sería `this`; una acción nueva va en el archivo de su dominio y se agrega también al `value` de `render()`; un archivo de acciones nuevo se registra en el `Object.assign` del constructor. Los nombres no deben repetirse entre fábricas ni con el núcleo: `Object.assign` sobrescribiría el anterior sin avisar.
+- `activityLog.js` (`LOG_TIPOS`, `LOG_META`, `nuevoEvento`; `StoreContext.js` los reexporta) y `stockEffects.js` (`aplicarEfecto`, `redondearStock`…).
+
+En memoria solo guarda lo pequeño (`products`, `categories`, `clientes`, `config`); ventas, abonos y compras se consultan con SQL. Hay dos estilos de acción:
 - **Optimista** (p. ej. `addSale`): actualiza la memoria primero y encola la escritura; si falla, `onErrorPersistencia` avisa y recarga desde la BD (la fuente de verdad).
 - **"La BD decide"** (`decidirEnBD`: abonos, eliminar venta, editar compra…): lee y escribe dentro de la transacción y, después del commit, aplica a memoria el `efecto` con `aplicarEfecto`, que **suma deltas** de stock en vez de fijar valores.
 - Cada acción relevante registra un evento en `activity_log` (`LOG_TIPOS` / `LOG_META`).

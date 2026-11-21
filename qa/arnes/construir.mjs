@@ -1,13 +1,13 @@
-// Copia el código REAL de la app (src/data, src/config/formato.js y
-// src/context/StoreContext.js) a qa/arnes/app como módulos .mjs, compila el
-// JSX de StoreContext y redirige lo nativo a sustitutos (qa/arnes/stubs):
+// Copia el código REAL de la app (src/data, src/config/formato.js y todo
+// src/context) a qa/arnes/app como módulos .mjs, compila el JSX de
+// src/context y redirige lo nativo a sustitutos (qa/arnes/stubs):
 //   react / react-native / LoadingScreen → sustitutos mínimos
 //   @op-engineering/op-sqlite           → node:sqlite con la misma API
 //   uuid                                 → UUIDv7 con node:crypto
 // Así en Node corren las acciones, la cola de escritura y las consultas
 // reales de la app. Se ejecuta solo desde los scripts de pruebas.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, posix } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
@@ -18,14 +18,18 @@ const APP = join(AQUI, 'app');
 const require = createRequire(join(PROYECTO, 'package.json'));
 const babel = require('@babel/core');
 
+// Paquetes: por su nombre. Componentes de la app: por el archivo al que apunta
+// el import (relativo a src, sin extensión), así funciona desde cualquier carpeta.
 const STUBS = {
   'react': 'stubs/react.mjs',
   'react-native': 'stubs/react-native.mjs',
   'uuid': 'stubs/uuid.mjs',
   '@op-engineering/op-sqlite': 'stubs/op-sqlite.mjs',
   '@dr.pogodin/react-native-fs': 'stubs/react-native-fs.mjs',
-  '../ui/LoadingScreen': 'stubs/LoadingScreen.mjs',
-  '../ui/Toast': 'stubs/Toast.mjs',
+};
+const STUBS_APP = {
+  'ui/LoadingScreen': 'stubs/LoadingScreen.mjs',
+  'ui/Toast': 'stubs/Toast.mjs',
 };
 
 export const construir = () => {
@@ -36,11 +40,12 @@ export const construir = () => {
     else if (e.name.endsWith('.js')) archivos.push(`${dir}/${e.name}`);
   });
   recorrer('data');
-  archivos.push('config/formato.js', 'context/StoreContext.js');
+  recorrer('context');
+  archivos.push('config/formato.js');
 
   for (const rel of archivos) {
     let codigo = readFileSync(join(SRC, rel), 'utf8');
-    if (rel.endsWith('StoreContext.js')) {
+    if (rel.startsWith('context/')) {
       codigo = babel.transformSync(codigo, {
         babelrc: false, configFile: false,
         plugins: [require.resolve('@babel/plugin-transform-react-jsx')],
@@ -48,8 +53,10 @@ export const construir = () => {
     }
     const destino = join(APP, rel.replace(/\.js$/, '.mjs'));
     codigo = codigo.replace(/from\s+'([^']+)'/g, (m, ruta) => {
-      if (STUBS[ruta]) {
-        let r = relative(dirname(destino), join(AQUI, STUBS[ruta])).replace(/\\/g, '/');
+      const enApp = ruta.startsWith('.') ? posix.normalize(posix.join(posix.dirname(rel), ruta)) : null;
+      const stub = STUBS[ruta] ?? (enApp && STUBS_APP[enApp]);
+      if (stub) {
+        let r = relative(dirname(destino), join(AQUI, stub)).replace(/\\/g, '/');
         if (!r.startsWith('.')) r = `./${r}`;
         return `from '${r}'`;
       }
